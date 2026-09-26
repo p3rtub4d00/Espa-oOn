@@ -318,75 +318,99 @@ export default function AdminPanel({ onClose }) {
                         </div>
                       </div>
 
-                      <div className="visit-admin-response">
-                        <label>
-                          <span>Data confirmada / sugerida pelo proprietário</span>
-                          <input
-                            type="date"
-                            value={v.confirmedDate || requestedDate || ''}
-                            onChange={(e) => updateVisit({ ...v, confirmedDate: e.target.value })}
-                          />
-                        </label>
-                        <label>
-                          <span>Horário confirmado / sugerido</span>
-                          <input
-                            type="time"
-                            value={v.confirmedTime || requestedTime || ''}
-                            onChange={(e) => updateVisit({ ...v, confirmedTime: e.target.value })}
-                          />
-                        </label>
-                        <label className="visit-message-field">
-                          <span>Mensagem para o cliente</span>
-                          <input
-                            value={v.ownerMessage || ''}
-                            onChange={(e) => updateVisit({ ...v, ownerMessage: e.target.value })}
-                            placeholder="Ex.: Posso receber você às 16h."
-                          />
-                        </label>
-                      </div>
-
-                      <div className="visit-admin-actions">
-                        <button
-                          className="confirm"
-                          onClick={() => {
-                            const confirmedDate = v.confirmedDate || requestedDate
-                            const confirmedTime = v.confirmedTime || requestedTime
-                            const nextVisit = {
+                      {v.status === 'confirmed' ? (
+                        <div className="visit-confirmed-locked">
+                          <div>
+                            <span>Visita confirmada</span>
+                            <strong>
+                              {(v.confirmedDate || requestedDate)?.split('-').reverse().join('/')} às{' '}
+                              {v.confirmedTime || requestedTime}
+                            </strong>
+                          </div>
+                          <button
+                            className="reopen"
+                            onClick={() => updateVisit({
                               ...v,
-                              status: 'confirmed',
-                              confirmedDate,
-                              confirmedTime,
-                              respondedAt: new Date().toISOString(),
-                            }
-                            updateVisit(nextVisit)
-                            openWhatsAppConfirmation(nextVisit, confirmedDate, confirmedTime)
-                          }}
-                        >
-                          Confirmar e avisar no WhatsApp
-                        </button>
-                        <button
-                          className="propose"
-                          onClick={() => updateVisit({
-                            ...v,
-                            status: 'counter-proposed',
-                            confirmedDate: v.confirmedDate || requestedDate,
-                            confirmedTime: v.confirmedTime || requestedTime,
-                            respondedAt: new Date().toISOString(),
-                          })}
-                        >
-                          Sugerir outro horário
-                        </button>
-                        <button
-                          className="reject"
-                          onClick={() => updateVisit({
-                            ...v,
-                            status: 'rejected',
-                            respondedAt: new Date().toISOString(),
-                          })}
-                        >
-                          Recusar
-                        </button>
-                      </div>
+                              status: 'pending-owner-confirmation',
+                              respondedAt: null,
+                            })}
+                          >
+                            Reabrir solicitação
+                          </button>
+                        </div>
+                      ) : (
+                        <>
+                          <div className="visit-admin-response">
+                            <label>
+                              <span>Data confirmada / sugerida pelo proprietário</span>
+                              <input
+                                type="date"
+                                value={v.confirmedDate || requestedDate || ''}
+                                onChange={(e) => updateVisit({ ...v, confirmedDate: e.target.value })}
+                              />
+                            </label>
+                            <label>
+                              <span>Horário confirmado / sugerido</span>
+                              <input
+                                type="time"
+                                value={v.confirmedTime || requestedTime || ''}
+                                onChange={(e) => updateVisit({ ...v, confirmedTime: e.target.value })}
+                              />
+                            </label>
+                            <label className="visit-message-field">
+                              <span>Mensagem para o cliente</span>
+                              <input
+                                value={v.ownerMessage || ''}
+                                onChange={(e) => updateVisit({ ...v, ownerMessage: e.target.value })}
+                                placeholder="Ex.: Posso receber você às 16h."
+                              />
+                            </label>
+                          </div>
+
+                          <div className="visit-admin-actions">
+                            <button
+                              className="confirm"
+                              onClick={() => {
+                                const confirmedDate = v.confirmedDate || requestedDate
+                                const confirmedTime = v.confirmedTime || requestedTime
+                                const nextVisit = {
+                                  ...v,
+                                  status: 'confirmed',
+                                  confirmedDate,
+                                  confirmedTime,
+                                  respondedAt: new Date().toISOString(),
+                                }
+                                updateVisit(nextVisit)
+                                openWhatsAppConfirmation(nextVisit, confirmedDate, confirmedTime)
+                              }}
+                            >
+                              Confirmar e avisar no WhatsApp
+                            </button>
+                            <button
+                              className="propose"
+                              onClick={() => updateVisit({
+                                ...v,
+                                status: 'counter-proposed',
+                                confirmedDate: v.confirmedDate || requestedDate,
+                                confirmedTime: v.confirmedTime || requestedTime,
+                                respondedAt: new Date().toISOString(),
+                              })}
+                            >
+                              Sugerir outro horário
+                            </button>
+                            <button
+                              className="reject"
+                              onClick={() => updateVisit({
+                                ...v,
+                                status: 'rejected',
+                                respondedAt: new Date().toISOString(),
+                              })}
+                            >
+                              Recusar
+                            </button>
+                          </div>
+                        </>
+                      )}
                     </article>
                   )
                 })}

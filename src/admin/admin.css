@@ -758,3 +758,244 @@
     width: 100%;
   }
 }
+
+
+.content-admin-form {
+  margin-bottom: 20px;
+  display: grid;
+  gap: 12px;
+}
+
+.content-admin-form label > span,
+.amenity-admin-form label > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #667c82;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.content-admin-form label > div {
+  display: flex;
+  gap: 8px;
+}
+
+.content-admin-form input,
+.amenity-admin-form input,
+.amenity-admin-form select {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid rgba(16,35,45,.1);
+  border-radius: 10px;
+  outline: 0;
+  color: #203d44;
+  background: white;
+}
+
+.content-admin-form input:focus,
+.amenity-admin-form input:focus,
+.amenity-admin-form select:focus {
+  border-color: #2b967b;
+  box-shadow: 0 0 0 3px rgba(43,150,123,.08);
+}
+
+.content-admin-form button,
+.amenity-admin-form > button,
+.upload-local-box > button {
+  min-height: 44px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: #167f68;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.upload-local-box {
+  padding: 14px;
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  border: 1px dashed #b8cac4;
+  border-radius: 12px;
+  background: #f8faf8;
+}
+
+.upload-local-box > div {
+  flex: 1;
+}
+
+.upload-local-box strong,
+.upload-local-box span {
+  display: block;
+}
+
+.upload-local-box strong {
+  color: #29474e;
+  font-size: 10px;
+}
+
+.upload-local-box span {
+  margin-top: 3px;
+  color: #829398;
+  font-size: 9px;
+}
+
+.content-admin-message {
+  margin: 0;
+  color: #60777c;
+  font-size: 10px;
+}
+
+.admin-gallery-grid {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 12px;
+}
+
+.admin-gallery-grid article {
+  overflow: hidden;
+  border: 1px solid rgba(16,35,45,.08);
+  border-radius: 13px;
+  background: white;
+}
+
+.admin-gallery-grid img {
+  width: 100%;
+  aspect-ratio: 4 / 3;
+  display: block;
+  object-fit: cover;
+}
+
+.admin-gallery-grid article > div {
+  padding: 9px 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.admin-gallery-grid span {
+  color: #60777c;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-gallery-grid button,
+.amenity-admin-list article > button {
+  width: 32px;
+  height: 32px;
+  display: grid;
+  place-items: center;
+  border: 1px solid #efd0ca;
+  border-radius: 9px;
+  color: #9b4b40;
+  background: #fff5f3;
+}
+
+.amenity-admin-form {
+  margin-bottom: 20px;
+  display: grid;
+  grid-template-columns: 1fr 1.4fr .8fr auto;
+  gap: 10px;
+  align-items: end;
+}
+
+.amenity-admin-list {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.amenity-admin-list article {
+  padding: 13px;
+  display: grid;
+  grid-template-columns: 42px 1fr auto;
+  gap: 11px;
+  align-items: center;
+  border: 1px solid rgba(16,35,45,.08);
+  border-radius: 13px;
+  background: #fbfcfb;
+}
+
+.amenity-admin-icon {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 11px;
+  color: #15755f;
+  background: #e6f2ed;
+}
+
+.amenity-admin-icon svg {
+  width: 19px;
+}
+
+.amenity-admin-list strong,
+.amenity-admin-list span {
+  display: block;
+}
+
+.amenity-admin-list strong {
+  color: #29474e;
+  font-size: 10px;
+}
+
+.amenity-admin-list span {
+  margin-top: 3px;
+  color: #829398;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+@media (max-width: 900px) {
+  .admin-gallery-grid {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .amenity-admin-form {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .amenity-admin-form > button {
+    min-height: 46px;
+  }
+}
+
+@media (max-width: 680px) {
+  .admin-sidebar nav {
+    display: flex;
+    overflow-x: auto;
+    gap: 4px;
+    scrollbar-width: none;
+  }
+
+  .admin-sidebar nav::-webkit-scrollbar {
+    display: none;
+  }
+
+  .admin-sidebar nav button {
+    min-width: 52px;
+    flex: 0 0 52px;
+  }
+
+  .content-admin-form label > div,
+  .upload-local-box {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .admin-gallery-grid,
+  .amenity-admin-list,
+  .amenity-admin-form {
+    grid-template-columns: 1fr;
+  }
+}

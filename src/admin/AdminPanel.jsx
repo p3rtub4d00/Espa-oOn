@@ -10,8 +10,11 @@ import {
   Users,
   WalletCards,
   FileCheck2,
+  Images,
+  ListPlus,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
+import ContentManager from './ContentManager'
 import { loadSettings, saveSettings } from '../data/settings'
 import './admin.css'
 
@@ -21,6 +24,8 @@ const menu = [
   ['reservations', 'Reservas', WalletCards],
   ['visits', 'Visitas', CalendarCheck2],
   ['contracts', 'Contratos', FileCheck2],
+  ['gallery', 'Galeria', Images],
+  ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
 ]
 
@@ -250,6 +255,14 @@ export default function AdminPanel({ onClose }) {
         )}
 
         {active === 'contracts' && <ContractsPanel />}
+
+        {active === 'gallery' && (
+          <ContentManager mode="gallery" settings={settings} setSettings={setSettings} />
+        )}
+
+        {active === 'amenities' && (
+          <ContentManager mode="amenities" settings={settings} setSettings={setSettings} />
+        )}
 
         {active === 'visits' && (
           <section className="admin-card large">

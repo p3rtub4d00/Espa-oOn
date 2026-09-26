@@ -21,6 +21,8 @@ import {
   UtensilsCrossed,
   Car,
   Users,
+  Snowflake,
+  Armchair,
 } from 'lucide-react'
 
 const heroSlides = [
@@ -113,6 +115,17 @@ function App() {
 
   const monthDays = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), [])
 
+  const amenityIcon = (type) => {
+    if (type === 'pool') return Waves
+    if (type === 'field' || type === 'sport') return Goal
+    if (type === 'food') return UtensilsCrossed
+    if (type === 'cold') return Snowflake
+    if (type === 'chair') return Armchair
+    return Gamepad2
+  }
+
+  const publicGallery = siteSettings.gallery?.length ? siteSettings.gallery : gallery
+
   const nextSlide = () => setSlide((current) => (current + 1) % heroSlides.length)
   const prevSlide = () =>
     setSlide((current) => (current - 1 + heroSlides.length) % heroSlides.length)
@@ -178,7 +191,9 @@ function App() {
             <div
               className={`hero-slide ${index === slide ? 'is-active' : ''}`}
               key={item.title}
-              style={{ backgroundImage: `url("${item.image}")` }}
+              style={{
+                backgroundImage: `url("${publicGallery[index % publicGallery.length] || item.image}")`,
+              }}
             />
           ))}
           <div className="hero-overlay" />
@@ -258,13 +273,16 @@ function App() {
           </div>
 
           <div className="amenities-grid">
-            {amenities.map(({ icon: Icon, label, text }) => (
-              <article className="amenity-card" key={label}>
-                <div className="amenity-icon"><Icon /></div>
-                <h3>{label}</h3>
-                <p>{text}</p>
-              </article>
-            ))}
+            {siteSettings.amenities.map((item) => {
+              const Icon = amenityIcon(item.icon)
+              return (
+                <article className="amenity-card" key={item.id}>
+                  <div className="amenity-icon"><Icon /></div>
+                  <h3>{item.name}</h3>
+                  <p>{item.description}</p>
+                </article>
+              )
+            })}
           </div>
         </section>
 
@@ -273,11 +291,11 @@ function App() {
             <div className="section-heading light">
               <span className="section-kicker">Conheça o espaço</span>
               <h2>Um lugar que dá vontade de ficar.</h2>
-              <p>Estas imagens são provisórias e serão substituídas pelas fotos reais do clube.</p>
+              <p>Veja alguns detalhes da estrutura disponível para sua locação.</p>
             </div>
 
             <div className="gallery-grid">
-              {gallery.map((src, index) => (
+              {publicGallery.map((src, index) => (
                 <button className={index === 0 ? 'gallery-main' : ''} key={src}>
                   <img src={src} alt={`Área do espaço ${index + 1}`} />
                 </button>

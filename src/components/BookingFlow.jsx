@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import ContractFlow from './ContractFlow'
+import { getPriceForDay, loadSettings } from '../data/settings'
 import {
   ArrowLeft,
   Check,
@@ -14,20 +15,6 @@ import {
   X,
 } from 'lucide-react'
 import './booking.css'
-
-const PRICES = {
-  weekday: { '12h': 450, '24h': 650 },
-  fridaySaturday: { '12h': 700, '24h': 950 },
-  sunday: { '12h': 650, '24h': 850 },
-}
-
-function getPrice(day, period) {
-  const date = new Date(2026, 9, day)
-  const weekday = date.getDay()
-  if (weekday === 0) return PRICES.sunday[period]
-  if (weekday === 5 || weekday === 6) return PRICES.fridaySaturday[period]
-  return PRICES.weekday[period]
-}
 
 function money(value) {
   return new Intl.NumberFormat('pt-BR', {
@@ -60,7 +47,7 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, '$1-$2')
 }
 
-export default function BookingFlow({ day, onClose, onReserved }) {
+export default function BookingFlow({ day, settings = loadSettings(), onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
   const [copied, setCopied] = useState(false)
@@ -74,7 +61,7 @@ export default function BookingFlow({ day, onClose, onReserved }) {
   })
   const [errors, setErrors] = useState({})
 
-  const price = getPrice(day, period)
+  const price = getPriceForDay(day, period, settings)
   const dateLabel = String(day).padStart(2, '0') + '/10/2026'
   const reservationId = useMemo(
     () => 'ESP-2026-' + String(day).padStart(2, '0') + '-' + Math.floor(1000 + Math.random() * 9000),
@@ -185,7 +172,7 @@ export default function BookingFlow({ day, onClose, onReserved }) {
                       <strong>{title}</strong>
                       <small>{description}</small>
                     </span>
-                    <b>{money(getPrice(day, value))}</b>
+                    <b>{money(getPriceForDay(day, value, settings))}</b>
                     <i>{period === value && <Check size={15} />}</i>
                   </button>
                 ))}

@@ -1,4 +1,5 @@
 import { useMemo, useState } from 'react'
+import ContractFlow from './ContractFlow'
 import {
   ArrowLeft,
   Check,
@@ -63,6 +64,8 @@ export default function BookingFlow({ day, onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
   const [copied, setCopied] = useState(false)
+  const [contractOpen, setContractOpen] = useState(false)
+  const [confirmedReservation, setConfirmedReservation] = useState(null)
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -128,6 +131,7 @@ export default function BookingFlow({ day, onClose, onReserved }) {
 
     const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
     localStorage.setItem('espacoon_reservations', JSON.stringify([...stored, reservation]))
+    setConfirmedReservation(reservation)
     setStep(4)
     onReserved?.(day)
   }
@@ -367,18 +371,30 @@ export default function BookingFlow({ day, onClose, onReserved }) {
               <div className="next-contract">
                 <ShieldCheck />
                 <span>
-                  <strong>Próxima etapa do projeto</strong>
-                  A partir desta reserva vamos gerar o contrato e a assinatura eletrônica.
+                  <strong>Contrato disponível</strong>
+                  Gere agora o documento da reserva e registre a assinatura eletrônica demonstrativa.
                 </span>
               </div>
 
-              <button className="booking-primary" onClick={onClose}>
-                Voltar para o site
-              </button>
+              <div className="booking-actions final-actions">
+                <button className="booking-back" onClick={onClose}>
+                  Voltar para o site
+                </button>
+                <button className="booking-primary" onClick={() => setContractOpen(true)}>
+                  Gerar e assinar contrato
+                </button>
+              </div>
             </div>
           )}
         </div>
       </div>
+
+      {contractOpen && confirmedReservation && (
+        <ContractFlow
+          reservation={confirmedReservation}
+          onClose={() => setContractOpen(false)}
+        />
+      )}
     </div>
   )
 }

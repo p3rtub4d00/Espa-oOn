@@ -12,6 +12,7 @@ import {
   FileCheck2,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
+import { loadSettings, saveSettings } from '../data/settings'
 import './admin.css'
 
 const menu = [
@@ -44,14 +45,9 @@ export default function AdminPanel({ onClose }) {
   const [active, setActive] = useState('overview')
   const [reservations] = useState(getReservations)
   const [visits] = useState(getVisits)
-  const [prices, setPrices] = useState({
-    weekday12: 450,
-    weekday24: 650,
-    weekend12: 700,
-    weekend24: 950,
-    sunday12: 650,
-    sunday24: 850,
-  })
+  const [settings, setSettings] = useState(loadSettings)
+  const prices = settings.prices
+  const blockedDays = new Set(settings.blockedDays || [])
 
   const revenue = useMemo(
     () => reservations.reduce((sum, item) => sum + Number(item.price || 0), 0),
@@ -179,10 +175,25 @@ export default function AdminPanel({ onClose }) {
               {Array.from({ length: 4 }).map((_, i) => <span key={'e'+i} />)}
               {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
                 const reservation = reservations.find((r) => Number(r.day) === day)
+                const blocked = blockedDays.has(day)
+                const toggleBlocked = () => {
+                  if (reservation) return
+                  const nextDays = blocked
+                    ? settings.blockedDays.filter((item) => Number(item) !== day)
+                    : [...settings.blockedDays, day]
+                  const next = { ...settings, blockedDays: nextDays }
+                  setSettings(next)
+                  saveSettings(next)
+                }
                 return (
-                  <button className={reservation ? 'reserved' : ''} key={day}>
+                  <button
+                    className={reservation ? 'reserved' : blocked ? 'blocked' : ''}
+                    key={day}
+                    onClick={toggleBlocked}
+                    title={reservation ? 'Data reservada' : blocked ? 'Clique para liberar' : 'Clique para bloquear'}
+                  >
                     <b>{day}</b>
-                    <small>{reservation ? reservation.period : 'Livre'}</small>
+                    <small>{reservation ? reservation.period : blocked ? 'Bloqueado' : 'Livre'}</small>
                   </button>
                 )
               })}
@@ -252,12 +263,26 @@ export default function AdminPanel({ onClose }) {
               ].map(([label, key]) => (
                 <label key={key}>
                   <span>{label}</span>
-                  <div><small>R$</small><input type="number" value={prices[key]} onChange={(e) => setPrices((p) => ({ ...p, [key]: Number(e.target.value) }))} /></div>
+                  <div>
+                    <small>R$</small>
+                    <input
+                      type="number"
+                      value={prices[key]}
+                      onChange={(e) => {
+                        const next = {
+                          ...settings,
+                          prices: { ...settings.prices, [key]: Number(e.target.value) },
+                        }
+                        setSettings(next)
+                        saveSettings(next)
+                      }}
+                    />
+                  </div>
                 </label>
               ))}
             </div>
             <div className="admin-demo-note">
-              Estes valores ainda não alteram o site público. A sincronização será ligada quando criarmos a camada de dados do sistema.
+              Os valores são salvos neste navegador e passam a ser usados no site público quando você voltar ao site.
             </div>
           </section>
         )}

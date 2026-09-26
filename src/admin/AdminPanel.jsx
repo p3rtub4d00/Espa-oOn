@@ -41,6 +41,34 @@ function getVisits() {
   return JSON.parse(localStorage.getItem('espacoon_visits') || '[]')
 }
 
+function normalizeWhatsAppNumber(phone = '') {
+  const digits = phone.replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.startsWith('55') ? digits : '55' + digits
+}
+
+function openWhatsAppConfirmation(visit, date, time) {
+  const number = normalizeWhatsAppNumber(visit.phone)
+  if (!number) return
+
+  const formattedDate = date ? date.split('-').reverse().join('/') : ''
+  const message = [
+    'Olá, ' + visit.name + '!',
+    '',
+    'Sua visita ao EspaçoOn foi confirmada.',
+    'Data: ' + formattedDate,
+    'Horário: ' + time,
+    '',
+    'Se precisar alterar o horário, responda por aqui.',
+  ].join('\n')
+
+  window.open(
+    'https://wa.me/' + number + '?text=' + encodeURIComponent(message),
+    '_blank',
+    'noopener,noreferrer',
+  )
+}
+
 export default function AdminPanel({ onClose }) {
   const [active, setActive] = useState('overview')
   const [reservations] = useState(getReservations)
@@ -307,15 +335,21 @@ export default function AdminPanel({ onClose }) {
                       <div className="visit-admin-actions">
                         <button
                           className="confirm"
-                          onClick={() => updateVisit({
-                            ...v,
-                            status: 'confirmed',
-                            confirmedDate: v.confirmedDate || requestedDate,
-                            confirmedTime: v.confirmedTime || requestedTime,
-                            respondedAt: new Date().toISOString(),
-                          })}
+                          onClick={() => {
+                            const confirmedDate = v.confirmedDate || requestedDate
+                            const confirmedTime = v.confirmedTime || requestedTime
+                            const nextVisit = {
+                              ...v,
+                              status: 'confirmed',
+                              confirmedDate,
+                              confirmedTime,
+                              respondedAt: new Date().toISOString(),
+                            }
+                            updateVisit(nextVisit)
+                            openWhatsAppConfirmation(nextVisit, confirmedDate, confirmedTime)
+                          }}
                         >
-                          Confirmar
+                          Confirmar e avisar no WhatsApp
                         </button>
                         <button
                           className="propose"

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
 import VisitScheduler from './components/VisitScheduler'
 import AdminPanel from './admin/AdminPanel'
+import { getPriceForDay, loadSettings } from './data/settings'
 import {
   ArrowRight,
   CalendarDays,
@@ -96,6 +97,7 @@ function App() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(false)
+  const [siteSettings, setSiteSettings] = useState(loadSettings)
   const [reservedDays, setReservedDays] = useState(() => {
     if (typeof window === 'undefined') return new Set()
     const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
@@ -121,7 +123,14 @@ function App() {
   }
 
   if (adminOpen) {
-    return <AdminPanel onClose={() => setAdminOpen(false)} />
+    return (
+      <AdminPanel
+        onClose={() => {
+          setSiteSettings(loadSettings())
+          setAdminOpen(false)
+        }}
+      />
+    )
   }
 
   return (
@@ -287,7 +296,29 @@ function App() {
           </div>
 
           <div className="pricing-grid">
-            {priceCards.map((card) => (
+            {[
+              {
+                title: 'Segunda a quinta',
+                subtitle: 'Ideal para encontros durante a semana',
+                twelve: siteSettings.prices.weekday12,
+                full: siteSettings.prices.weekday24,
+                featured: false,
+              },
+              {
+                title: 'Sexta e sábado',
+                subtitle: 'Para aproveitar o fim de semana',
+                twelve: siteSettings.prices.weekend12,
+                full: siteSettings.prices.weekend24,
+                featured: true,
+              },
+              {
+                title: 'Domingos',
+                subtitle: 'Seu domingo com a família e amigos',
+                twelve: siteSettings.prices.sunday12,
+                full: siteSettings.prices.sunday24,
+                featured: false,
+              },
+            ].map((card) => (
               <article className={`price-card ${card.featured ? 'featured' : ''}`} key={card.title}>
                 {card.featured && <span className="popular-badge">Mais procurado</span>}
                 <h3>{card.title}</h3>
@@ -295,11 +326,11 @@ function App() {
 
                 <div className="price-row">
                   <span><Clock3 size={17} /> 12 horas</span>
-                  <strong>{card.twelve}</strong>
+                  <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.twelve)}</strong>
                 </div>
                 <div className="price-row">
                   <span><CalendarDays size={17} /> 24 horas</span>
-                  <strong>{card.full}</strong>
+                  <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.full)}</strong>
                 </div>
 
                 <button onClick={() => scrollTo('agenda')}>
@@ -357,7 +388,7 @@ function App() {
                 <span className="calendar-empty" />
                 <span className="calendar-empty" />
                 {monthDays.map((day) => {
-                  const busy = mockBusyDays.has(day) || reservedDays.has(day)
+                  const busy = mockBusyDays.has(day) || reservedDays.has(day) || siteSettings.blockedDays.includes(day)
                   const selected = selectedDay === day
                   return (
                     <button
@@ -434,6 +465,7 @@ function App() {
       {bookingOpen && selectedDay && (
         <BookingFlow
           day={selectedDay}
+          settings={siteSettings}
           onClose={() => setBookingOpen(false)}
           onReserved={(day) => {
             setReservedDays((current) => new Set([...current, day]))

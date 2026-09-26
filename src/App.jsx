@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import BookingFlow from './components/BookingFlow'
 import {
   ArrowRight,
   CalendarDays,
@@ -84,12 +85,18 @@ const priceCards = [
   },
 ]
 
-const mockBusyDays = new Set([5, 9, 13, 18, 21, 27])
+const mockBusyDays = new Set([3, 10, 17, 24, 31])
 
 function App() {
   const [slide, setSlide] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
+  const [bookingOpen, setBookingOpen] = useState(false)
+  const [reservedDays, setReservedDays] = useState(() => {
+    if (typeof window === 'undefined') return new Set()
+    const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
+    return new Set(stored.map((item) => item.day))
+  })
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -98,7 +105,7 @@ function App() {
     return () => clearInterval(id)
   }, [])
 
-  const monthDays = useMemo(() => Array.from({ length: 30 }, (_, i) => i + 1), [])
+  const monthDays = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), [])
 
   const nextSlide = () => setSlide((current) => (current + 1) % heroSlides.length)
   const prevSlide = () =>
@@ -302,8 +309,8 @@ function App() {
               <span className="section-kicker">Agenda do espaço</span>
               <h2>Escolha sua data sem precisar esperar resposta.</h2>
               <p>
-                Confira uma prévia da agenda. Na próxima etapa, vamos transformar este calendário
-                no fluxo completo de reserva com 12h/24h e bloqueio temporário da data.
+                Confira as datas disponíveis e avance para uma reserva completa de demonstração.
+                Nesta fase, os dados ficam apenas neste navegador e o pagamento Pix é simulado.
               </p>
 
               <div className="legend">
@@ -322,7 +329,7 @@ function App() {
               <div className="calendar-header">
                 <div>
                   <span>Disponibilidade</span>
-                  <strong>Setembro 2026</strong>
+                  <strong>Outubro 2026</strong>
                 </div>
                 <div className="calendar-nav">
                   <button><ChevronLeft /></button>
@@ -339,8 +346,10 @@ function App() {
               <div className="calendar-days">
                 <span className="calendar-empty" />
                 <span className="calendar-empty" />
+                <span className="calendar-empty" />
+                <span className="calendar-empty" />
                 {monthDays.map((day) => {
-                  const busy = mockBusyDays.has(day)
+                  const busy = mockBusyDays.has(day) || reservedDays.has(day)
                   const selected = selectedDay === day
                   return (
                     <button
@@ -360,9 +369,9 @@ function App() {
                   <>
                     <div>
                       <span>Data selecionada</span>
-                      <strong>{String(selectedDay).padStart(2, '0')}/09/2026</strong>
+                      <strong>{String(selectedDay).padStart(2, '0')}/10/2026</strong>
                     </div>
-                    <button>
+                    <button onClick={() => setBookingOpen(true)}>
                       Continuar
                       <ArrowRight size={17} />
                     </button>
@@ -409,6 +418,16 @@ function App() {
           </button>
         </section>
       </main>
+
+      {bookingOpen && selectedDay && (
+        <BookingFlow
+          day={selectedDay}
+          onClose={() => setBookingOpen(false)}
+          onReserved={(day) => {
+            setReservedDays((current) => new Set([...current, day]))
+          }}
+        />
+      )}
 
       <footer>
         <a className="brand footer-brand" href="#inicio">

@@ -124,7 +124,7 @@ function App() {
     return Gamepad2
   }
 
-  const publicGallery = siteSettings.gallery?.length ? siteSettings.gallery : gallery
+  const publicGallery = Array.isArray(siteSettings.gallery) ? siteSettings.gallery : gallery
 
   const nextSlide = () => setSlide((current) => (current + 1) % heroSlides.length)
   const prevSlide = () =>
@@ -192,7 +192,7 @@ function App() {
               className={`hero-slide ${index === slide ? 'is-active' : ''}`}
               key={item.title}
               style={{
-                backgroundImage: `url("${publicGallery[index % publicGallery.length] || item.image}")`,
+                backgroundImage: `url("${publicGallery.length ? publicGallery[index % publicGallery.length] : item.image}")`,
               }}
             />
           ))}

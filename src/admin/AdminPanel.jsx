@@ -9,7 +9,9 @@ import {
   Settings2,
   Users,
   WalletCards,
+  FileCheck2,
 } from 'lucide-react'
+import ContractsPanel from './ContractsPanel'
 import './admin.css'
 
 const menu = [
@@ -17,6 +19,7 @@ const menu = [
   ['calendar', 'Agenda', CalendarDays],
   ['reservations', 'Reservas', WalletCards],
   ['visits', 'Visitas', CalendarCheck2],
+  ['contracts', 'Contratos', FileCheck2],
   ['prices', 'Preços', CircleDollarSign],
 ]
 
@@ -206,6 +209,8 @@ export default function AdminPanel({ onClose }) {
             </div>
           </section>
         )}
+
+        {active === 'contracts' && <ContractsPanel />}
 
         {active === 'visits' && (
           <section className="admin-card large">

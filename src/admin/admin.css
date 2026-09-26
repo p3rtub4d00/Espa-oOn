@@ -578,3 +578,15 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.admin-calendar button.blocked {
+  border-color: #e5b8a5;
+  color: #8b4b35;
+  background: #fff1eb;
+}
+
+.admin-calendar button.blocked:hover {
+  border-color: #d99a7e;
+  background: #ffe9df;
+}

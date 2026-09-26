@@ -44,7 +44,7 @@ function getVisits() {
 export default function AdminPanel({ onClose }) {
   const [active, setActive] = useState('overview')
   const [reservations] = useState(getReservations)
-  const [visits] = useState(getVisits)
+  const [visits, setVisits] = useState(getVisits)
   const [settings, setSettings] = useState(loadSettings)
   const prices = settings.prices
   const blockedDays = new Set(settings.blockedDays || [])
@@ -226,22 +226,126 @@ export default function AdminPanel({ onClose }) {
         {active === 'visits' && (
           <section className="admin-card large">
             <div className="admin-card-title">
-              <div><span>Agenda de visitas</span><strong>{visits.length} agendamentos</strong></div>
+              <div><span>Solicitações de visita</span><strong>{visits.length} registros</strong></div>
             </div>
+
             {visits.length ? (
-              <div className="admin-table visits-table">
-                <div className="table-head"><span>Visitante</span><span>Data</span><span>Horário</span><span>Contato</span></div>
-                {visits.map((v) => (
-                  <div className="table-row" key={v.id}>
-                    <span><strong>{v.name}</strong><small>{v.id}</small></span>
-                    <span>{v.date.split('-').reverse().join('/')}</span>
-                    <span>{v.time}</span>
-                    <span>{v.phone}</span>
-                  </div>
-                ))}
+              <div className="visit-admin-list">
+                {visits.map((v) => {
+                  const requestedDate = v.requestedDate || v.date
+                  const requestedTime = v.requestedTime || v.time
+                  const updateVisit = (nextVisit) => {
+                    const next = visits.map((item) => item.id === v.id ? nextVisit : item)
+                    setVisits(next)
+                    localStorage.setItem('espacoon_visits', JSON.stringify(next))
+                  }
+
+                  return (
+                    <article className="visit-admin-card" key={v.id}>
+                      <div className="visit-admin-head">
+                        <div>
+                          <strong>{v.name}</strong>
+                          <span>{v.phone} • {v.id}</span>
+                        </div>
+                        <i className={
+                          v.status === 'confirmed'
+                            ? 'visit-status confirmed'
+                            : v.status === 'rejected'
+                              ? 'visit-status rejected'
+                              : v.status === 'counter-proposed'
+                                ? 'visit-status proposed'
+                                : 'visit-status pending'
+                        }>
+                          {v.status === 'confirmed'
+                            ? 'Confirmada'
+                            : v.status === 'rejected'
+                              ? 'Recusada'
+                              : v.status === 'counter-proposed'
+                                ? 'Novo horário sugerido'
+                                : 'Aguardando confirmação'}
+                        </i>
+                      </div>
+
+                      <div className="visit-admin-details">
+                        <div>
+                          <span>Data sugerida</span>
+                          <strong>{requestedDate ? requestedDate.split('-').reverse().join('/') : '-'}</strong>
+                        </div>
+                        <div>
+                          <span>Horário sugerido</span>
+                          <strong>{requestedTime || '-'}</strong>
+                        </div>
+                      </div>
+
+                      <div className="visit-admin-response">
+                        <label>
+                          <span>Data confirmada / sugerida pelo proprietário</span>
+                          <input
+                            type="date"
+                            value={v.confirmedDate || requestedDate || ''}
+                            onChange={(e) => updateVisit({ ...v, confirmedDate: e.target.value })}
+                          />
+                        </label>
+                        <label>
+                          <span>Horário confirmado / sugerido</span>
+                          <input
+                            type="time"
+                            value={v.confirmedTime || requestedTime || ''}
+                            onChange={(e) => updateVisit({ ...v, confirmedTime: e.target.value })}
+                          />
+                        </label>
+                        <label className="visit-message-field">
+                          <span>Mensagem para o cliente</span>
+                          <input
+                            value={v.ownerMessage || ''}
+                            onChange={(e) => updateVisit({ ...v, ownerMessage: e.target.value })}
+                            placeholder="Ex.: Posso receber você às 16h."
+                          />
+                        </label>
+                      </div>
+
+                      <div className="visit-admin-actions">
+                        <button
+                          className="confirm"
+                          onClick={() => updateVisit({
+                            ...v,
+                            status: 'confirmed',
+                            confirmedDate: v.confirmedDate || requestedDate,
+                            confirmedTime: v.confirmedTime || requestedTime,
+                            respondedAt: new Date().toISOString(),
+                          })}
+                        >
+                          Confirmar
+                        </button>
+                        <button
+                          className="propose"
+                          onClick={() => updateVisit({
+                            ...v,
+                            status: 'counter-proposed',
+                            confirmedDate: v.confirmedDate || requestedDate,
+                            confirmedTime: v.confirmedTime || requestedTime,
+                            respondedAt: new Date().toISOString(),
+                          })}
+                        >
+                          Sugerir outro horário
+                        </button>
+                        <button
+                          className="reject"
+                          onClick={() => updateVisit({
+                            ...v,
+                            status: 'rejected',
+                            respondedAt: new Date().toISOString(),
+                          })}
+                        >
+                          Recusar
+                        </button>
+                      </div>
+                    </article>
+                  )
+                })}
               </div>
             ) : (
-              <div className="admin-empty large">Ainda não existem visitas salvas neste navegador.</div>
+              <div className="admin-empty large">Ainda não existem solicitações de visita neste navegador.</div>
             )}
           </section>
         )}

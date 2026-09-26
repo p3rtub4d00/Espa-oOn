@@ -1,5 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
+import VisitScheduler from './components/VisitScheduler'
+import AdminPanel from './admin/AdminPanel'
 import {
   ArrowRight,
   CalendarDays,
@@ -92,6 +94,8 @@ function App() {
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedDay, setSelectedDay] = useState(null)
   const [bookingOpen, setBookingOpen] = useState(false)
+  const [visitOpen, setVisitOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(false)
   const [reservedDays, setReservedDays] = useState(() => {
     if (typeof window === 'undefined') return new Set()
     const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
@@ -114,6 +118,10 @@ function App() {
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
     setMobileOpen(false)
+  }
+
+  if (adminOpen) {
+    return <AdminPanel onClose={() => setAdminOpen(false)} />
   }
 
   return (
@@ -319,7 +327,7 @@ function App() {
                 <span><i className="dot selected" /> Selecionado</span>
               </div>
 
-              <button className="visit-button">
+              <button className="visit-button" onClick={() => setVisitOpen(true)}>
                 <MapPin size={19} />
                 Agendar uma visita
               </button>
@@ -419,6 +427,10 @@ function App() {
         </section>
       </main>
 
+      {visitOpen && (
+        <VisitScheduler onClose={() => setVisitOpen(false)} />
+      )}
+
       {bookingOpen && selectedDay && (
         <BookingFlow
           day={selectedDay}
@@ -435,6 +447,7 @@ function App() {
           <span>Espaço<span>On</span></span>
         </a>
         <p>Locação de espaço de lazer • Sistema em desenvolvimento</p>
+        <button className="footer-admin-link" onClick={() => setAdminOpen(true)}>Painel administrativo</button>
         <span>© 2026 EspaçoOn</span>
       </footer>
     </div>

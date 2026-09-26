@@ -96,7 +96,7 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
-  const [adminOpen, setAdminOpen] = useState(false)
+  const [adminOpen, setAdminOpen] = useState(() => window.location.pathname === '/admin')
   const [siteSettings, setSiteSettings] = useState(loadSettings)
   const [reservedDays, setReservedDays] = useState(() => {
     if (typeof window === 'undefined') return new Set()
@@ -127,6 +127,7 @@ function App() {
       <AdminPanel
         onClose={() => {
           setSiteSettings(loadSettings())
+          window.history.pushState({}, '', '/')
           setAdminOpen(false)
         }}
       />
@@ -479,7 +480,15 @@ function App() {
           <span>Espaço<span>On</span></span>
         </a>
         <p>Locação de espaço de lazer • Sistema em desenvolvimento</p>
-        <button className="footer-admin-link" onClick={() => setAdminOpen(true)}>Painel administrativo</button>
+        <button
+          className="footer-admin-link"
+          onClick={() => {
+            window.history.pushState({}, '', '/admin')
+            setAdminOpen(true)
+          }}
+        >
+          Painel administrativo
+        </button>
         <span>© 2026 EspaçoOn</span>
       </footer>
     </div>

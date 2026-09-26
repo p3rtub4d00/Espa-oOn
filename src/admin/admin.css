@@ -590,3 +590,171 @@
   border-color: #d99a7e;
   background: #ffe9df;
 }
+
+
+.visit-admin-list {
+  display: grid;
+  gap: 14px;
+}
+
+.visit-admin-card {
+  padding: 18px;
+  border: 1px solid rgba(16,35,45,.08);
+  border-radius: 16px;
+  background: #fbfcfb;
+}
+
+.visit-admin-head,
+.visit-admin-actions {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.visit-admin-head > div strong,
+.visit-admin-head > div span {
+  display: block;
+}
+
+.visit-admin-head > div strong {
+  font-size: 12px;
+}
+
+.visit-admin-head > div span {
+  margin-top: 3px;
+  color: #829398;
+  font-size: 9px;
+}
+
+.visit-status {
+  padding: 6px 9px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+}
+
+.visit-status.pending {
+  color: #7a641e;
+  background: #fff5cb;
+}
+
+.visit-status.confirmed {
+  color: #12684f;
+  background: #e5f2ed;
+}
+
+.visit-status.proposed {
+  color: #315b87;
+  background: #e8f1fb;
+}
+
+.visit-status.rejected {
+  color: #8a463d;
+  background: #f9e7e4;
+}
+
+.visit-admin-details {
+  margin: 16px 0;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.visit-admin-details > div,
+.visit-admin-response label {
+  padding: 12px;
+  border: 1px solid rgba(16,35,45,.07);
+  border-radius: 11px;
+  background: white;
+}
+
+.visit-admin-details span,
+.visit-admin-response label > span {
+  display: block;
+  margin-bottom: 5px;
+  color: #829398;
+  font-size: 8px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.visit-admin-details strong {
+  font-size: 11px;
+}
+
+.visit-admin-response {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.visit-admin-response .visit-message-field {
+  grid-column: 1 / -1;
+}
+
+.visit-admin-response input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #243f46;
+  background: transparent;
+  font-size: 11px;
+}
+
+.visit-admin-actions {
+  margin-top: 14px;
+  justify-content: flex-start;
+  flex-wrap: wrap;
+}
+
+.visit-admin-actions button {
+  padding: 9px 12px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.visit-admin-actions .confirm {
+  border: 0;
+  color: white;
+  background: #167f68;
+}
+
+.visit-admin-actions .propose {
+  border: 1px solid #b5cbe2;
+  color: #315b87;
+  background: #eef5fc;
+}
+
+.visit-admin-actions .reject {
+  border: 1px solid #ebc2bb;
+  color: #8a463d;
+  background: #fff3f1;
+}
+
+@media (max-width: 680px) {
+  .visit-admin-head {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .visit-admin-details,
+  .visit-admin-response {
+    grid-template-columns: 1fr;
+  }
+
+  .visit-admin-response .visit-message-field {
+    grid-column: auto;
+  }
+
+  .visit-admin-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .visit-admin-actions button {
+    width: 100%;
+  }
+}

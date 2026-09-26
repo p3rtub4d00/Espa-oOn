@@ -2,8 +2,6 @@ import { useMemo, useState } from 'react'
 import { CalendarDays, CheckCircle2, Clock3, MapPin, Phone, UserRound, X } from 'lucide-react'
 import './visit.css'
 
-const slots = ['09:00', '10:30', '14:00', '15:30', '17:00']
-
 function onlyDigits(value) {
   return value.replace(/\D/g, '')
 }
@@ -22,7 +20,7 @@ export default function VisitScheduler({ onClose }) {
     name: '',
     phone: '',
     date: '2026-09-30',
-    time: '14:00',
+    time: '',
   })
   const [errors, setErrors] = useState({})
 
@@ -44,15 +42,20 @@ export default function VisitScheduler({ onClose }) {
     if (form.name.trim().length < 3) next.name = 'Informe seu nome.'
     if (onlyDigits(form.phone).length < 10) next.phone = 'Informe um telefone válido.'
     if (!form.date) next.date = 'Escolha uma data.'
-    if (!form.time) next.time = 'Escolha um horário.'
+    if (!form.time) next.time = 'Informe um horário sugerido.'
     setErrors(next)
     if (Object.keys(next).length) return
 
     const visit = {
       id: bookingCode,
       ...form,
+      requestedDate: form.date,
+      requestedTime: form.time,
+      confirmedDate: null,
+      confirmedTime: null,
+      ownerMessage: '',
       createdAt: new Date().toISOString(),
-      status: 'scheduled',
+      status: 'pending-owner-confirmation',
     }
 
     const stored = JSON.parse(localStorage.getItem('espacoon_visits') || '[]')
@@ -61,7 +64,7 @@ export default function VisitScheduler({ onClose }) {
   }
 
   return (
-    <div className="visit-backdrop" role="dialog" aria-modal="true" aria-label="Agendar visita">
+    <div className="visit-backdrop" role="dialog" aria-modal="true" aria-label="Solicitar visita">
       <div className="visit-modal">
         <button className="visit-close" onClick={onClose} aria-label="Fechar">
           <X />
@@ -71,8 +74,11 @@ export default function VisitScheduler({ onClose }) {
           <>
             <div className="visit-hero">
               <span>Conheça antes de reservar</span>
-              <h2>Agende uma visita ao espaço.</h2>
-              <p>Escolha uma data e um horário. O agendamento fica salvo neste navegador nesta fase de testes.</p>
+              <h2>Solicite uma visita ao espaço.</h2>
+              <p>
+                Informe a data e o horário que seriam melhores para você. O proprietário precisa confirmar
+                a disponibilidade antes da visita ficar agendada.
+              </p>
             </div>
 
             <div className="visit-form">
@@ -104,7 +110,7 @@ export default function VisitScheduler({ onClose }) {
               </label>
 
               <label>
-                <span>Data da visita</span>
+                <span>Data sugerida</span>
                 <div className={errors.date ? 'visit-input error' : 'visit-input'}>
                   <CalendarDays size={17} />
                   <input
@@ -117,46 +123,44 @@ export default function VisitScheduler({ onClose }) {
                 {errors.date && <small>{errors.date}</small>}
               </label>
 
-              <div className="visit-times">
-                <span>Horário</span>
-                <div>
-                  {slots.map((slot) => (
-                    <button
-                      key={slot}
-                      className={form.time === slot ? 'selected' : ''}
-                      onClick={() => update('time', slot)}
-                    >
-                      <Clock3 size={15} />
-                      {slot}
-                    </button>
-                  ))}
+              <label>
+                <span>Horário sugerido</span>
+                <div className={errors.time ? 'visit-input error' : 'visit-input'}>
+                  <Clock3 size={17} />
+                  <input
+                    type="time"
+                    value={form.time}
+                    onChange={(e) => update('time', e.target.value)}
+                  />
                 </div>
-              </div>
+                {errors.time && <small>{errors.time}</small>}
+              </label>
 
               <div className="visit-note">
                 <MapPin />
                 <span>
-                  <strong>Visita rápida e sem compromisso</strong>
-                  Depois vamos integrar confirmação automática por WhatsApp.
+                  <strong>A visita ainda não estará confirmada.</strong>
+                  O proprietário poderá aceitar o horário sugerido ou propor outro horário pelo painel.
                 </span>
               </div>
 
               <button className="visit-submit" onClick={submit}>
-                Confirmar agendamento
+                Enviar solicitação de visita
               </button>
             </div>
           </>
         ) : (
           <div className="visit-success">
             <div><CheckCircle2 /></div>
-            <span>Visita agendada</span>
-            <h2>Nos vemos em breve, {form.name.split(' ')[0]}.</h2>
+            <span>Solicitação enviada</span>
+            <h2>Recebemos seu pedido, {form.name.split(' ')[0]}.</h2>
             <p>
-              Sua visita foi marcada para <strong>{form.date.split('-').reverse().join('/')}</strong> às{' '}
-              <strong>{form.time}</strong>.
+              Você sugeriu <strong>{form.date.split('-').reverse().join('/')}</strong> às{' '}
+              <strong>{form.time}</strong>. A visita ficará como <strong>aguardando confirmação</strong>
+              até o proprietário responder.
             </p>
             <section>
-              <small>Código</small>
+              <small>Código da solicitação</small>
               <strong>{bookingCode}</strong>
             </section>
             <button onClick={onClose}>Voltar para o site</button>

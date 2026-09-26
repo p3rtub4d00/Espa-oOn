@@ -26,7 +26,7 @@ function maskCpf(cpf = '') {
   return '***.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-**'
 }
 
-export default function ContractFlow({ reservation, onClose }) {
+export default function ContractFlow({ reservation, onClose, onSigned, continueLabel = 'Concluir' }) {
   const canvasRef = useRef(null)
   const drawingRef = useRef(false)
   const [accepted, setAccepted] = useState(false)
@@ -142,7 +142,7 @@ export default function ContractFlow({ reservation, onClose }) {
       signedAt,
       signature,
       hash: finalHash,
-      status: 'signed-local-demo',
+      status: 'signed-awaiting-payment-demo',
     }
 
     const stored = JSON.parse(localStorage.getItem('espacoon_contracts') || '[]')
@@ -310,8 +310,14 @@ export default function ContractFlow({ reservation, onClose }) {
                 <Fingerprint size={17} />
                 Verificar autenticidade
               </button>
-              <button className="finish-contract-button" onClick={onClose}>
-                Concluir
+              <button
+                className="finish-contract-button"
+                onClick={() => {
+                  onSigned?.(signedContract)
+                  onClose()
+                }}
+              >
+                {continueLabel}
               </button>
             </div>
           </div>

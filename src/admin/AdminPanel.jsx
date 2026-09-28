@@ -29,6 +29,7 @@ import {
   Building2,
   Palette,
   Upload,
+  MapPin,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'

@@ -45,11 +45,14 @@ export const api = {
       body: JSON.stringify(contract),
     }),
 
-  completePayment: (reservation, contract) =>
-    request('/api/payments/simulate', {
+  createPixPayment: (reservation, contractId) =>
+    request('/api/payments/asaas/pix', {
       method: 'POST',
-      body: JSON.stringify({ reservation, contract }),
+      body: JSON.stringify({ reservation, contractId }),
     }),
+
+  paymentStatus: (reservationId) =>
+    request('/api/payments/asaas/' + encodeURIComponent(reservationId) + '/status'),
 
   lookupReservation: (code, phoneEnd) =>
     request('/api/reservations/' + encodeURIComponent(code) + '?phoneEnd=' + encodeURIComponent(phoneEnd)),

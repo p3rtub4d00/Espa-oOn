@@ -134,7 +134,7 @@ export default function ReservationLookup({ onClose }) {
                   <input
                     value={code}
                     onChange={(e) => setCode(e.target.value.toUpperCase())}
-                    placeholder="ESP-2026-15-4832"
+                    placeholder="ESP-20260929-123456"
                     autoComplete="off"
                   />
                 </div>
@@ -212,7 +212,15 @@ export default function ReservationLookup({ onClose }) {
                 <CalendarDays />
                 <div>
                   <span>Status da reserva</span>
-                  <strong>Confirmada</strong>
+                  <strong>
+                    {reservation.paymentStatus === 'paid'
+                      ? 'Confirmada'
+                      : reservation.paymentStatus === 'manual-review'
+                        ? 'Em conferência'
+                        : ['cancelled', 'refunded', 'expired'].includes(reservation.paymentStatus)
+                          ? 'Não ativa'
+                          : 'Aguardando confirmação'}
+                  </strong>
                 </div>
               </article>
               <article>

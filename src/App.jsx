@@ -109,6 +109,8 @@ function App() {
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [adminSessionChecked, setAdminSessionChecked] = useState(false)
   const [siteSettings, setSiteSettings] = useState(loadSettings)
+  const brandName = siteSettings.establishment?.name || 'EspaçoOn'
+  const brandSettings = siteSettings.branding || {}
   const [reservedDates, setReservedDates] = useState(new Set())
   const [siteReady, setSiteReady] = useState(false)
   const [siteLoadError, setSiteLoadError] = useState('')
@@ -117,6 +119,13 @@ function App() {
     window.matchMedia?.('(display-mode: standalone)').matches ||
     window.navigator.standalone === true
   )
+
+  useEffect(() => {
+    const root = document.documentElement
+    root.style.setProperty('--brand-primary', brandSettings.primaryColor || '#0f3554')
+    root.style.setProperty('--brand-secondary', brandSettings.secondaryColor || '#1f8efa')
+    root.style.setProperty('--brand-accent', brandSettings.accentColor || '#53b9ff')
+  }, [brandSettings.primaryColor, brandSettings.secondaryColor, brandSettings.accentColor])
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -327,6 +336,8 @@ function App() {
     if (!adminAuthenticated) {
       return (
         <AdminLogin
+          name={brandName}
+          branding={brandSettings}
           onAuthenticated={() => {
             setAdminAuthenticated(true)
             setAdminSessionChecked(true)
@@ -342,6 +353,8 @@ function App() {
     return (
       <AdminPanel
         onInstall={installApp}
+        initialBranding={brandSettings}
+        initialBrandName={brandName}
         appInstalled={appInstalled}
         onClose={async () => {
           try {
@@ -368,8 +381,15 @@ function App() {
   return (
     <div className="site-shell">
       <header className="topbar">
-        <a className="brand" href="#inicio" aria-label="EspaçoOn">
-          <BrandLogo className="brand-logo-site" />
+        <a className="brand" href="#inicio" aria-label={brandName}>
+          <BrandLogo
+            className="brand-logo-site"
+            name={brandName}
+            logoUrl={brandSettings.logoUrl}
+            primaryColor={brandSettings.primaryColor}
+            secondaryColor={brandSettings.secondaryColor}
+            accentColor={brandSettings.accentColor}
+          />
         </a>
 
         <nav className="desktop-nav">
@@ -867,9 +887,15 @@ function App() {
       )}
 
       <footer>
-        <a className="brand footer-brand" href="#inicio">
-          <span className="brand-mark">E</span>
-          <span>Espaço<span>On</span></span>
+        <a className="brand footer-brand" href="#inicio" aria-label={brandName}>
+          <BrandLogo
+            className="brand-logo-site"
+            name={brandName}
+            logoUrl={brandSettings.logoUrl}
+            primaryColor={brandSettings.primaryColor}
+            secondaryColor={brandSettings.secondaryColor}
+            accentColor={brandSettings.accentColor}
+          />
         </a>
         <p>
           {siteSettings.establishment?.address

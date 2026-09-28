@@ -1499,6 +1499,110 @@ app.get('/api/reservations/:code', lookupLimiter, async (req, res, next) => {
   }
 })
 
+app.get('/api/admin/revenue', requireAdmin, async (req, res, next) => {
+  try {
+    const month = textValue(req.query.month, 7)
+    if (!/^\d{4}-\d{2}$/.test(month)) {
+      return res.status(400).json({ error: 'Mês inválido. Use o formato AAAA-MM.' })
+    }
+
+    const reservations = await Reservation.find({
+      paymentStatus: 'paid',
+      paidAt: { $ne: null },
+      $expr: {
+        $eq: [
+          {
+            $dateToString: {
+              format: '%Y-%m',
+              date: '$paidAt',
+              timezone: 'America/Porto_Velho',
+            },
+          },
+          month,
+        ],
+      },
+    })
+      .sort({ paidAt: -1 })
+      .lean()
+
+    const total = reservations.reduce((sum, item) => sum + Number(item.price || 0), 0)
+    const count = reservations.length
+    const averageTicket = count ? total / count : 0
+
+    res.json({
+      month,
+      total,
+      count,
+      averageTicket,
+      reservations,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/reset-data', requireAdmin, loginLimiter, async (req, res, next) => {
+  try {
+    const password = String(req.body?.password || '')
+    const confirmation = textValue(req.body?.confirmation, 80)
+
+    if (!secureEqual(password, ADMIN_PASSWORD)) {
+      return res.status(401).json({ error: 'Senha de administrador incorreta.' })
+    }
+
+    if (confirmation !== 'APAGAR TODOS OS DADOS') {
+      return res.status(400).json({ error: 'Frase de confirmação incorreta.' })
+    }
+
+    const processing = await Reservation.findOne({
+      paymentStatus: { $in: ['confirmed-asaas', 'manual-review'] },
+    }).lean()
+
+    if (processing) {
+      return res.status(409).json({
+        error: 'Existe pagamento confirmado ou em conferência. Resolva esse pagamento antes de apagar os dados.',
+      })
+    }
+
+    const pendingPayments = await Reservation.find({
+      paymentStatus: 'pending-asaas',
+      asaasPaymentId: { $exists: true, $ne: null },
+    }).lean()
+
+    for (const reservation of pendingPayments) {
+      try {
+        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
+      } catch (error) {
+        const resetError = new Error(
+          'Não foi possível cancelar uma cobrança Pix pendente. O reset foi interrompido para evitar cobrança sem reserva.'
+        )
+        resetError.statusCode = 409
+        throw resetError
+      }
+    }
+
+    const db = mongoose.connection.db
+
+    await Promise.all([
+      Reservation.deleteMany({}),
+      Contract.deleteMany({}),
+      Visit.deleteMany({}),
+      Settings.deleteMany({}),
+      WebhookEvent.deleteMany({}),
+      DateLock.deleteMany({}),
+      db.collection('images.files').deleteMany({}),
+      db.collection('images.chunks').deleteMany({}),
+    ])
+
+    res.json({
+      ok: true,
+      message: 'Todos os dados operacionais do site foram apagados.',
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.get('/api/admin/reservations', requireAdmin, async (_req, res, next) => {
   try {
     res.json(await Reservation.find().sort({ createdAt: -1 }).lean())

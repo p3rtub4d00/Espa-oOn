@@ -1,0 +1,371 @@
+.lookup-backdrop {
+  position: fixed;
+  z-index: 140;
+  inset: 0;
+  padding: 20px;
+  display: grid;
+  place-items: center;
+  background: rgba(7, 29, 46, .76);
+  backdrop-filter: blur(8px);
+}
+
+.lookup-modal {
+  width: min(720px, 100%);
+  max-height: calc(100vh - 40px);
+  overflow: auto;
+  border-radius: 20px;
+  background: #f8fbfe;
+  box-shadow: 0 35px 100px rgba(0,0,0,.28);
+}
+
+.lookup-top {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: white;
+  background: #0f3554;
+}
+
+.lookup-top span,
+.lookup-top strong {
+  display: block;
+}
+
+.lookup-top span {
+  color: #9ed9ff;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.lookup-top strong {
+  margin-top: 3px;
+  font-size: 16px;
+}
+
+.lookup-top button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  color: white;
+  background: rgba(255,255,255,.06);
+}
+
+.lookup-content {
+  padding: 24px;
+}
+
+.lookup-heading,
+.lookup-success-head {
+  text-align: center;
+}
+
+.lookup-icon,
+.lookup-success-head > div {
+  width: 52px;
+  height: 52px;
+  margin: 0 auto 14px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: #176db5;
+  background: #e8f4ff;
+}
+
+.lookup-heading h2,
+.lookup-success-head h2 {
+  margin: 0 0 8px;
+  color: #1d2a33;
+  font-size: 25px;
+}
+
+.lookup-heading p,
+.lookup-success-head p {
+  max-width: 520px;
+  margin: 0 auto;
+  color: #667783;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.lookup-success-head > span {
+  color: #1f8efa;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lookup-form {
+  max-width: 520px;
+  margin: 24px auto 0;
+  display: grid;
+  gap: 13px;
+}
+
+.lookup-form label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #506774;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lookup-form label > div {
+  min-height: 46px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(15,53,84,.13);
+  border-radius: 11px;
+  color: #78909e;
+  background: white;
+}
+
+.lookup-form label > div:focus-within {
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.09);
+}
+
+.lookup-form input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #1d2a33;
+  background: transparent;
+  font-size: 14px;
+  text-transform: uppercase;
+}
+
+.lookup-error {
+  margin: 0;
+  color: #a84d45;
+  font-size: 10px;
+}
+
+.lookup-submit {
+  min-height: 46px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border: 0;
+  border-radius: 11px;
+  color: white;
+  background: #1f8efa;
+  font-weight: 800;
+}
+
+.lookup-submit:hover {
+  background: #167bdc;
+}
+
+.lookup-note {
+  max-width: 520px;
+  margin: 16px auto 0;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid #cce5f8;
+  border-radius: 11px;
+  color: #516774;
+  background: #f0f8ff;
+}
+
+.lookup-note svg {
+  flex: 0 0 auto;
+  color: #1f8efa;
+}
+
+.lookup-note strong,
+.lookup-note span {
+  display: block;
+}
+
+.lookup-note strong {
+  margin-bottom: 2px;
+  color: #176db5;
+  font-size: 9px;
+}
+
+.lookup-note span {
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.lookup-summary {
+  margin-top: 20px;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+}
+
+.lookup-summary > div,
+.lookup-status-grid article,
+.lookup-contract {
+  padding: 12px;
+  border: 1px solid rgba(15,53,84,.09);
+  border-radius: 11px;
+  background: white;
+}
+
+.lookup-summary span,
+.lookup-summary strong,
+.lookup-summary small {
+  display: block;
+}
+
+.lookup-summary span,
+.lookup-status-grid span,
+.lookup-contract span {
+  color: #82939f;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.lookup-summary strong {
+  margin-top: 4px;
+  color: #294553;
+  font-size: 10px;
+}
+
+.lookup-summary small {
+  margin-top: 3px;
+  color: #7d8f9a;
+  font-size: 9px;
+}
+
+.lookup-status-grid {
+  margin-top: 10px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 9px;
+}
+
+.lookup-status-grid article {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.lookup-status-grid svg {
+  flex: 0 0 auto;
+  color: #1f8efa;
+}
+
+.lookup-status-grid strong {
+  display: block;
+  margin-top: 3px;
+  color: #294553;
+  font-size: 10px;
+}
+
+.lookup-contract {
+  margin-top: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.lookup-contract strong,
+.lookup-contract small {
+  display: block;
+}
+
+.lookup-contract strong {
+  margin-top: 4px;
+  color: #294553;
+  font-size: 11px;
+}
+
+.lookup-contract small {
+  margin-top: 3px;
+  color: #7d8f9a;
+  font-size: 8px;
+}
+
+.lookup-contract i {
+  padding: 6px 8px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.lookup-contract i.paid {
+  color: #176db5;
+  background: #e8f4ff;
+}
+
+.lookup-contract i.pending {
+  color: #7a641e;
+  background: #fff5cb;
+}
+
+.lookup-actions {
+  margin-top: 14px;
+  display: flex;
+  gap: 9px;
+}
+
+.lookup-actions button,
+.lookup-new-search {
+  min-height: 44px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 10px;
+  font-weight: 800;
+}
+
+.lookup-actions button {
+  flex: 1;
+  border: 1px solid #b9d8f0;
+  color: #176db5;
+  background: #edf7ff;
+}
+
+.lookup-new-search {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid rgba(15,53,84,.12);
+  color: #526a78;
+  background: white;
+}
+
+@media (max-width: 680px) {
+  .lookup-backdrop {
+    padding: 10px;
+  }
+
+  .lookup-content {
+    padding: 18px;
+  }
+
+  .lookup-summary {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .lookup-status-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .lookup-actions {
+    flex-direction: column;
+  }
+}

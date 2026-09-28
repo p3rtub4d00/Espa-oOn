@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
 import VisitScheduler from './components/VisitScheduler'
 import ReservationLookup from './components/ReservationLookup'
+import BrandLogo from './components/BrandLogo'
 import AdminPanel from './admin/AdminPanel'
 import AdminLogin from './admin/AdminLogin'
 import { loadSettings } from './data/settings'
@@ -320,8 +321,7 @@ function App() {
     <div className="site-shell">
       <header className="topbar">
         <a className="brand" href="#inicio" aria-label="EspaçoOn">
-          <span className="brand-mark">E</span>
-          <span>Espaço<span>On</span></span>
+          <BrandLogo className="brand-logo-site" />
         </a>
 
         <nav className="desktop-nav">

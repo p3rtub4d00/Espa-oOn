@@ -194,6 +194,21 @@ app.get('/api/settings', async (_req, res, next) => {
   }
 })
 
+app.get('/api/availability', async (_req, res, next) => {
+  try {
+    const [reservations, settings] = await Promise.all([
+      Reservation.find({ paymentStatus: 'approved-simulated' }, { day: 1, date: 1, _id: 0 }).lean(),
+      Settings.findOne({ key: 'main' }, { blockedDays: 1, _id: 0 }).lean(),
+    ])
+    res.json({
+      reservedDays: reservations.map((item) => Number(item.day)).filter(Boolean),
+      blockedDays: settings?.blockedDays || [],
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.put('/api/admin/settings', requireAdmin, async (req, res, next) => {
   try {
     const allowed = ['prices', 'blockedDays', 'specialDates', 'rentalHours', 'gallery', 'amenities']

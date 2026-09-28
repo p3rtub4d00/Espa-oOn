@@ -175,6 +175,17 @@ async function asaasRequest(endpoint, options = {}) {
     throw error
   }
 
+  const productionKey = ASAAS_API_KEY.startsWith('$aact_prod_')
+  const sandboxKey = ASAAS_API_KEY.startsWith('$aact_hmlg_')
+  if ((ASAAS_ENV === 'production' && sandboxKey) || (ASAAS_ENV !== 'production' && productionKey)) {
+    const error = new Error(
+      'ASAAS_ENV e ASAAS_API_KEY pertencem a ambientes diferentes. ' +
+      'Use production com chave $aact_prod_ ou sandbox com chave $aact_hmlg_.'
+    )
+    error.statusCode = 503
+    throw error
+  }
+
   const response = await fetch(ASAAS_BASE_URL + endpoint, {
     method: options.method || 'GET',
     headers: {
@@ -481,7 +492,11 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
     const customer = await getOrCreateAsaasCustomer(reservation.customer, reservation.id)
     const dueDate = new Date().toISOString().slice(0, 10)
 
-    const payment = await asaasRequest('/payments', {
+    const reconciled = await asaasRequest(
+      '/payments?externalReference=' + encodeURIComponent(reservation.id) + '&limit=1'
+    )
+
+    const payment = reconciled?.data?.[0] || await asaasRequest('/payments', {
       method: 'POST',
       body: {
         customer: customer.id,
@@ -492,8 +507,6 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
         externalReference: reservation.id,
       },
     })
-
-    const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
 
     const savedReservation = await Reservation.findOneAndUpdate(
       { id: reservation.id },
@@ -511,6 +524,8 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean()
+
+    const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
 
     await Contract.findOneAndUpdate(
       { id: contractId },

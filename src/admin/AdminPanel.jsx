@@ -195,6 +195,7 @@ export default function AdminPanel({
   const [cancellationRefund, setCancellationRefund] = useState('0')
   const [cancellationBusy, setCancellationBusy] = useState(false)
   const [cancellationError, setCancellationError] = useState('')
+  const [policySaveMessage, setPolicySaveMessage] = useState('')
   const [pushStatus, setPushStatus] = useState(null)
   const [pushSubscription, setPushSubscription] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)
@@ -1450,13 +1451,41 @@ export default function AdminPanel({
               />
             </label>
 
-            <button
-              className="cancellation-policy-save"
-              onClick={() => persistSettings(settings)}
-            >
-              <FileCheck2 size={16} />
-              Salvar política
-            </button>
+            <div className="cancellation-policy-actions">
+              <button
+                className="cancellation-policy-save"
+                onClick={async () => {
+                  const text = String(settings.cancellationPolicy?.text || '').trim()
+                  setPolicySaveMessage('')
+
+                  if (text.length < 20) {
+                    setPolicySaveMessage('A política precisa ter pelo menos 20 caracteres para ser salva.')
+                    return
+                  }
+
+                  try {
+                    const saved = await api.saveSettings({
+                      ...settings,
+                      cancellationPolicy: { text },
+                    })
+                    setSettings(saved)
+                    setPolicySaveMessage('Política salva. Ela aparecerá nos novos contratos antes da assinatura.')
+                  } catch (error) {
+                    setPolicySaveMessage(error.message || 'Não foi possível salvar a política.')
+                  }
+                }}
+              >
+                <FileCheck2 size={16} />
+                Salvar política
+              </button>
+              <small>
+                Contratos já assinados permanecem com o texto vigente na data da assinatura.
+              </small>
+            </div>
+
+            {policySaveMessage && (
+              <div className="cancellation-policy-message">{policySaveMessage}</div>
+            )}
           </section>
         )}
 

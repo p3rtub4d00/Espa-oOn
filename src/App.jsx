@@ -125,7 +125,13 @@ function App() {
     root.style.setProperty('--brand-primary', brandSettings.primaryColor || '#0f3554')
     root.style.setProperty('--brand-secondary', brandSettings.secondaryColor || '#1f8efa')
     root.style.setProperty('--brand-accent', brandSettings.accentColor || '#53b9ff')
-  }, [brandSettings.primaryColor, brandSettings.secondaryColor, brandSettings.accentColor])
+    document.title = brandName + ' | Reserva online'
+  }, [
+    brandName,
+    brandSettings.primaryColor,
+    brandSettings.secondaryColor,
+    brandSettings.accentColor,
+  ])
 
   useEffect(() => {
     const id = setInterval(() => {

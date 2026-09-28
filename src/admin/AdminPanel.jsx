@@ -757,27 +757,10 @@ export default function AdminPanel({ onClose }) {
                 <span>Zona de segurança</span>
                 <h2>Apagar todos os dados do site</h2>
                 <p>
-                  Remove permanentemente reservas, contratos, visitas, bloqueios, configurações,
-                  galeria, imagens e histórico interno de Webhooks.
+                  Remove os dados operacionais do EspaçoOn, incluindo reservas, pagamentos,
+                  contratos, visitas, bloqueios e informações relacionadas.
                 </p>
               </div>
-            </div>
-
-            <div className="danger-zone-preserved">
-              <strong>O que não será apagado</strong>
-              <span>
-                Código do GitHub, serviço do Render, senha do administrador, variáveis de ambiente,
-                conta MongoDB e credenciais do Asaas permanecem intactos.
-              </span>
-            </div>
-
-            <div className="danger-zone-warning">
-              <Trash2 />
-              <span>
-                <strong>Esta ação é irreversível.</strong>
-                Reservas pagas e contratos assinados também serão excluídos do EspaçoOn.
-                Faça isso apenas quando realmente quiser zerar o sistema.
-              </span>
             </div>
 
             <button className="danger-reset-button" onClick={() => {

@@ -1627,14 +1627,53 @@ app.delete('/api/admin/reservations/:id', requireAdmin, async (req, res, next) =
     }
 
     if (reservation.paymentStatus === 'pending-asaas' && reservation.asaasPaymentId) {
+      let providerPayment = null
+
       try {
-        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
+        providerPayment = await asaasRequest('/payments/' + reservation.asaasPaymentId)
       } catch (error) {
-        const cancelError = new Error(
-          'Não foi possível cancelar a cobrança Pix pendente no Asaas. A reserva não foi excluída.'
-        )
-        cancelError.statusCode = 409
-        throw cancelError
+        if (Number(error?.statusCode) !== 404) {
+          const lookupError = new Error(
+            'Não foi possível conferir a cobrança no Asaas. A reserva não foi excluída.'
+          )
+          lookupError.statusCode = 409
+          throw lookupError
+        }
+      }
+
+      if (providerPayment) {
+        if (['RECEIVED', 'CONFIRMED'].includes(providerPayment.status)) {
+          const protectedError = new Error(
+            'Esta cobrança já possui pagamento confirmado e não pode ser excluída como pendente.'
+          )
+          protectedError.statusCode = 409
+          throw protectedError
+        }
+
+        try {
+          await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
+        } catch (error) {
+          let stillExists = null
+          try {
+            stillExists = await asaasRequest('/payments/' + reservation.asaasPaymentId)
+          } catch (verifyError) {
+            if (Number(verifyError?.statusCode) !== 404) {
+              const cancelError = new Error(
+                'Não foi possível confirmar o cancelamento da cobrança Pix. A reserva não foi excluída.'
+              )
+              cancelError.statusCode = 409
+              throw cancelError
+            }
+          }
+
+          if (stillExists) {
+            const cancelError = new Error(
+              'A cobrança ainda está ativa no Asaas. A reserva não foi excluída.'
+            )
+            cancelError.statusCode = 409
+            throw cancelError
+          }
+        }
       }
     }
 

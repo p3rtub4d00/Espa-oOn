@@ -57,8 +57,8 @@ export const api = {
   paymentStatus: (reservationId) =>
     request('/api/payments/asaas/' + encodeURIComponent(reservationId) + '/status'),
 
-  lookupReservation: (code, phoneEnd) =>
-    request('/api/reservations/' + encodeURIComponent(code) + '?phoneEnd=' + encodeURIComponent(phoneEnd)),
+  lookupReservation: (code, cpf) =>
+    request('/api/reservations/' + encodeURIComponent(code) + '?cpf=' + encodeURIComponent(cpf)),
 
   createVisit: (visit) =>
     request('/api/visits', {

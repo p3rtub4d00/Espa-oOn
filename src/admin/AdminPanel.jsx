@@ -44,6 +44,7 @@ const menu = [
   ['gallery', 'Galeria', Images],
   ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
+  ['policies', 'Cancelamento', FileText],
   ['notifications', 'Notificações', BellRing],
   ['system', 'Dados', ShieldAlert],
 ]
@@ -70,7 +71,8 @@ function paymentStatusLabel(status) {
 }
 
 function isActiveReservation(reservation) {
-  return ['paid', 'confirmed-asaas', 'pending-asaas', 'manual-review'].includes(reservation?.paymentStatus)
+  return reservation?.reservationStatus !== 'cancelled' &&
+    ['paid', 'confirmed-asaas', 'pending-asaas', 'manual-review'].includes(reservation?.paymentStatus)
 }
 
 function normalizeWhatsAppNumber(phone = '') {
@@ -176,6 +178,11 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
   const [deletingReservationId, setDeletingReservationId] = useState('')
+  const [cancellingReservation, setCancellingReservation] = useState(null)
+  const [cancellationReason, setCancellationReason] = useState('')
+  const [cancellationRefund, setCancellationRefund] = useState('0')
+  const [cancellationBusy, setCancellationBusy] = useState(false)
+  const [cancellationError, setCancellationError] = useState('')
   const [pushStatus, setPushStatus] = useState(null)
   const [pushSubscription, setPushSubscription] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)

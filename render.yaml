@@ -19,6 +19,6 @@ services:
       - key: ASAAS_API_KEY
         sync: false
       - key: ASAAS_ENV
-        value: sandbox
+        value: production
       - key: ASAAS_WEBHOOK_TOKEN
         sync: false

@@ -71,7 +71,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       ctx.lineWidth = 2.2
       ctx.lineCap = 'round'
       ctx.lineJoin = 'round'
-      ctx.strokeStyle = '#17363d'
+      ctx.strokeStyle = '#1d2a33'
       if (image && hasSignature) {
         const img = new Image()
         img.onload = () => ctx.drawImage(img, 0, 0, rect.width, 180)

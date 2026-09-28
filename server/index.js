@@ -16,6 +16,12 @@ const PORT = process.env.PORT || 10000
 const MONGODB_URI = process.env.MONGODB_URI
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-render'
+const ASAAS_API_KEY = process.env.ASAAS_API_KEY
+const ASAAS_ENV = String(process.env.ASAAS_ENV || 'sandbox').toLowerCase()
+const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN
+const ASAAS_BASE_URL = ASAAS_ENV === 'production'
+  ? 'https://api.asaas.com/v3'
+  : 'https://api-sandbox.asaas.com/v3'
 
 if (!MONGODB_URI) {
   console.warn('MONGODB_URI is not configured.')
@@ -38,8 +44,12 @@ const reservationSchema = new mongoose.Schema(
       phone: String,
       address: String,
     },
-    paymentStatus: { type: String, default: 'awaiting-payment' },
+    paymentStatus: { type: String, default: 'awaiting-payment', index: true },
     contractId: String,
+    asaasCustomerId: String,
+    asaasPaymentId: { type: String, index: true },
+    asaasStatus: String,
+    pixExpirationDate: String,
     paidAt: Date,
   },
   { timestamps: true },
@@ -84,6 +94,16 @@ const visitSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+const webhookEventSchema = new mongoose.Schema(
+  {
+    id: { type: String, required: true, unique: true, index: true },
+    event: String,
+    paymentId: String,
+    receivedAt: { type: Date, default: Date.now },
+  },
+  { timestamps: true },
+)
+
 const settingsSchema = new mongoose.Schema(
   {
     key: { type: String, default: 'main', unique: true },
@@ -102,6 +122,7 @@ const Reservation = mongoose.model('Reservation', reservationSchema)
 const Contract = mongoose.model('Contract', contractSchema)
 const Visit = mongoose.model('Visit', visitSchema)
 const Settings = mongoose.model('Settings', settingsSchema)
+const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema)
 
 const DEFAULT_SETTINGS = {
   key: 'main',
@@ -137,6 +158,138 @@ const DEFAULT_SETTINGS = {
 function normalizePhone(value = '') {
   return String(value).replace(/\D/g, '')
 }
+
+function onlyDigits(value = '') {
+  return String(value).replace(/\D/g, '')
+}
+
+function displayDate(value) {
+  const [year, month, day] = String(value || '').split('-')
+  return year && month && day ? day + '/' + month + '/' + year : value
+}
+
+async function asaasRequest(endpoint, options = {}) {
+  if (!ASAAS_API_KEY) {
+    const error = new Error('ASAAS_API_KEY não configurada no Render.')
+    error.statusCode = 503
+    throw error
+  }
+
+  const response = await fetch(ASAAS_BASE_URL + endpoint, {
+    method: options.method || 'GET',
+    headers: {
+      accept: 'application/json',
+      'User-Agent': 'EspacoOn/1.0 (Node.js; ' + ASAAS_ENV + ')',
+      access_token: ASAAS_API_KEY,
+      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+    },
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+  })
+
+  const data = await response.json().catch(() => null)
+  if (!response.ok) {
+    const description = data?.errors?.map((item) => item.description).join(' ') ||
+      data?.message ||
+      'Erro na comunicação com o Asaas.'
+    const error = new Error(description)
+    error.statusCode = response.status
+    error.asaas = data
+    throw error
+  }
+
+  return data
+}
+
+async function getOrCreateAsaasCustomer(customer, reservationId) {
+  const cpfCnpj = onlyDigits(customer?.cpf)
+  const mobilePhone = onlyDigits(customer?.phone)
+
+  if (!cpfCnpj) {
+    const error = new Error('CPF é obrigatório para gerar a cobrança Pix.')
+    error.statusCode = 400
+    throw error
+  }
+
+  const search = await asaasRequest('/customers?cpfCnpj=' + encodeURIComponent(cpfCnpj) + '&limit=1')
+  if (search?.data?.length) return search.data[0]
+
+  return asaasRequest('/customers', {
+    method: 'POST',
+    body: {
+      name: customer?.name,
+      cpfCnpj,
+      mobilePhone,
+      externalReference: reservationId,
+      notificationDisabled: true,
+    },
+  })
+}
+
+async function currentSettings() {
+  return (await Settings.findOne({ key: 'main' }).lean()) || DEFAULT_SETTINGS
+}
+
+function priceForDate(dateISO, period, settings) {
+  const [year, month, day] = String(dateISO || '').split('-').map(Number)
+  const date = new Date(year, month - 1, day, 12)
+  if (Number.isNaN(date.getTime())) {
+    const error = new Error('Data da reserva inválida.')
+    error.statusCode = 400
+    throw error
+  }
+
+  const special = (settings.specialDates || []).find((item) =>
+    item.date === dateISO ||
+    (
+      item.date == null &&
+      Number(item.day) === day &&
+      month === 10 &&
+      year === 2026
+    )
+  )
+
+  if (special) {
+    return Number(period === '12h' ? special.price12 : special.price24)
+  }
+
+  const weekday = date.getDay()
+  if (weekday === 0) return Number(period === '12h' ? settings.prices.sunday12 : settings.prices.sunday24)
+  if (weekday === 5 || weekday === 6) return Number(period === '12h' ? settings.prices.weekend12 : settings.prices.weekend24)
+  return Number(period === '12h' ? settings.prices.weekday12 : settings.prices.weekday24)
+}
+
+async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RECEIVED') {
+  if (!reservation) return null
+  const paidAt = payment?.paymentDate || payment?.clientPaymentDate || new Date()
+
+  const savedReservation = await Reservation.findOneAndUpdate(
+    { id: reservation.id },
+    {
+      $set: {
+        paymentStatus: 'paid',
+        asaasStatus: payment?.status || 'RECEIVED',
+        paidAt,
+      },
+    },
+    { new: true },
+  ).lean()
+
+  const savedContract = await Contract.findOneAndUpdate(
+    { id: reservation.contractId },
+    {
+      $set: {
+        paymentStatus: 'paid',
+        status: 'signed-paid',
+        paidAt,
+      },
+    },
+    { new: true },
+  ).lean()
+
+  console.log('Asaas:', eventName, reservation.id, payment?.id)
+  return { reservation: savedReservation, contract: savedContract }
+}
+
 
 function signAdminToken() {
   return jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' })

@@ -26,8 +26,7 @@ import {
   Car,
   Users,
   Snowflake,
-  Armchair,
-  Download,
+  Armchair
 } from 'lucide-react'
 
 const heroSlides = [
@@ -379,12 +378,6 @@ function App() {
         </nav>
 
         <div className="header-actions">
-          {!appInstalled && (
-            <button className="header-install" onClick={installApp}>
-              <Download size={16} />
-              Instalar
-            </button>
-          )}
           <button className="header-lookup" onClick={() => setLookupOpen(true)}>
             Consultar reserva
           </button>
@@ -408,12 +401,6 @@ function App() {
             <button onClick={() => scrollTo('galeria')}>Galeria</button>
             <button onClick={() => scrollTo('precos')}>Preços</button>
             <button onClick={() => scrollTo('agenda')}>Disponibilidade</button>
-            {!appInstalled && (
-              <button onClick={installApp}>
-                <Download size={16} />
-                Instalar EspaçoOn
-              </button>
-            )}
             <button
               onClick={() => {
                 setLookupOpen(true)

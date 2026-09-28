@@ -954,6 +954,26 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
                     </button>
 
                     <button
+                      className="push-test-button"
+                      disabled={pushBusy}
+                      onClick={async () => {
+                        setPushBusy(true)
+                        setPushMessage('')
+                        try {
+                          await api.testPushBackground(pushSubscription.endpoint)
+                          setPushMessage('Teste agendado. Feche o app agora e aguarde 15 segundos.')
+                        } catch (error) {
+                          setPushMessage(error.message || 'Não foi possível agendar o teste.')
+                        } finally {
+                          setPushBusy(false)
+                        }
+                      }}
+                    >
+                      <BellRing size={17} />
+                      Testar com app fechado
+                    </button>
+
+                    <button
                       className="push-disable-button"
                       disabled={pushBusy}
                       onClick={async () => {

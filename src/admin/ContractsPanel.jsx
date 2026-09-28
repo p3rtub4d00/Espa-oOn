@@ -153,7 +153,13 @@ export default function ContractsPanel() {
                 <p><strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.</p>
                 <p><strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.</p>
                 <p><strong>4. Pagamento.</strong> O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.</p>
-                <p><strong>5. Cancelamento e reembolso.</strong> {selected.cancellationPolicyText || 'A política de cancelamento registrada no momento da assinatura integra este contrato.'}</p>
+                <div className="admin-contract-policy">
+                  <strong>5. Política de cancelamento e reembolso.</strong>
+                  <p>
+                    {selected.cancellationPolicyText ||
+                      'Este contrato foi assinado antes do registro da política de cancelamento atualmente configurada. O documento original permanece inalterado.'}
+                  </p>
+                </div>
                 <p><strong>6. Assinatura eletrônica.</strong> O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.</p>
               </div>
 

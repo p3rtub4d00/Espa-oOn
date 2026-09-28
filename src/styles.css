@@ -1670,3 +1670,46 @@ body {
     display: none;
   }
 }
+
+
+.public-system-alert {
+  width: min(1100px, 90%);
+  margin: 88px auto -54px;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  border: 1px solid #f0c9c5;
+  border-radius: 12px;
+  color: #7e3d37;
+  background: #fff4f2;
+  font-size: 11px;
+  position: relative;
+  z-index: 4;
+}
+
+.public-system-alert button {
+  min-height: 36px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  color: white;
+  background: #1f8efa;
+  font-size: 9px;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+@media (max-width: 680px) {
+  .public-system-alert {
+    margin-top: 76px;
+    margin-bottom: -40px;
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .public-system-alert button {
+    width: 100%;
+  }
+}

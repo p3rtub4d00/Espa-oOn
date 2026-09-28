@@ -9,10 +9,7 @@ import {
   CheckCircle2,
   Clock3,
   Copy,
-  CreditCard,
   FileSignature,
-  LockKeyhole,
-  QrCode,
   ShieldCheck,
   Share2,
   UserRound,
@@ -59,6 +56,11 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const [signedContract, setSignedContract] = useState(null)
   const [deliveryStatus, setDeliveryStatus] = useState('idle')
   const [paidReservation, setPaidReservation] = useState(null)
+  const [pixPayment, setPixPayment] = useState(null)
+  const [paymentLoading, setPaymentLoading] = useState(false)
+  const [paymentError, setPaymentError] = useState('')
+  const [checkingPayment, setCheckingPayment] = useState(false)
+  const [asaasStatus, setAsaasStatus] = useState('')
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -82,11 +84,6 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     () => 'ESP-' + dateISO.replaceAll('-', '') + '-' + Math.floor(1000 + Math.random() * 9000),
     [dateISO],
   )
-  const pixCode = useMemo(
-    () => '00020126580014BR.GOV.BCB.PIX0136ESPACOON-PAGAMENTO-SIMULADO-' + reservationId + '5204000053039865802BR5920ESPACOON DEMONSTRACAO6009PORTOVELHO62070503***6304ABCD',
-    [reservationId],
-  )
-
   const draftReservation = {
     id: reservationId,
     day: parsedDate.getDate(),
@@ -133,8 +130,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   }
 
   const copyPix = async () => {
+    const payload = pixPayment?.pix?.payload
+    if (!payload) return
     try {
-      await navigator.clipboard.writeText(pixCode)
+      await navigator.clipboard.writeText(payload)
       setCopied(true)
       window.setTimeout(() => setCopied(false), 1800)
     } catch {
@@ -142,27 +141,69 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     }
   }
 
-  const confirmPayment = async () => {
-    if (!signedContract || deliveryStatus === 'sharing') return
-
+  const finishPaidReservation = async (result) => {
+    if (!result?.reservation || !result?.contract || step === 5) return
+    setPaidReservation(result.reservation)
+    setSignedContract(result.contract)
+    onReserved?.(dateISO)
+    setStep(5)
     setDeliveryStatus('sharing')
+
     try {
-      const result = await api.completePayment(draftReservation, signedContract)
-      const reservation = result.reservation
-      const paidContract = result.contract
-
-      setPaidReservation(reservation)
-      setSignedContract(paidContract)
-      onReserved?.(dateISO)
-      setStep(5)
-
-      const delivery = await sharePaymentDocuments(reservation, paidContract)
+      const delivery = await sharePaymentDocuments(result.reservation, result.contract)
       setDeliveryStatus(delivery.method)
-    } catch (error) {
+    } catch {
       setDeliveryStatus('error')
-      console.error(error)
     }
   }
+
+  const createPixCharge = async () => {
+    if (!signedContract || paymentLoading || pixPayment) return
+    setPaymentLoading(true)
+    setPaymentError('')
+
+    try {
+      const result = await api.createPixPayment(draftReservation, signedContract.id)
+      setPixPayment(result)
+      setAsaasStatus(result.payment?.status || '')
+    } catch (error) {
+      setPaymentError(error.message || 'Não foi possível gerar o Pix.')
+    } finally {
+      setPaymentLoading(false)
+    }
+  }
+
+  const verifyPayment = async () => {
+    if (!pixPayment || checkingPayment || step !== 4) return
+    setCheckingPayment(true)
+    try {
+      const result = await api.paymentStatus(reservationId)
+      setAsaasStatus(result.asaasStatus || '')
+      if (result.paid) {
+        await finishPaidReservation(result)
+      }
+    } catch (error) {
+      setPaymentError(error.message || 'Não foi possível verificar o pagamento.')
+    } finally {
+      setCheckingPayment(false)
+    }
+  }
+
+  useEffect(() => {
+    if (step === 4 && signedContract && !pixPayment && !paymentLoading) {
+      createPixCharge()
+    }
+  }, [step, signedContract])
+
+  useEffect(() => {
+    if (step !== 4 || !pixPayment) return
+
+    const timer = window.setInterval(() => {
+      verifyPayment()
+    }, 4000)
+
+    return () => window.clearInterval(timer)
+  }, [step, pixPayment, reservationId])
 
   const resendDocuments = async () => {
     if (!signedContract || !paidReservation) return
@@ -235,7 +276,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <ShieldCheck />
                 <span>
                   <strong>Data protegida durante o processo</strong>
-                  Nesta versão de testes, o bloqueio é simulado no navegador.
+                  A data é verificada no servidor e fica bloqueada quando a cobrança Pix é criada.
                 </span>
               </div>
 
@@ -365,8 +406,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
             <div className="booking-step">
               <div className="booking-heading">
                 <span>Etapa 4 de 5</span>
-                <h2>Contrato assinado. Agora finalize o pagamento.</h2>
-                <p>Nenhuma cobrança real será feita nesta fase do projeto.</p>
+                <h2>Contrato assinado. Agora pague por Pix.</h2>
+                <p>A cobrança é gerada pelo Asaas e a confirmação acontece automaticamente.</p>
               </div>
 
               <div className="booking-summary">
@@ -376,41 +417,79 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div><span>Total</span><strong className="summary-price">{money(price)}</strong></div>
               </div>
 
-              <div className="pix-box">
-                <div className="fake-qr">
-                  <QrCode />
-                  <span>PIX</span>
+              {paymentLoading && (
+                <div className="asaas-payment-loading">
+                  Gerando cobrança Pix segura...
                 </div>
-                <div className="pix-copy">
-                  <span>Pix copia e cola • demonstração</span>
-                  <p>{pixCode}</p>
-                  <button onClick={copyPix}>
-                    {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
-                    {copied ? 'Copiado' : 'Copiar código'}
-                  </button>
+              )}
+
+              {paymentError && (
+                <div className="asaas-payment-error">
+                  <strong>Não foi possível continuar.</strong>
+                  <span>{paymentError}</span>
+                  {!pixPayment && (
+                    <button onClick={createPixCharge}>Tentar gerar Pix novamente</button>
+                  )}
                 </div>
-              </div>
+              )}
+
+              {pixPayment && (
+                <>
+                  <div className="pix-box asaas-pix-box">
+                    <div className="asaas-qr">
+                      {pixPayment.pix?.encodedImage ? (
+                        <img
+                          src={'data:image/png;base64,' + pixPayment.pix.encodedImage}
+                          alt="QR Code Pix da reserva"
+                        />
+                      ) : (
+                        <div className="qr-placeholder">QR</div>
+                      )}
+                    </div>
+
+                    <div className="pix-copy">
+                      <span>Pix copia e cola • Asaas</span>
+                      <p>{pixPayment.pix?.payload}</p>
+                      <button onClick={copyPix}>
+                        {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
+                        {copied ? 'Copiado' : 'Copiar código Pix'}
+                      </button>
+                    </div>
+                  </div>
+
+                  <div className="asaas-payment-status">
+                    <span className="payment-pulse" />
+                    <div>
+                      <strong>
+                        {asaasStatus === 'CONFIRMED'
+                          ? 'Pagamento confirmado, aguardando liquidação'
+                          : 'Aguardando pagamento'}
+                      </strong>
+                      <small>
+                        {checkingPayment
+                          ? 'Verificando agora...'
+                          : 'O sistema verifica automaticamente. Você também pode conferir manualmente.'}
+                      </small>
+                    </div>
+                    <button onClick={verifyPayment} disabled={checkingPayment}>
+                      {checkingPayment ? 'Verificando...' : 'Verificar pagamento'}
+                    </button>
+                  </div>
+
+                  {pixPayment.pix?.expirationDate && (
+                    <p className="pix-expiration">
+                      QR Code válido até {new Date(pixPayment.pix.expirationDate).toLocaleString('pt-BR')}.
+                    </p>
+                  )}
+                </>
+              )}
 
               <div className="simulation-note">
-                <CreditCard />
+                <ShieldCheck />
                 <span>
                   <strong>Contrato {signedContract?.id}</strong>
-                  O pagamento só aparece porque o contrato já foi assinado.
+                  A reserva só será confirmada depois que o Asaas informar o recebimento do Pix.
                 </span>
-              </div>
-
-              <div className="booking-actions">
-                <button className="booking-back" onClick={() => setStep(3)}>
-                  <ArrowLeft size={17} /> Voltar
-                </button>
-                <button
-                  className="booking-primary payment"
-                  onClick={confirmPayment}
-                  disabled={deliveryStatus === 'sharing'}
-                >
-                  <LockKeyhole size={17} />
-                  {deliveryStatus === 'sharing' ? 'Gerando documentos...' : 'Simular pagamento aprovado'}
-                </button>
               </div>
             </div>
           )}
@@ -422,14 +501,14 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
               <h2>Pagamento confirmado!</h2>
               <p>
                 A reserva de <strong>{dateLabel}</strong> foi concluída para <strong>{form.name}</strong>.
-                O comprovante e o contrato foram preparados para compartilhamento.
+                O pagamento foi confirmado pelo Asaas. O comprovante e o contrato foram preparados para compartilhamento.
               </p>
 
               <div className="success-ticket">
                 <div><span>Reserva</span><strong>{reservationId}</strong></div>
                 <div><span>Contrato</span><strong>{signedContract?.id}</strong></div>
                 <div><span>Valor</span><strong>{money(price)}</strong></div>
-                <div><span>Status</span><strong className="paid-status">Pago • simulação</strong></div>
+                <div><span>Status</span><strong className="paid-status">Pago via Pix</strong></div>
               </div>
 
               <div className="document-delivery-status">

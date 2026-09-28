@@ -100,7 +100,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   }, [dateISO])
 
   const reservationId = useMemo(
-    () => 'ESP-' + dateISO.replaceAll('-', '') + '-' + Math.floor(1000 + Math.random() * 9000),
+    () => 'ESP-' + dateISO.replaceAll('-', '') + '-' + Math.floor(100000 + Math.random() * 900000),
     [dateISO],
   )
   const draftReservation = {
@@ -183,6 +183,17 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
     try {
       const result = await api.createPixPayment(draftReservation, signedContract.id)
+
+      if (result.paid) {
+        await finishPaidReservation(result)
+        return
+      }
+
+      if (result.manualReview) {
+        setPaymentError('O pagamento foi recebido, mas a reserva precisa de conferência manual. Entre em contato com o responsável pelo espaço.')
+        return
+      }
+
       setPixPayment(result)
       setAsaasStatus(result.payment?.status || '')
       if (result.reservation?.holdUntil) {
@@ -207,6 +218,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       setAsaasStatus(result.asaasStatus || '')
       if (result.paid) {
         await finishPaidReservation(result)
+      } else if (result.manualReview) {
+        setPaymentError('O pagamento foi recebido, mas a reserva precisa de conferência manual. Entre em contato com o responsável pelo espaço.')
       } else if (result.expired) {
         setPaymentError('O prazo desta cobrança expirou. A data foi liberada e você precisa gerar um novo Pix.')
         setPixPayment(null)
@@ -230,7 +243,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
     const timer = window.setInterval(() => {
       verifyPayment()
-    }, 4000)
+    }, 10000)
 
     return () => window.clearInterval(timer)
   }, [step, pixPayment, reservationId])
@@ -510,10 +523,12 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                           ? 'Verificando agora...'
                           : 'O sistema verifica automaticamente. Você também pode conferir manualmente.'}
                       </small>
-                      <small>
-                        Reserva temporária da data: {String(Math.floor(holdSeconds / 60)).padStart(2, '0')}:
-                        {String(holdSeconds % 60).padStart(2, '0')}
-                      </small>
+                      {asaasStatus !== 'CONFIRMED' && (
+                        <small>
+                          Reserva temporária da data: {String(Math.floor(holdSeconds / 60)).padStart(2, '0')}:
+                          {String(holdSeconds % 60).padStart(2, '0')}
+                        </small>
+                      )}
                     </div>
                     <button onClick={verifyPayment} disabled={checkingPayment}>
                       {checkingPayment ? 'Verificando...' : 'Verificar pagamento'}
@@ -528,7 +543,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 </>
               )}
 
-              <div className="simulation-note">
+              <div className="payment-note">
                 <ShieldCheck />
                 <span>
                   <strong>Contrato {signedContract?.id}</strong>

@@ -120,28 +120,49 @@ export default function AdminPanel({ onClose }) {
   const [deletingReservationId, setDeletingReservationId] = useState('')
 
   useEffect(() => {
-    let activeRequest = true
+    let alive = true
 
-    Promise.all([
-      api.adminReservations(),
-      api.adminVisits(),
-      api.getSettings(),
-    ])
-      .then(([reservationData, visitData, settingsData]) => {
-        if (!activeRequest) return
+    const refreshAdminData = async (showLoader = false) => {
+      if (showLoader) setLoading(true)
+
+      try {
+        const [reservationData, visitData, settingsData] = await Promise.all([
+          api.adminReservations(),
+          api.adminVisits(),
+          api.getSettings(),
+        ])
+
+        if (!alive) return
         setReservations(reservationData)
         setVisits(visitData)
         setSettings(settingsData)
-      })
-      .catch((error) => {
-        if (activeRequest) setAdminError(error.message || 'Não foi possível carregar o painel.')
-      })
-      .finally(() => {
-        if (activeRequest) setLoading(false)
-      })
+        setAdminError('')
+      } catch (error) {
+        if (alive) setAdminError(error.message || 'Não foi possível atualizar o painel.')
+      } finally {
+        if (alive && showLoader) setLoading(false)
+      }
+    }
+
+    refreshAdminData(true)
+
+    const timer = window.setInterval(() => {
+      refreshAdminData(false)
+    }, 30000)
+
+    const handleFocus = () => refreshAdminData(false)
+    const handleVisibility = () => {
+      if (document.visibilityState === 'visible') refreshAdminData(false)
+    }
+
+    window.addEventListener('focus', handleFocus)
+    document.addEventListener('visibilitychange', handleVisibility)
 
     return () => {
-      activeRequest = false
+      alive = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', handleFocus)
+      document.removeEventListener('visibilitychange', handleVisibility)
     }
   }, [])
   useEffect(() => {

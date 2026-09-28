@@ -30,6 +30,9 @@ export const DEFAULT_SETTINGS = {
     notifyPaidReservation: true,
     notifyNewVisit: true,
   },
+  cancellationPolicy: {
+    text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
+  },
 }
 
 export function loadSettings() {
@@ -42,6 +45,7 @@ export function loadSettings() {
     gallery: [...DEFAULT_SETTINGS.gallery],
     amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
     notifications: { ...DEFAULT_SETTINGS.notifications },
+    cancellationPolicy: { ...DEFAULT_SETTINGS.cancellationPolicy },
   }
 }
 

@@ -12,15 +12,6 @@ import {
 import { api } from '../data/api'
 import './contract.css'
 
-function simpleHash(text) {
-  let hash = 2166136261
-  for (let i = 0; i < text.length; i += 1) {
-    hash ^= text.charCodeAt(i)
-    hash = Math.imul(hash, 16777619)
-  }
-  return Math.abs(hash >>> 0).toString(16).padStart(8, '0').toUpperCase()
-}
-
 function maskCpf(cpf = '') {
   const digits = cpf.replace(/\D/g, '')
   if (digits.length !== 11) return cpf
@@ -34,28 +25,14 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [hasSignature, setHasSignature] = useState(false)
   const [signedContract, setSignedContract] = useState(null)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  const [verifyLoading, setVerifyLoading] = useState(false)
+  const [verifyResult, setVerifyResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
 
   const contractId = useMemo(
     () => 'CTR-' + reservation.id.replace('ESP-', ''),
     [reservation.id],
-  )
-
-  const baseHash = useMemo(
-    () =>
-      simpleHash(
-        [
-          contractId,
-          reservation.id,
-          reservation.date,
-          reservation.period,
-          reservation.price,
-          reservation.customer?.name,
-          reservation.customer?.cpf,
-        ].join('|'),
-      ),
-    [contractId, reservation],
   )
 
   useEffect(() => {
@@ -90,26 +67,24 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const getPoint = (event) => {
     const canvas = canvasRef.current
     const rect = canvas.getBoundingClientRect()
-    const source = event.touches?.[0] || event
     return {
-      x: source.clientX - rect.left,
-      y: source.clientY - rect.top,
+      x: event.clientX - rect.left,
+      y: event.clientY - rect.top,
     }
   }
 
   const startDrawing = (event) => {
-    event.preventDefault()
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const point = getPoint(event)
     drawingRef.current = true
+    canvas.setPointerCapture?.(event.pointerId)
     ctx.beginPath()
     ctx.moveTo(point.x, point.y)
   }
 
   const draw = (event) => {
     if (!drawingRef.current) return
-    event.preventDefault()
     const canvas = canvasRef.current
     const ctx = canvas.getContext('2d')
     const point = getPoint(event)
@@ -118,8 +93,11 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
     setHasSignature(true)
   }
 
-  const stopDrawing = () => {
+  const stopDrawing = (event) => {
     drawingRef.current = false
+    if (event?.pointerId != null) {
+      canvasRef.current?.releasePointerCapture?.(event.pointerId)
+    }
   }
 
   const clearSignature = () => {
@@ -136,19 +114,18 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
 
     const signedAt = new Date().toISOString()
     const signature = canvasRef.current.toDataURL('image/png')
-    const finalHash = simpleHash(baseHash + '|' + signedAt + '|' + signature.slice(-128))
 
     const contractRecord = {
       id: contractId,
       reservationId: reservation.id,
       reservationDate: reservation.date,
+      reservationDateISO: reservation.dateISO,
       period: reservation.period,
       price: reservation.price,
       customer: reservation.customer,
       signedAt,
       signature,
-      hash: finalHash,
-      status: 'signed-awaiting-payment-demo',
+      status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
     }
 
@@ -162,13 +139,24 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
     }
   }
 
-  const verificationText = signedContract
-    ? 'EspaçoOn | Contrato ' + signedContract.id + ' | Hash ' + signedContract.hash
+  const qrUrl = signedContract
+    ? '/api/contracts/' + encodeURIComponent(signedContract.id) +
+      '/qr?hash=' + encodeURIComponent(signedContract.hash)
     : ''
 
-  const qrUrl = signedContract
-    ? 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(verificationText)
-    : ''
+  const verifyContract = async () => {
+    if (!signedContract || verifyLoading) return
+    setVerifyLoading(true)
+    setVerifyResult(null)
+    try {
+      const result = await api.verifyContract(signedContract.id, signedContract.hash)
+      setVerifyResult(result)
+    } catch (error) {
+      setVerifyResult({ valid: false, error: error.message || 'Não foi possível verificar o contrato.' })
+    } finally {
+      setVerifyLoading(false)
+    }
+  }
 
   return (
     <div className="contract-backdrop" role="dialog" aria-modal="true" aria-label="Contrato digital">
@@ -188,8 +176,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <span>Contrato de locação</span>
                 <h2>Locação temporária do espaço de lazer</h2>
                 <p>
-                  Documento demonstrativo gerado automaticamente a partir dos dados da reserva.
-                  O texto jurídico definitivo poderá ser substituído posteriormente.
+                  Documento eletrônico gerado a partir dos dados informados na reserva e registrado no EspaçoOn.
                 </p>
               </div>
 
@@ -213,18 +200,17 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                   observando as regras apresentadas pelo proprietário.
                 </p>
                 <p>
-                  <strong>3. Responsabilidade.</strong> Danos causados ao patrimônio durante o período
-                  de locação poderão ser atribuídos ao responsável pela reserva, conforme apuração e
-                  condições definitivas do contrato.
+                  <strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço
+                  e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.
                 </p>
                 <p>
-                  <strong>4. Pagamento.</strong> Nesta versão do sistema, o pagamento registrado é
-                  exclusivamente simulado e não representa cobrança financeira real.
+                  <strong>4. Pagamento.</strong> O valor indicado neste documento será cobrado por Pix
+                  por meio do Asaas e a reserva somente será confirmada após a confirmação do recebimento.
                 </p>
                 <p>
-                  <strong>5. Assinatura eletrônica.</strong> Para fins de demonstração técnica, o sistema
-                  registra a manifestação de aceite, a assinatura desenhada, a data e hora, o identificador
-                  do documento e um hash local de verificação.
+                  <strong>5. Assinatura eletrônica.</strong> O sistema registra a manifestação de aceite,
+                  a assinatura desenhada, a data e hora, o identificador do documento e um hash SHA-256
+                  calculado no servidor para verificação de integridade.
                 </p>
               </div>
 
@@ -232,7 +218,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <Fingerprint />
                 <span>
                   <strong>Identificação do documento</strong>
-                  ID {contractId} • Hash base {baseHash}
+                  ID {contractId}
                 </span>
               </div>
             </div>
@@ -240,7 +226,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
             <div className="signature-area">
               <div className="signature-title">
                 <div>
-                  <span>Assinatura eletrônica demonstrativa</span>
+                  <span>Assinatura eletrônica</span>
                   <strong>Assine no quadro abaixo usando o dedo ou o mouse.</strong>
                 </div>
                 <PenLine />
@@ -249,13 +235,11 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
               <div className="signature-canvas-wrap">
                 <canvas
                   ref={canvasRef}
-                  onMouseDown={startDrawing}
-                  onMouseMove={draw}
-                  onMouseUp={stopDrawing}
-                  onMouseLeave={stopDrawing}
-                  onTouchStart={startDrawing}
-                  onTouchMove={draw}
-                  onTouchEnd={stopDrawing}
+                  onPointerDown={startDrawing}
+                  onPointerMove={draw}
+                  onPointerUp={stopDrawing}
+                  onPointerCancel={stopDrawing}
+                  onPointerLeave={stopDrawing}
                 />
                 {!hasSignature && <span className="signature-placeholder">Assine aqui</span>}
               </div>
@@ -271,7 +255,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
                 <span>
-                  Li o documento acima e concordo em registrar minha assinatura nesta demonstração.
+                  Li o documento acima, concordo com seus termos e autorizo o registro da minha assinatura eletrônica.
                 </span>
               </label>
 
@@ -292,7 +276,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
             <span>Contrato assinado</span>
             <h2>Documento registrado com sucesso.</h2>
             <p>
-              Nesta demonstração, a assinatura e as evidências foram armazenadas somente neste navegador.
+              A assinatura e as evidências do documento foram registradas no servidor do EspaçoOn.
             </p>
 
             <div className="contract-proof">
@@ -311,14 +295,20 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
             <div className="contract-disclaimer">
               <ShieldCheck />
               <span>
-                <strong>Ambiente de testes</strong>
-                Este registro demonstra o fluxo técnico. A validade jurídica final dependerá do texto
-                contratual definitivo e da solução de assinatura adotada na versão de produção.
+                <strong>Registro eletrônico</strong>
+                O documento possui identificador único, data de assinatura e hash SHA-256 para conferência
+                de integridade.
               </span>
             </div>
 
             <div className="contract-success-actions">
-              <button className="verify-contract-button" onClick={() => setVerifyOpen(true)}>
+              <button
+                className="verify-contract-button"
+                onClick={() => {
+                  setVerifyOpen(true)
+                  verifyContract()
+                }}
+              >
                 <Fingerprint size={17} />
                 Verificar autenticidade
               </button>
@@ -339,10 +329,14 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
           <div className="verification-sheet">
             <button onClick={() => setVerifyOpen(false)} aria-label="Fechar verificação"><X /></button>
             <div className="verified-badge"><CheckCircle2 /></div>
-            <span>Registro localizado</span>
-            <h3>Contrato íntegro nesta demonstração</h3>
+            <span>{verifyLoading ? 'Verificando registro...' : verifyResult?.valid ? 'Registro confirmado' : 'Verificação'}</span>
+            <h3>Verificação do contrato</h3>
             <p>
-              O identificador e o hash abaixo correspondem ao contrato salvo localmente neste navegador.
+              {verifyLoading
+                ? 'Consultando o registro no servidor.'
+                : verifyResult?.valid
+                  ? 'O identificador e o hash correspondem ao contrato armazenado no EspaçoOn.'
+                  : verifyResult?.error || 'Não foi possível confirmar o registro.'}
             </p>
             <dl>
               <div><dt>Contrato</dt><dd>{signedContract.id}</dd></div>

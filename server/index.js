@@ -763,8 +763,10 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'O contrato não possui uma data ou período válido.' })
     }
 
-    const settings = await currentSettings()
-    const serverPrice = priceForDate(contractDateISO, contract.period, settings)
+    const serverPrice = Number(contract.price)
+    if (!Number.isFinite(serverPrice) || serverPrice <= 0) {
+      return res.status(400).json({ error: 'O contrato não possui um valor válido para cobrança.' })
+    }
 
     const lockResult = await acquireDateLock(contractDateISO, reservationId)
     lockCreated = lockResult.created

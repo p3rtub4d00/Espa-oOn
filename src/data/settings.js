@@ -8,6 +8,7 @@ export const DEFAULT_SETTINGS = {
     sunday24: 850,
   },
   blockedDays: [],
+  blockedDates: [],
   specialDates: [],
   rentalHours: {
     '12h': '08:00 às 20:00',
@@ -34,19 +35,37 @@ export function loadSettings() {
     prices: { ...DEFAULT_SETTINGS.prices },
     rentalHours: { ...DEFAULT_SETTINGS.rentalHours },
     blockedDays: [],
+    blockedDates: [],
     specialDates: [],
     gallery: [...DEFAULT_SETTINGS.gallery],
     amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
   }
 }
 
-export function getPriceForDay(day, period, settings = loadSettings()) {
-  const special = settings.specialDates.find((item) => Number(item.day) === Number(day))
+export function getPriceForDate(dateValue, period, settings = loadSettings()) {
+  const date = typeof dateValue === 'string'
+    ? new Date(dateValue + 'T12:00:00')
+    : dateValue
+
+  const iso = [
+    date.getFullYear(),
+    String(date.getMonth() + 1).padStart(2, '0'),
+    String(date.getDate()).padStart(2, '0'),
+  ].join('-')
+
+  const special = settings.specialDates.find((item) =>
+    item.date === iso || (
+      item.date == null &&
+      Number(item.day) === date.getDate() &&
+      date.getMonth() === 9 &&
+      date.getFullYear() === 2026
+    )
+  )
+
   if (special) {
     return Number(period === '12h' ? special.price12 : special.price24)
   }
 
-  const date = new Date(2026, 9, day)
   const weekday = date.getDay()
   if (weekday === 0) {
     return Number(period === '12h' ? settings.prices.sunday12 : settings.prices.sunday24)
@@ -55,4 +74,8 @@ export function getPriceForDay(day, period, settings = loadSettings()) {
     return Number(period === '12h' ? settings.prices.weekend12 : settings.prices.weekend24)
   }
   return Number(period === '12h' ? settings.prices.weekday12 : settings.prices.weekday24)
+}
+
+export function getPriceForDay(day, period, settings = loadSettings()) {
+  return getPriceForDate(new Date(2026, 9, day), period, settings)
 }

@@ -351,28 +351,43 @@ async function asaasRequest(endpoint, options = {}) {
     throw error
   }
 
-  const response = await fetch(ASAAS_BASE_URL + endpoint, {
-    method: options.method || 'GET',
-    headers: {
-      accept: 'application/json',
-      'User-Agent': 'EspacoOn/1.0',
-      access_token: ASAAS_API_KEY,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
-  })
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
 
-  const data = await response.json().catch(() => null)
-  if (!response.ok) {
-    const description = data?.errors?.map((item) => item.description).join(' ') ||
-      data?.message ||
-      'Erro ao processar a solicitação de pagamento.'
-    const error = new Error(description)
-    error.statusCode = response.status >= 500 ? 502 : response.status
+  try {
+    const response = await fetch(ASAAS_BASE_URL + endpoint, {
+      method: options.method || 'GET',
+      headers: {
+        accept: 'application/json',
+        'User-Agent': 'EspacoOn/1.0',
+        access_token: ASAAS_API_KEY,
+        ...(options.body ? { 'Content-Type': 'application/json' } : {}),
+      },
+      ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+      signal: controller.signal,
+    })
+
+    const data = await response.json().catch(() => null)
+    if (!response.ok) {
+      const description = data?.errors?.map((item) => item.description).join(' ') ||
+        data?.message ||
+        'Erro ao processar a solicitação de pagamento.'
+      const error = new Error(description)
+      error.statusCode = response.status >= 500 ? 502 : response.status
+      throw error
+    }
+
+    return data
+  } catch (error) {
+    if (error?.name === 'AbortError') {
+      const timeoutError = new Error('O serviço de pagamento demorou para responder. Tente novamente.')
+      timeoutError.statusCode = 504
+      throw timeoutError
+    }
     throw error
+  } finally {
+    clearTimeout(timeout)
   }
-
-  return data
 }
 
 async function getOrCreateAsaasCustomer(customer, reservationId) {
@@ -1771,7 +1786,11 @@ async function migrateProductionData() {
 async function start() {
   try {
     validateProductionConfig()
-    await mongoose.connect(MONGODB_URI)
+    await mongoose.connect(MONGODB_URI, {
+      serverSelectionTimeoutMS: 10000,
+      connectTimeoutMS: 10000,
+      maxPoolSize: 10,
+    })
     await migrateProductionData()
 
     console.log('Banco de dados conectado.')
@@ -1783,5 +1802,17 @@ async function start() {
     process.exit(1)
   }
 }
+
+async function shutdown(signal) {
+  console.log(signal + ' recebido. Encerrando conexões...')
+  try {
+    await mongoose.connection.close()
+  } finally {
+    process.exit(0)
+  }
+}
+
+process.once('SIGTERM', () => shutdown('SIGTERM'))
+process.once('SIGINT', () => shutdown('SIGINT'))
 
 start()

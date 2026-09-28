@@ -404,6 +404,120 @@ async function currentSettings() {
   return (await Settings.findOne({ key: 'main' }).lean()) || DEFAULT_SETTINGS
 }
 
+function sanitizeSettingsUpdate(body = {}) {
+  const update = {}
+
+  if (body.prices !== undefined) {
+    const keys = ['weekday12', 'weekday24', 'weekend12', 'weekend24', 'sunday12', 'sunday24']
+    const prices = {}
+    for (const key of keys) {
+      const value = Number(body.prices?.[key])
+      if (!Number.isFinite(value) || value <= 0 || value > 100000) {
+        const error = new Error('Tabela de preços inválida.')
+        error.statusCode = 400
+        throw error
+      }
+      prices[key] = Math.round(value * 100) / 100
+    }
+    update.prices = prices
+  }
+
+  if (body.blockedDates !== undefined) {
+    if (!Array.isArray(body.blockedDates) || body.blockedDates.length > 1000) {
+      const error = new Error('Lista de datas bloqueadas inválida.')
+      error.statusCode = 400
+      throw error
+    }
+    update.blockedDates = [...new Set(
+      body.blockedDates
+        .map((value) => textValue(value, 10))
+        .filter((value) => /^\d{4}-\d{2}-\d{2}$/.test(value)),
+    )]
+  }
+
+  if (body.specialDates !== undefined) {
+    if (!Array.isArray(body.specialDates) || body.specialDates.length > 500) {
+      const error = new Error('Lista de datas especiais inválida.')
+      error.statusCode = 400
+      throw error
+    }
+
+    update.specialDates = body.specialDates.map((item) => {
+      const date = textValue(item?.date, 10)
+      const price12 = Number(item?.price12)
+      const price24 = Number(item?.price24)
+      if (
+        !/^\d{4}-\d{2}-\d{2}$/.test(date) ||
+        !Number.isFinite(price12) || price12 <= 0 || price12 > 100000 ||
+        !Number.isFinite(price24) || price24 <= 0 || price24 > 100000
+      ) {
+        const error = new Error('Data especial inválida.')
+        error.statusCode = 400
+        throw error
+      }
+      return {
+        date,
+        price12: Math.round(price12 * 100) / 100,
+        price24: Math.round(price24 * 100) / 100,
+      }
+    })
+  }
+
+  if (body.rentalHours !== undefined) {
+    update.rentalHours = {
+      '12h': textValue(body.rentalHours?.['12h'], 80),
+      '24h': textValue(body.rentalHours?.['24h'], 80),
+    }
+    if (!update.rentalHours['12h'] || !update.rentalHours['24h']) {
+      const error = new Error('Horários de locação inválidos.')
+      error.statusCode = 400
+      throw error
+    }
+  }
+
+  if (body.gallery !== undefined) {
+    if (!Array.isArray(body.gallery) || body.gallery.length > 100) {
+      const error = new Error('Galeria inválida.')
+      error.statusCode = 400
+      throw error
+    }
+
+    update.gallery = body.gallery.map((item) => textValue(item, 1000)).filter((item) => {
+      return /^https:\/\//i.test(item) || /^\/api\/images\/[a-f0-9]{24}$/i.test(item)
+    })
+
+    if (update.gallery.length !== body.gallery.length) {
+      const error = new Error('A galeria contém uma imagem com endereço inválido.')
+      error.statusCode = 400
+      throw error
+    }
+  }
+
+  if (body.amenities !== undefined) {
+    if (!Array.isArray(body.amenities) || body.amenities.length > 100) {
+      const error = new Error('Lista de estrutura inválida.')
+      error.statusCode = 400
+      throw error
+    }
+
+    const allowedIcons = new Set(['pool', 'game', 'food', 'cold', 'chair', 'sport', 'field'])
+    update.amenities = body.amenities.map((item, index) => ({
+      id: textValue(item?.id || 'item-' + index, 80),
+      name: textValue(item?.name, 80),
+      description: textValue(item?.description, 240),
+      icon: allowedIcons.has(item?.icon) ? item.icon : 'game',
+    }))
+
+    if (update.amenities.some((item) => !item.name)) {
+      const error = new Error('A estrutura contém um item sem nome.')
+      error.statusCode = 400
+      throw error
+    }
+  }
+
+  return update
+}
+
 function priceForDate(dateISO, period, settings) {
   const [year, month, day] = String(dateISO || '').split('-').map(Number)
   const date = new Date(year, month - 1, day, 12)
@@ -741,11 +855,7 @@ app.get('/api/availability', async (_req, res, next) => {
 
 app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res, next) => {
   try {
-    const allowed = ['prices', 'blockedDays', 'blockedDates', 'specialDates', 'rentalHours', 'gallery', 'amenities']
-    const update = {}
-    for (const key of allowed) {
-      if (req.body?.[key] !== undefined) update[key] = req.body[key]
-    }
+    const update = sanitizeSettingsUpdate(req.body)
 
     const settings = await Settings.findOneAndUpdate(
       { key: 'main' },

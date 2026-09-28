@@ -69,6 +69,13 @@ export const api = {
   adminReservations: () => request('/api/admin/reservations'),
   adminContracts: () => request('/api/admin/contracts'),
   adminVisits: () => request('/api/admin/visits'),
+  adminRevenue: (month) =>
+    request('/api/admin/revenue?month=' + encodeURIComponent(month)),
+  resetSiteData: (password, confirmation) =>
+    request('/api/admin/reset-data', {
+      method: 'POST',
+      body: JSON.stringify({ password, confirmation }),
+    }),
 
   updateVisit: (id, changes) =>
     request('/api/admin/visits/' + encodeURIComponent(id), {

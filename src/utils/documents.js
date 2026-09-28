@@ -33,7 +33,7 @@ export function createReceiptPdf(reservation, contract) {
     ['Data da locação', reservation.date || '-'],
     ['Período', reservation.period || '-'],
     ['Valor', money(reservation.price)],
-    ['Pagamento', 'Aprovado - demonstração'],
+    ['Pagamento', 'Confirmado via Pix / Asaas'],
     ['Confirmado em', paidAt],
     ['Contrato', contract?.id || reservation.contractId || '-'],
   ]
@@ -51,7 +51,7 @@ export function createReceiptPdf(reservation, contract) {
   doc.setTextColor(90)
   addWrappedText(
     doc,
-    'Este comprovante foi gerado pelo EspaçoOn durante a fase de testes. Na versão de produção, os dados de pagamento serão confirmados pelo provedor de pagamento integrado.',
+    'Este comprovante foi gerado pelo EspaçoOn a partir do status de pagamento registrado na integração com o Asaas.',
     20,
     y,
     170,

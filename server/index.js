@@ -192,6 +192,16 @@ const settingsSchema = new mongoose.Schema(
     cancellationPolicy: {
       text: String,
     },
+    establishment: {
+      name: String,
+      ownerName: String,
+      phone: String,
+      address: String,
+      city: String,
+      state: String,
+      locationNote: String,
+      openingHours: String,
+    },
   },
   { timestamps: true },
 )
@@ -274,6 +284,16 @@ const DEFAULT_SETTINGS = {
   },
   cancellationPolicy: {
     text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
+  },
+  establishment: {
+    name: 'EspaçoOn',
+    ownerName: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    locationNote: '',
+    openingHours: '',
   },
 }
 
@@ -678,6 +698,39 @@ function sanitizeSettingsUpdate(body = {}) {
       throw error
     }
     update.cancellationPolicy = { text: policyText }
+  }
+
+  if (body.establishment !== undefined) {
+    const establishment = {
+      name: textValue(body.establishment?.name, 120),
+      ownerName: textValue(body.establishment?.ownerName, 120),
+      phone: onlyDigits(body.establishment?.phone).slice(0, 13),
+      address: textValue(body.establishment?.address, 240),
+      city: textValue(body.establishment?.city, 100),
+      state: textValue(body.establishment?.state, 2).toUpperCase(),
+      locationNote: textValue(body.establishment?.locationNote, 240),
+      openingHours: textValue(body.establishment?.openingHours, 180),
+    }
+
+    if (establishment.name.length < 2) {
+      const error = new Error('Informe o nome do estabelecimento.')
+      error.statusCode = 400
+      throw error
+    }
+
+    if (establishment.phone && !isValidPhone(establishment.phone)) {
+      const error = new Error('Telefone do estabelecimento inválido.')
+      error.statusCode = 400
+      throw error
+    }
+
+    if (establishment.state && !/^[A-Z]{2}$/.test(establishment.state)) {
+      const error = new Error('UF inválida. Use duas letras, como RO.')
+      error.statusCode = 400
+      throw error
+    }
+
+    update.establishment = establishment
   }
 
   return update

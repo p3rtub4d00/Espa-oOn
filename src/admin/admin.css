@@ -1051,3 +1051,83 @@
     width: 100%;
   }
 }
+
+
+/* EspaçoOn admin — aquatic blue theme */
+.admin-shell {
+  color: #1d2a33;
+  background: #f2f6fa;
+}
+
+.admin-sidebar {
+  background: #0f3554;
+}
+
+.admin-brand > span {
+  color: white;
+  background: #1f8efa;
+}
+
+.admin-brand small {
+  color: #9fc9e7;
+}
+
+.admin-sidebar nav button,
+.admin-back {
+  color: #b4cadb;
+}
+
+.admin-sidebar nav button.active,
+.admin-sidebar nav button:hover {
+  color: white;
+  background: rgba(31,142,250,.18);
+}
+
+.admin-user > div,
+.amenity-admin-icon {
+  color: #176db5;
+  background: #e8f4ff;
+}
+
+.admin-calendar button.blocked {
+  border-color: #f0c9b6;
+  color: #8b4b35;
+  background: #fff3ed;
+}
+
+.visit-status.confirmed,
+.paid-status,
+.status-ok {
+  color: #176db5;
+  background: #e8f4ff;
+}
+
+.visit-admin-actions .confirm,
+.content-admin-form button,
+.amenity-admin-form > button,
+.upload-local-box > button {
+  color: white;
+  background: #1f8efa;
+}
+
+.visit-admin-actions .propose {
+  border-color: #b9d8f0;
+  color: #176db5;
+  background: #edf7ff;
+}
+
+.visit-confirmed-locked {
+  border-color: #b9d8f0;
+  background: #edf7ff;
+}
+
+.visit-confirmed-locked strong {
+  color: #0f4f82;
+}
+
+.content-admin-form input:focus,
+.amenity-admin-form input:focus,
+.amenity-admin-form select:focus {
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.10);
+}

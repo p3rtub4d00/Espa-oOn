@@ -26,6 +26,7 @@ import {
   BellRing,
   Download,
   Menu,
+  Building2,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -44,6 +45,7 @@ const menu = [
   ['gallery', 'Galeria', Images],
   ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
+  ['establishment', 'Estabelecimento', Building2],
   ['policies', 'Cancelamento', FileText],
   ['notifications', 'Notificações', BellRing],
   ['system', 'Dados', ShieldAlert],
@@ -1024,6 +1026,180 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
             </div>
           </section>
         )}
+        {active === 'establishment' && (
+          <section className="admin-card large establishment-settings">
+            <div className="admin-card-title">
+              <div>
+                <span>Dados públicos</span>
+                <strong>Configurações do estabelecimento</strong>
+              </div>
+              <Building2 />
+            </div>
+
+            <div className="establishment-grid">
+              <label>
+                <span>Nome do espaço</span>
+                <input
+                  value={settings.establishment?.name || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      name: event.target.value,
+                    },
+                  }))}
+                  placeholder="Ex.: EspaçoOn"
+                />
+              </label>
+
+              <label>
+                <span>Responsável</span>
+                <input
+                  value={settings.establishment?.ownerName || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      ownerName: event.target.value,
+                    },
+                  }))}
+                  placeholder="Nome do responsável"
+                />
+              </label>
+
+              <label>
+                <span>Telefone / WhatsApp de contato</span>
+                <input
+                  inputMode="tel"
+                  value={settings.establishment?.phone || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      phone: event.target.value.replace(/\D/g, '').slice(0, 13),
+                    },
+                  }))}
+                  placeholder="Ex.: 5569999999999"
+                />
+              </label>
+
+              <label>
+                <span>Horário de atendimento</span>
+                <input
+                  value={settings.establishment?.openingHours || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      openingHours: event.target.value,
+                    },
+                  }))}
+                  placeholder="Ex.: Seg a sáb, 08h às 18h"
+                />
+              </label>
+
+              <label className="establishment-wide">
+                <span>Endereço completo</span>
+                <input
+                  value={settings.establishment?.address || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      address: event.target.value,
+                    },
+                  }))}
+                  placeholder="Rua, número, bairro"
+                />
+              </label>
+
+              <label>
+                <span>Cidade</span>
+                <input
+                  value={settings.establishment?.city || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      city: event.target.value,
+                    },
+                  }))}
+                  placeholder="Cidade"
+                />
+              </label>
+
+              <label>
+                <span>UF</span>
+                <input
+                  maxLength={2}
+                  value={settings.establishment?.state || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      state: event.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2),
+                    },
+                  }))}
+                  placeholder="RO"
+                />
+              </label>
+
+              <label className="establishment-wide">
+                <span>Referência / observação de localização</span>
+                <textarea
+                  rows={3}
+                  value={settings.establishment?.locationNote || ''}
+                  onChange={(event) => setSettings((current) => ({
+                    ...current,
+                    establishment: {
+                      ...(current.establishment || {}),
+                      locationNote: event.target.value,
+                    },
+                  }))}
+                  placeholder="Ex.: Entrada pelo portão azul, próximo ao mercado..."
+                />
+              </label>
+            </div>
+
+            <div className="establishment-actions">
+              <button
+                onClick={async () => {
+                  setAdminError('')
+                  try {
+                    await persistSettings(settings)
+                    setAdminError('Dados do estabelecimento salvos com sucesso.')
+                  } catch {}
+                }}
+              >
+                <CheckCircle2 size={16} />
+                Salvar dados
+              </button>
+
+              {settings.establishment?.address && (
+                <button
+                  className="secondary"
+                  onClick={() => {
+                    const destination = [
+                      settings.establishment.address,
+                      settings.establishment.city,
+                      settings.establishment.state,
+                    ].filter(Boolean).join(', ')
+                    window.open(
+                      'https://www.google.com/maps/dir/?api=1&destination=' +
+                        encodeURIComponent(destination),
+                      '_blank',
+                      'noopener,noreferrer',
+                    )
+                  }}
+                >
+                  <MapPin size={16} />
+                  Testar rota
+                </button>
+              )}
+            </div>
+          </section>
+        )}
+
         {active === 'policies' && (
           <section className="admin-card large cancellation-policy-panel">
             <div className="admin-card-title">

@@ -7,6 +7,7 @@ import helmet from 'helmet'
 import { rateLimit } from 'express-rate-limit'
 import crypto from 'crypto'
 import QRCode from 'qrcode'
+import webpush from 'web-push'
 import { GridFSBucket, ObjectId } from 'mongodb'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -110,6 +111,7 @@ const reservationSchema = new mongoose.Schema(
     pixExpirationDate: String,
     holdUntil: Date,
     paidAt: Date,
+    pushPaidNotifiedAt: Date,
   },
   { timestamps: true },
 )
@@ -150,6 +152,7 @@ const visitSchema = new mongoose.Schema(
     ownerMessage: String,
     status: { type: String, default: 'pending-owner-confirmation' },
     respondedAt: Date,
+    pushVisitNotifiedAt: Date,
   },
   { timestamps: true },
 )
@@ -188,6 +191,30 @@ const settingsSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+const pushConfigSchema = new mongoose.Schema(
+  {
+    key: { type: String, default: 'main', unique: true },
+    publicKey: { type: String, required: true },
+    privateKey: { type: String, required: true },
+  },
+  { timestamps: true },
+)
+
+const pushSubscriptionSchema = new mongoose.Schema(
+  {
+    endpoint: { type: String, required: true, unique: true, index: true },
+    keys: {
+      p256dh: { type: String, required: true },
+      auth: { type: String, required: true },
+    },
+    userAgent: String,
+    enabled: { type: Boolean, default: true },
+    lastSuccessAt: Date,
+    lastErrorAt: Date,
+  },
+  { timestamps: true },
+)
+
 const dateLockSchema = new mongoose.Schema(
   {
     _id: String,
@@ -204,6 +231,8 @@ const Visit = mongoose.model('Visit', visitSchema)
 const Settings = mongoose.model('Settings', settingsSchema)
 const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema)
 const DateLock = mongoose.model('DateLock', dateLockSchema)
+const PushConfig = mongoose.model('PushConfig', pushConfigSchema)
+const PushSubscription = mongoose.model('PushSubscription', pushSubscriptionSchema)
 
 const DEFAULT_SETTINGS = {
   key: 'main',
@@ -240,6 +269,78 @@ const DEFAULT_SETTINGS = {
     notifyPaidReservation: true,
     notifyNewVisit: true,
   },
+}
+
+async function ensurePushConfig() {
+  let config = await PushConfig.findOne({ key: 'main' }).lean()
+
+  if (!config) {
+    const keys = webpush.generateVAPIDKeys()
+    config = await PushConfig.create({
+      key: 'main',
+      publicKey: keys.publicKey,
+      privateKey: keys.privateKey,
+    })
+    config = config.toObject()
+  }
+
+  webpush.setVapidDetails(
+    'mailto:admin@espacoon.app',
+    config.publicKey,
+    config.privateKey,
+  )
+
+  return config
+}
+
+async function sendPushNotification(payload, endpoint = null) {
+  const config = await ensurePushConfig()
+  if (!config) return { sent: 0, failed: 0 }
+
+  const query = endpoint
+    ? { endpoint, enabled: true }
+    : { enabled: true }
+
+  const subscriptions = await PushSubscription.find(query).lean()
+  let sent = 0
+  let failed = 0
+
+  for (const subscription of subscriptions) {
+    try {
+      await webpush.sendNotification(
+        {
+          endpoint: subscription.endpoint,
+          keys: subscription.keys,
+        },
+        JSON.stringify(payload),
+      )
+
+      sent += 1
+      await PushSubscription.updateOne(
+        { endpoint: subscription.endpoint },
+        {
+          $set: { lastSuccessAt: new Date(), enabled: true },
+          $unset: { lastErrorAt: 1 },
+        },
+      )
+    } catch (error) {
+      failed += 1
+      const statusCode = Number(error?.statusCode)
+
+      if (statusCode === 404 || statusCode === 410) {
+        await PushSubscription.deleteOne({ endpoint: subscription.endpoint })
+      } else {
+        await PushSubscription.updateOne(
+          { endpoint: subscription.endpoint },
+          { $set: { lastErrorAt: new Date() } },
+        )
+      }
+
+      console.warn('Falha ao enviar Web Push:', statusCode || error?.message || error)
+    }
+  }
+
+  return { sent, failed }
 }
 
 function onlyDigits(value = '') {

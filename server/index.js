@@ -440,42 +440,206 @@ app.post('/api/reservations', async (req, res, next) => {
   }
 })
 
-app.post('/api/payments/simulate', async (req, res, next) => {
+app.post('/api/payments/asaas/pix', async (req, res, next) => {
   try {
-    const { reservation, contract } = req.body || {}
-    if (!reservation?.id || !contract?.id) {
-      return res.status(400).json({ error: 'Dados de pagamento inválidos.' })
+    const { reservation, contractId } = req.body || {}
+    if (!reservation?.id || !reservation?.dateISO || !reservation?.period || !contractId) {
+      return res.status(400).json({ error: 'Dados da cobrança incompletos.' })
     }
 
-    const paidAt = new Date()
+    const contract = await Contract.findOne({ id: contractId, reservationId: reservation.id }).lean()
+    if (!contract) {
+      return res.status(400).json({ error: 'Contrato assinado não encontrado para esta reserva.' })
+    }
+
+    const settings = await currentSettings()
+    const serverPrice = priceForDate(reservation.dateISO, reservation.period, settings)
+
+    const conflict = await Reservation.findOne({
+      dateISO: reservation.dateISO,
+      id: { $ne: reservation.id },
+      paymentStatus: { $in: ['pending-asaas', 'confirmed-asaas', 'paid', 'approved-simulated'] },
+    }).lean()
+
+    if (conflict) {
+      return res.status(409).json({ error: 'Esta data já possui uma reserva ou pagamento em andamento.' })
+    }
+
+    const existing = await Reservation.findOne({ id: reservation.id }).lean()
+    if (existing?.asaasPaymentId && ['pending-asaas', 'confirmed-asaas'].includes(existing.paymentStatus)) {
+      const qr = await asaasRequest('/payments/' + existing.asaasPaymentId + '/pixQrCode')
+      return res.json({
+        reservation: existing,
+        payment: {
+          id: existing.asaasPaymentId,
+          status: existing.asaasStatus,
+        },
+        pix: qr,
+      })
+    }
+
+    const customer = await getOrCreateAsaasCustomer(reservation.customer, reservation.id)
+    const dueDate = new Date().toISOString().slice(0, 10)
+
+    const payment = await asaasRequest('/payments', {
+      method: 'POST',
+      body: {
+        customer: customer.id,
+        billingType: 'PIX',
+        value: serverPrice,
+        dueDate,
+        description: 'Reserva EspaçoOn - ' + displayDate(reservation.dateISO) + ' - ' + reservation.period,
+        externalReference: reservation.id,
+      },
+    })
+
+    const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
+
     const savedReservation = await Reservation.findOneAndUpdate(
       { id: reservation.id },
       {
         $set: {
           ...reservation,
-          paymentStatus: 'approved-simulated',
-          contractId: contract.id,
-          paidAt,
+          price: serverPrice,
+          contractId,
+          paymentStatus: 'pending-asaas',
+          asaasCustomerId: customer.id,
+          asaasPaymentId: payment.id,
+          asaasStatus: payment.status,
+          pixExpirationDate: pix.expirationDate,
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean()
 
-    const savedContract = await Contract.findOneAndUpdate(
-      { id: contract.id },
+    await Contract.findOneAndUpdate(
+      { id: contractId },
       {
         $set: {
-          ...contract,
-          paymentStatus: 'approved-simulated',
-          status: 'signed-paid-demo',
-          paidAt,
+          price: serverPrice,
+          paymentStatus: 'pending-asaas',
+          status: 'signed-awaiting-payment',
         },
       },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
+      { new: true },
+    )
+
+    res.status(201).json({
+      reservation: savedReservation,
+      payment: {
+        id: payment.id,
+        status: payment.status,
+      },
+      pix,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/payments/asaas/:reservationId/status', async (req, res, next) => {
+  try {
+    const reservation = await Reservation.findOne({ id: req.params.reservationId }).lean()
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
+    if (!reservation.asaasPaymentId) {
+      return res.status(400).json({ error: 'Esta reserva ainda não possui cobrança Asaas.' })
+    }
+
+    const payment = await asaasRequest('/payments/' + reservation.asaasPaymentId)
+
+    if (payment.status === 'RECEIVED') {
+      const result = await markPaymentReceived(reservation, payment, 'STATUS_CHECK')
+      return res.json({ paid: true, ...result, asaasStatus: payment.status })
+    }
+
+    if (payment.status === 'CONFIRMED') {
+      const updated = await Reservation.findOneAndUpdate(
+        { id: reservation.id },
+        { $set: { paymentStatus: 'confirmed-asaas', asaasStatus: payment.status } },
+        { new: true },
+      ).lean()
+
+      return res.json({
+        paid: false,
+        confirmed: true,
+        reservation: updated,
+        asaasStatus: payment.status,
+      })
+    }
+
+    const updated = await Reservation.findOneAndUpdate(
+      { id: reservation.id },
+      { $set: { asaasStatus: payment.status } },
+      { new: true },
     ).lean()
 
-    res.json({ reservation: savedReservation, contract: savedContract })
+    res.json({
+      paid: false,
+      reservation: updated,
+      asaasStatus: payment.status,
+    })
   } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/webhooks/asaas', async (req, res, next) => {
+  try {
+    if (!ASAAS_WEBHOOK_TOKEN) {
+      return res.status(503).json({ error: 'ASAAS_WEBHOOK_TOKEN não configurado.' })
+    }
+
+    const incomingToken = req.get('asaas-access-token')
+    if (incomingToken !== ASAAS_WEBHOOK_TOKEN) {
+      return res.status(401).json({ error: 'Webhook não autorizado.' })
+    }
+
+    const { id, event, payment } = req.body || {}
+    if (!id || !event) return res.status(400).json({ error: 'Evento inválido.' })
+
+    const duplicate = await WebhookEvent.findOne({ id }).lean()
+    if (duplicate) return res.status(200).json({ ok: true, duplicate: true })
+
+    await WebhookEvent.create({
+      id,
+      event,
+      paymentId: payment?.id,
+    })
+
+    const reservation = payment?.externalReference
+      ? await Reservation.findOne({ id: payment.externalReference }).lean()
+      : payment?.id
+        ? await Reservation.findOne({ asaasPaymentId: payment.id }).lean()
+        : null
+
+    if (reservation) {
+      if (event === 'PAYMENT_RECEIVED' || payment?.status === 'RECEIVED') {
+        await markPaymentReceived(reservation, payment, event)
+      } else if (event === 'PAYMENT_CONFIRMED') {
+        await Reservation.updateOne(
+          { id: reservation.id },
+          { $set: { paymentStatus: 'confirmed-asaas', asaasStatus: payment?.status || 'CONFIRMED' } },
+        )
+      } else if (['PAYMENT_REFUNDED', 'PAYMENT_DELETED'].includes(event)) {
+        await Reservation.updateOne(
+          { id: reservation.id },
+          { $set: { paymentStatus: event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled', asaasStatus: payment?.status || event } },
+        )
+        await Contract.updateOne(
+          { id: reservation.contractId },
+          { $set: { paymentStatus: event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled' } },
+        )
+      } else {
+        await Reservation.updateOne(
+          { id: reservation.id },
+          { $set: { asaasStatus: payment?.status || event } },
+        )
+      }
+    }
+
+    res.status(200).json({ ok: true })
+  } catch (error) {
+    if (error?.code === 11000) return res.status(200).json({ ok: true, duplicate: true })
     next(error)
   }
 })

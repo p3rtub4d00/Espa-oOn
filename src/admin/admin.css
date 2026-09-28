@@ -2,8 +2,8 @@
   min-height: 100vh;
   display: grid;
   grid-template-columns: 250px 1fr;
-  color: #18323a;
-  background: #eef2ef;
+  color: #1d2a33;
+  background: #f2f6fa;
 }
 
 .admin-sidebar {
@@ -14,7 +14,7 @@
   display: flex;
   flex-direction: column;
   color: white;
-  background: #07161d;
+  background: #0f3554;
 }
 
 .admin-brand {
@@ -32,8 +32,8 @@
   display: grid;
   place-items: center;
   border-radius: 12px;
-  color: #06372c;
-  background: #6de5be;
+  color: #0f3554;
+  background: #1f8efa;
   font-weight: 900;
 }
 
@@ -42,7 +42,7 @@
 }
 
 .admin-brand small {
-  color: #78a399;
+  color: #9fc9e7;
   font-size: 9px;
   text-transform: uppercase;
   letter-spacing: .14em;
@@ -62,7 +62,7 @@
   gap: 10px;
   border: 0;
   border-radius: 11px;
-  color: #8da6a7;
+  color: #b4cadb;
   background: transparent;
   text-align: left;
   font-size: 12px;
@@ -78,7 +78,7 @@
 .admin-back {
   margin-top: auto;
   border: 1px solid rgba(255,255,255,.08);
-  color: #b7c8c7;
+  color: #c7d8e6;
 }
 
 .admin-main {
@@ -120,8 +120,8 @@
   display: grid;
   place-items: center;
   border-radius: 11px;
-  color: #07503f;
-  background: #d5ebe3;
+  color: #176db5;
+  background: #e8f4ff;
   font-size: 11px;
   font-weight: 900;
 }
@@ -161,8 +161,8 @@
   display: grid;
   place-items: center;
   border-radius: 11px;
-  color: #14765f;
-  background: #e5f2ed;
+  color: #176db5;
+  background: #e8f4ff;
 }
 
 .admin-stats article > span,
@@ -236,7 +236,7 @@
   border: 1px solid rgba(16,35,45,.08);
   border-radius: 9px;
   color: #496168;
-  background: #f7f9f7;
+  background: #f7fafd;
   font-size: 9px;
   font-weight: 800;
 }
@@ -256,8 +256,8 @@
   place-items: center;
   align-content: center;
   border-radius: 10px;
-  color: #12624f;
-  background: #e5f2ed;
+  color: #176db5;
+  background: #e8f4ff;
 }
 
 .date-box b,
@@ -281,8 +281,8 @@
   display: grid;
   place-items: center;
   border-radius: 50%;
-  color: #167f68;
-  background: #eaf3ef;
+  color: #1f8efa;
+  background: #edf7ff;
 }
 
 .round-icon svg {
@@ -348,13 +348,13 @@
   border: 1px solid rgba(16,35,45,.07);
   border-radius: 11px;
   color: #425a61;
-  background: #f8faf8;
+  background: #f8fbfe;
 }
 
 .admin-calendar button.reserved {
-  border-color: #a8d4c5;
-  color: #0f6652;
-  background: #e8f4ef;
+  border-color: #b9d8f0;
+  color: #176db5;
+  background: #edf7ff;
 }
 
 .admin-calendar button b {
@@ -412,8 +412,8 @@
 .status-ok {
   padding: 6px 8px;
   border-radius: 999px;
-  color: #12674f;
-  background: #e6f2ed;
+  color: #176db5;
+  background: #e8f4ff;
   font-size: 8px;
   font-style: normal;
   font-weight: 800;
@@ -465,7 +465,7 @@
   padding: 14px;
   border-radius: 12px;
   color: #657a7f;
-  background: #eef3f0;
+  background: #eef6fc;
   font-size: 10px;
   line-height: 1.6;
 }
@@ -641,8 +641,8 @@
 }
 
 .visit-status.confirmed {
-  color: #12684f;
-  background: #e5f2ed;
+  color: #176db5;
+  background: #e8f4ff;
 }
 
 .visit-status.proposed {
@@ -719,7 +719,7 @@
 .visit-admin-actions .confirm {
   border: 0;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .visit-admin-actions .propose {
@@ -797,8 +797,8 @@
 .content-admin-form input:focus,
 .amenity-admin-form input:focus,
 .amenity-admin-form select:focus {
-  border-color: #2b967b;
-  box-shadow: 0 0 0 3px rgba(43,150,123,.08);
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.08);
 }
 
 .content-admin-form button,
@@ -813,7 +813,7 @@
   border: 0;
   border-radius: 10px;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
   font-size: 9px;
   font-weight: 800;
   white-space: nowrap;
@@ -824,9 +824,9 @@
   display: flex;
   align-items: center;
   gap: 14px;
-  border: 1px dashed #b8cac4;
+  border: 1px dashed #c7d8e6;
   border-radius: 12px;
-  background: #f8faf8;
+  background: #f8fbfe;
 }
 
 .upload-local-box > div {
@@ -931,8 +931,8 @@
   display: grid;
   place-items: center;
   border-radius: 11px;
-  color: #15755f;
-  background: #e6f2ed;
+  color: #176db5;
+  background: #e8f4ff;
 }
 
 .amenity-admin-icon svg {
@@ -1008,9 +1008,9 @@
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  border: 1px solid #b9d9cd;
+  border: 1px solid #b9d8f0;
   border-radius: 12px;
-  background: #edf7f3;
+  background: #edf7ff;
 }
 
 .visit-confirmed-locked span,
@@ -1019,7 +1019,7 @@
 }
 
 .visit-confirmed-locked span {
-  color: #5f7a72;
+  color: #667783;
   font-size: 8px;
   font-weight: 800;
   text-transform: uppercase;
@@ -1027,15 +1027,15 @@
 
 .visit-confirmed-locked strong {
   margin-top: 4px;
-  color: #1f4f43;
+  color: #0f4f82;
   font-size: 11px;
 }
 
 .visit-confirmed-locked .reopen {
   padding: 8px 10px;
-  border: 1px solid #c7d9d2;
+  border: 1px solid #c7d8e6;
   border-radius: 9px;
-  color: #45655c;
+  color: #45657c;
   background: white;
   font-size: 9px;
   font-weight: 800;

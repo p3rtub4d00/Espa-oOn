@@ -1,0 +1,206 @@
+import { jsPDF } from 'jspdf'
+
+function money(value) {
+  return new Intl.NumberFormat('pt-BR', {
+    style: 'currency',
+    currency: 'BRL',
+  }).format(Number(value || 0))
+}
+
+function addWrappedText(doc, text, x, y, width, lineHeight = 6) {
+  const lines = doc.splitTextToSize(text, width)
+  doc.text(lines, x, y)
+  return y + lines.length * lineHeight
+}
+
+export function createReceiptPdf(reservation, contract) {
+  const doc = new jsPDF()
+  const paidAt = reservation.paidAt ? new Date(reservation.paidAt).toLocaleString('pt-BR') : '-'
+
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.text('EspaçoOn', 20, 22)
+
+  doc.setFontSize(14)
+  doc.text('Comprovante de pagamento', 20, 34)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  let y = 48
+  const rows = [
+    ['Reserva', reservation.id],
+    ['Cliente', reservation.customer?.name || '-'],
+    ['Data da locação', reservation.date || '-'],
+    ['Período', reservation.period || '-'],
+    ['Valor', money(reservation.price)],
+    ['Pagamento', 'Aprovado - demonstração'],
+    ['Confirmado em', paidAt],
+    ['Contrato', contract?.id || reservation.contractId || '-'],
+  ]
+
+  rows.forEach(([label, value]) => {
+    doc.setFont('helvetica', 'bold')
+    doc.text(label + ':', 20, y)
+    doc.setFont('helvetica', 'normal')
+    doc.text(String(value), 66, y)
+    y += 8
+  })
+
+  y += 8
+  doc.setFontSize(9)
+  doc.setTextColor(90)
+  addWrappedText(
+    doc,
+    'Este comprovante foi gerado pelo EspaçoOn durante a fase de testes. Na versão de produção, os dados de pagamento serão confirmados pelo provedor de pagamento integrado.',
+    20,
+    y,
+    170,
+    5,
+  )
+
+  return doc
+}
+
+export function createContractPdf(contract) {
+  const doc = new jsPDF()
+  doc.setFont('helvetica', 'bold')
+  doc.setFontSize(18)
+  doc.text('EspaçoOn', 20, 20)
+  doc.setFontSize(14)
+  doc.text('Contrato de locação do espaço de lazer', 20, 31)
+
+  doc.setFont('helvetica', 'normal')
+  doc.setFontSize(10)
+  let y = 45
+
+  const meta = [
+    ['Contrato', contract.id],
+    ['Reserva', contract.reservationId],
+    ['Locatário', contract.customer?.name || '-'],
+    ['CPF', contract.customer?.cpf || '-'],
+    ['Data', contract.reservationDate || '-'],
+    ['Período', contract.period || '-'],
+    ['Valor', money(contract.price)],
+    ['Assinado em', contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '-'],
+    ['Hash', contract.hash || '-'],
+  ]
+
+  meta.forEach(([label, value]) => {
+    doc.setFont('helvetica', 'bold')
+    doc.text(label + ':', 20, y)
+    doc.setFont('helvetica', 'normal')
+    const lines = doc.splitTextToSize(String(value), 125)
+    doc.text(lines, 60, y)
+    y += Math.max(8, lines.length * 5 + 2)
+  })
+
+  y += 4
+  const clauses = [
+    ['1. Objeto.', 'O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma EspaçoOn, na data e período informados acima.'],
+    ['2. Uso do espaço.', 'O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.'],
+    ['3. Responsabilidade.', 'Danos causados ao patrimônio durante o período de locação poderão ser atribuídos ao responsável pela reserva conforme as condições do contrato.'],
+    ['4. Pagamento.', 'O valor contratado é o indicado neste documento e o status de pagamento é registrado junto à reserva.'],
+    ['5. Assinatura eletrônica.', 'O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash de verificação.'],
+  ]
+
+  clauses.forEach(([title, body]) => {
+    if (y > 250) {
+      doc.addPage()
+      y = 20
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.text(title, 20, y)
+    doc.setFont('helvetica', 'normal')
+    y = addWrappedText(doc, body, 20, y + 6, 170, 5) + 5
+  })
+
+  if (contract.signature) {
+    if (y > 220) {
+      doc.addPage()
+      y = 20
+    }
+    doc.setFont('helvetica', 'bold')
+    doc.text('Assinatura registrada', 20, y + 4)
+    try {
+      doc.addImage(contract.signature, 'PNG', 20, y + 10, 75, 28)
+      doc.setFont('helvetica', 'normal')
+      doc.text(contract.customer?.name || 'Locatário', 20, y + 44)
+    } catch {
+      doc.setFont('helvetica', 'normal')
+      doc.text('Assinatura armazenada no sistema.', 20, y + 12)
+    }
+  }
+
+  return doc
+}
+
+export function pdfToFile(doc, filename) {
+  const blob = doc.output('blob')
+  return new File([blob], filename, { type: 'application/pdf' })
+}
+
+export function downloadPdf(doc, filename) {
+  doc.save(filename)
+}
+
+export function normalizeWhatsApp(phone = '') {
+  const digits = String(phone).replace(/\D/g, '')
+  if (!digits) return ''
+  return digits.startsWith('55') ? digits : '55' + digits
+}
+
+export function buildPaymentMessage(reservation, contract) {
+  return [
+    'Olá, ' + (reservation.customer?.name || 'cliente') + '!',
+    '',
+    'Seu pagamento no EspaçoOn foi confirmado.',
+    'Reserva: ' + reservation.id,
+    'Data: ' + reservation.date,
+    'Período: ' + reservation.period,
+    'Valor: ' + money(reservation.price),
+    'Contrato: ' + (contract?.id || reservation.contractId || '-'),
+    '',
+    'Guarde o código da reserva para consultar seus dados posteriormente.',
+  ].join('\n')
+}
+
+export async function sharePaymentDocuments(reservation, contract) {
+  const receiptDoc = createReceiptPdf(reservation, contract)
+  const contractDoc = createContractPdf(contract)
+  const receiptName = 'comprovante-' + reservation.id + '.pdf'
+  const contractName = 'contrato-' + contract.id + '.pdf'
+  const receiptFile = pdfToFile(receiptDoc, receiptName)
+  const contractFile = pdfToFile(contractDoc, contractName)
+  const message = buildPaymentMessage(reservation, contract)
+
+  if (navigator.share && navigator.canShare?.({ files: [receiptFile, contractFile] })) {
+    try {
+      await navigator.share({
+        title: 'EspaçoOn - Reserva ' + reservation.id,
+        text: message,
+        files: [receiptFile, contractFile],
+      })
+      return { method: 'share' }
+    } catch (error) {
+      if (error?.name !== 'AbortError') {
+        // fall through to download + WhatsApp
+      } else {
+        return { method: 'cancelled' }
+      }
+    }
+  }
+
+  downloadPdf(receiptDoc, receiptName)
+  downloadPdf(contractDoc, contractName)
+
+  const number = normalizeWhatsApp(reservation.customer?.phone)
+  if (number) {
+    window.open(
+      'https://wa.me/' + number + '?text=' + encodeURIComponent(message),
+      '_blank',
+      'noopener,noreferrer',
+    )
+  }
+
+  return { method: 'download-whatsapp' }
+}

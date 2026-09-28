@@ -45,6 +45,7 @@ const menu = [
   ['gallery', 'Galeria', Images],
   ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
+  ['notifications', 'Notificações', BellRing],
   ['whatsapp', 'WhatsApp', MessageCircle],
   ['system', 'Dados', ShieldAlert],
 ]
@@ -78,6 +79,13 @@ function normalizeWhatsAppNumber(phone = '') {
   const digits = phone.replace(/\D/g, '')
   if (!digits) return ''
   return digits.startsWith('55') ? digits : '55' + digits
+}
+
+function urlBase64ToUint8Array(base64String) {
+  const padding = '='.repeat((4 - (base64String.length % 4)) % 4)
+  const base64 = (base64String + padding).replace(/-/g, '+').replace(/_/g, '/')
+  const rawData = window.atob(base64)
+  return Uint8Array.from([...rawData].map((char) => char.charCodeAt(0)))
 }
 
 function openWhatsAppConfirmation(visit, date, time) {
@@ -124,6 +132,10 @@ export default function AdminPanel({ onClose }) {
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
   const [deletingReservationId, setDeletingReservationId] = useState('')
+  const [pushStatus, setPushStatus] = useState(null)
+  const [pushSubscription, setPushSubscription] = useState(null)
+  const [pushBusy, setPushBusy] = useState(false)
+  const [pushMessage, setPushMessage] = useState('')
 
   useEffect(() => {
     let alive = true
@@ -193,6 +205,34 @@ export default function AdminPanel({ onClose }) {
       alive = false
     }
   }, [active, revenueMonth])
+
+  useEffect(() => {
+    if (active !== 'notifications') return
+
+    let alive = true
+
+    const loadPush = async () => {
+      try {
+        const status = await api.pushStatus()
+        if (!alive) return
+        setPushStatus(status)
+
+        if ('serviceWorker' in navigator && 'PushManager' in window) {
+          const registration = await navigator.serviceWorker.ready
+          const subscription = await registration.pushManager.getSubscription()
+          if (alive) setPushSubscription(subscription)
+        }
+      } catch (error) {
+        if (alive) setPushMessage(error.message || 'Não foi possível carregar as notificações.')
+      }
+    }
+
+    loadPush()
+
+    return () => {
+      alive = false
+    }
+  }, [active])
 
   const prices = settings.prices
   const blockedDates = new Set(settings.blockedDates || [])
@@ -805,6 +845,220 @@ export default function AdminPanel({ onClose }) {
             </div>
           </section>
         )}
+        {active === 'notifications' && (
+          <section className="admin-card large push-settings">
+            <div className="admin-card-title push-settings-title">
+              <div>
+                <span>Avisos automáticos</span>
+                <strong>Notificações Push</strong>
+              </div>
+              <BellRing />
+            </div>
+
+            <div className="push-device-card">
+              <div className="push-device-info">
+                <div className={pushSubscription ? 'push-status-icon active' : 'push-status-icon'}>
+                  <BellRing size={20} />
+                </div>
+                <div>
+                  <strong>
+                    {pushSubscription
+                      ? 'Este dispositivo está recebendo notificações'
+                      : 'Ative as notificações neste dispositivo'}
+                  </strong>
+                  <span>
+                    {pushSubscription
+                      ? 'O EspaçoOn pode avisar sobre novas visitas e reservas pagas.'
+                      : 'Autorize uma vez para receber avisos mesmo com o painel fechado.'}
+                  </span>
+                </div>
+              </div>
+
+              <div className="push-device-actions">
+                {!pushSubscription ? (
+                  <button
+                    className="push-enable-button"
+                    disabled={pushBusy || !pushStatus?.publicKey}
+                    onClick={async () => {
+                      setPushBusy(true)
+                      setPushMessage('')
+
+                      try {
+                        if (
+                          !('serviceWorker' in navigator) ||
+                          !('PushManager' in window) ||
+                          !('Notification' in window)
+                        ) {
+                          throw new Error('Este navegador não oferece suporte a notificações Push.')
+                        }
+
+                        const permission = await Notification.requestPermission()
+                        if (permission !== 'granted') {
+                          throw new Error('A permissão de notificações não foi autorizada.')
+                        }
+
+                        const registration = await navigator.serviceWorker.ready
+                        let subscription = await registration.pushManager.getSubscription()
+
+                        if (!subscription) {
+                          subscription = await registration.pushManager.subscribe({
+                            userVisibleOnly: true,
+                            applicationServerKey: urlBase64ToUint8Array(pushStatus.publicKey),
+                          })
+                        }
+
+                        await api.subscribePush(subscription.toJSON())
+                        setPushSubscription(subscription)
+
+                        const status = await api.pushStatus()
+                        setPushStatus(status)
+                        setPushMessage('Notificações ativadas neste dispositivo.')
+                      } catch (error) {
+                        setPushMessage(error.message || 'Não foi possível ativar as notificações.')
+                      } finally {
+                        setPushBusy(false)
+                      }
+                    }}
+                  >
+                    <BellRing size={17} />
+                    {pushBusy ? 'Ativando...' : 'Ativar neste dispositivo'}
+                  </button>
+                ) : (
+                  <>
+                    <button
+                      className="push-test-button"
+                      disabled={pushBusy}
+                      onClick={async () => {
+                        setPushBusy(true)
+                        setPushMessage('')
+                        try {
+                          await api.testPush(pushSubscription.endpoint)
+                          setPushMessage('Notificação de teste enviada.')
+                        } catch (error) {
+                          setPushMessage(error.message || 'Não foi possível enviar o teste.')
+                        } finally {
+                          setPushBusy(false)
+                        }
+                      }}
+                    >
+                      <BellRing size={17} />
+                      Enviar teste
+                    </button>
+
+                    <button
+                      className="push-disable-button"
+                      disabled={pushBusy}
+                      onClick={async () => {
+                        setPushBusy(true)
+                        setPushMessage('')
+                        try {
+                          await api.unsubscribePush(pushSubscription.endpoint)
+                          await pushSubscription.unsubscribe()
+                          setPushSubscription(null)
+                          const status = await api.pushStatus()
+                          setPushStatus(status)
+                          setPushMessage('Notificações removidas deste dispositivo.')
+                        } catch (error) {
+                          setPushMessage(error.message || 'Não foi possível remover o dispositivo.')
+                        } finally {
+                          setPushBusy(false)
+                        }
+                      }}
+                    >
+                      Desativar
+                    </button>
+                  </>
+                )}
+              </div>
+            </div>
+
+            <div className="push-summary">
+              <article>
+                <span>Dispositivos ativos</span>
+                <strong>{pushStatus?.subscriptions ?? 0}</strong>
+                <small>celulares ou computadores autorizados</small>
+              </article>
+              <article>
+                <span>Permissão neste navegador</span>
+                <strong>
+                  {'Notification' in window
+                    ? Notification.permission === 'granted'
+                      ? 'Permitida'
+                      : Notification.permission === 'denied'
+                        ? 'Bloqueada'
+                        : 'Pendente'
+                    : 'Indisponível'}
+                </strong>
+                <small>controle feito pelo próprio navegador</small>
+              </article>
+            </div>
+
+            <div className="push-notification-options">
+              <article>
+                <div>
+                  <CheckCircle2 size={18} />
+                  <span>
+                    <strong>Reserva paga</strong>
+                    <small>Notificar quando o Asaas confirmar o recebimento de uma reserva.</small>
+                  </span>
+                </div>
+                <button
+                  className={settings.notifications?.notifyPaidReservation !== false ? 'enabled' : ''}
+                  onClick={async () => {
+                    const next = {
+                      ...settings,
+                      notifications: {
+                        ...(settings.notifications || {}),
+                        notifyPaidReservation:
+                          settings.notifications?.notifyPaidReservation === false,
+                      },
+                    }
+                    await persistSettings(next)
+                  }}
+                >
+                  {settings.notifications?.notifyPaidReservation !== false ? 'Ativado' : 'Desativado'}
+                </button>
+              </article>
+
+              <article>
+                <div>
+                  <CalendarCheck2 size={18} />
+                  <span>
+                    <strong>Nova solicitação de visita</strong>
+                    <small>Notificar assim que um cliente solicitar uma visita ao espaço.</small>
+                  </span>
+                </div>
+                <button
+                  className={settings.notifications?.notifyNewVisit !== false ? 'enabled' : ''}
+                  onClick={async () => {
+                    const next = {
+                      ...settings,
+                      notifications: {
+                        ...(settings.notifications || {}),
+                        notifyNewVisit:
+                          settings.notifications?.notifyNewVisit === false,
+                      },
+                    }
+                    await persistSettings(next)
+                  }}
+                >
+                  {settings.notifications?.notifyNewVisit !== false ? 'Ativado' : 'Desativado'}
+                </button>
+              </article>
+            </div>
+
+            {pushMessage && <div className="admin-demo-note">{pushMessage}</div>}
+
+            <div className="push-help">
+              <strong>Como usar no celular</strong>
+              <span>
+                Android/Chrome: toque em “Ativar neste dispositivo” e permita as notificações.
+                No iPhone, adicione o EspaçoOn à Tela de Início pelo Safari e depois abra o painel pelo ícone instalado.
+              </span>
+            </div>
+          </section>
+        )}
+
         {active === 'whatsapp' && (
           <section className="admin-card large whatsapp-settings">
             <div className="admin-card-title whatsapp-settings-title">

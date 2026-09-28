@@ -27,6 +27,7 @@ import {
   Users,
   Snowflake,
   Armchair,
+  Download,
 } from 'lucide-react'
 
 const heroSlides = [
@@ -110,6 +111,11 @@ function App() {
   const [reservedDates, setReservedDates] = useState(new Set())
   const [siteReady, setSiteReady] = useState(false)
   const [siteLoadError, setSiteLoadError] = useState('')
+  const [installPrompt, setInstallPrompt] = useState(null)
+  const [appInstalled, setAppInstalled] = useState(() =>
+    window.matchMedia?.('(display-mode: standalone)').matches ||
+    window.navigator.standalone === true
+  )
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -117,6 +123,45 @@ function App() {
     }, 6500)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    const handleBeforeInstall = (event) => {
+      event.preventDefault()
+      setInstallPrompt(event)
+    }
+
+    const handleInstalled = () => {
+      setAppInstalled(true)
+      setInstallPrompt(null)
+    }
+
+    window.addEventListener('beforeinstallprompt', handleBeforeInstall)
+    window.addEventListener('appinstalled', handleInstalled)
+
+    return () => {
+      window.removeEventListener('beforeinstallprompt', handleBeforeInstall)
+      window.removeEventListener('appinstalled', handleInstalled)
+    }
+  }, [])
+
+  const installApp = async () => {
+    if (appInstalled) return
+
+    if (installPrompt) {
+      installPrompt.prompt()
+      await installPrompt.userChoice.catch(() => null)
+      setInstallPrompt(null)
+      return
+    }
+
+    const isIOS = /iphone|ipad|ipod/i.test(navigator.userAgent)
+    if (isIOS) {
+      window.alert('No iPhone: abra no Safari, toque em Compartilhar e escolha “Adicionar à Tela de Início”.')
+      return
+    }
+
+    window.alert('No Chrome: abra o menu ⋮ e escolha “Instalar app” ou “Adicionar à tela inicial”. Se a opção não aparecer, atualize a página e tente novamente.')
+  }
 
   useEffect(() => {
     let active = true
@@ -295,6 +340,8 @@ function App() {
 
     return (
       <AdminPanel
+        onInstall={installApp}
+        appInstalled={appInstalled}
         onClose={async () => {
           try {
             await api.adminLogout()
@@ -332,6 +379,12 @@ function App() {
         </nav>
 
         <div className="header-actions">
+          {!appInstalled && (
+            <button className="header-install" onClick={installApp}>
+              <Download size={16} />
+              Instalar
+            </button>
+          )}
           <button className="header-lookup" onClick={() => setLookupOpen(true)}>
             Consultar reserva
           </button>
@@ -355,6 +408,12 @@ function App() {
             <button onClick={() => scrollTo('galeria')}>Galeria</button>
             <button onClick={() => scrollTo('precos')}>Preços</button>
             <button onClick={() => scrollTo('agenda')}>Disponibilidade</button>
+            {!appInstalled && (
+              <button onClick={installApp}>
+                <Download size={16} />
+                Instalar EspaçoOn
+              </button>
+            )}
             <button
               onClick={() => {
                 setLookupOpen(true)

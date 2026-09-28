@@ -33,6 +33,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [cancellationPolicyText, setCancellationPolicyText] = useState(
     DEFAULT_SETTINGS.cancellationPolicy.text,
   )
+  const [establishmentName, setEstablishmentName] = useState('EspaçoOn')
 
   const contractId = useMemo(
     () => 'CTR-' + reservation.id.replace('ESP-', ''),
@@ -45,6 +46,9 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       .then((settings) => {
         if (active && settings?.cancellationPolicy?.text) {
           setCancellationPolicyText(settings.cancellationPolicy.text)
+        }
+        if (active && settings?.establishment?.name) {
+          setEstablishmentName(settings.establishment.name)
         }
       })
       .catch(() => {})
@@ -144,6 +148,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       customer: reservation.customer,
       signedAt,
       signature,
+      establishmentName,
       cancellationPolicyText,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
@@ -212,7 +217,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
               <div className="contract-body">
                 <p>
                   <strong>1. Objeto.</strong> O presente instrumento registra a locação temporária
-                  do espaço de lazer indicado pela plataforma EspaçoOn, na data e período informados acima.
+                  do espaço de lazer indicado pela plataforma {establishmentName}, na data e período informados acima.
                 </p>
                 <p>
                   <strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá

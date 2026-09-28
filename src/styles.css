@@ -1149,3 +1149,405 @@ footer p {
     align-self: flex-start;
   }
 }
+
+
+/* 2026-09 simplified public experience */
+.hero {
+  min-height: 500px;
+  height: 66vh;
+  max-height: 620px;
+  align-items: center;
+}
+
+.hero-overlay {
+  background:
+    linear-gradient(90deg, rgba(5, 24, 28, .74) 0%, rgba(5, 24, 28, .42) 54%, rgba(5, 24, 28, .12) 100%),
+    linear-gradient(0deg, rgba(5, 24, 28, .32) 0%, transparent 42%);
+}
+
+.hero-content {
+  margin: 58px auto 0;
+  align-items: center;
+}
+
+.hero-copy {
+  width: min(650px, 68%);
+}
+
+.hero h1,
+.section-heading h2,
+.availability-copy h2,
+.final-cta h2 {
+  font-family: 'Manrope', sans-serif;
+  letter-spacing: -.035em;
+}
+
+.hero h1 {
+  max-width: 650px;
+  font-size: clamp(36px, 5vw, 60px);
+  line-height: 1.03;
+}
+
+.hero-copy > p {
+  max-width: 570px;
+  margin: 16px 0 22px;
+  font-size: 15px;
+  line-height: 1.55;
+}
+
+.eyebrow {
+  margin-bottom: 12px;
+  font-size: 10px;
+  letter-spacing: .11em;
+}
+
+.trust-card {
+  width: 255px;
+  padding: 13px;
+  border-radius: 14px;
+}
+
+.hero-arrow {
+  width: 38px;
+  height: 38px;
+}
+
+.hero-dots {
+  bottom: 16px;
+}
+
+.quick-info {
+  width: min(1000px, 90%);
+  margin: -24px auto 0;
+  border-radius: 14px;
+  box-shadow: 0 10px 32px rgba(17,47,54,.09);
+}
+
+.quick-info > div {
+  padding: 16px 20px;
+}
+
+.amenities-section,
+.pricing-section {
+  padding: 64px 0;
+}
+
+.section-heading {
+  max-width: 640px;
+  margin-bottom: 26px;
+}
+
+.section-heading h2,
+.availability-copy h2,
+.final-cta h2 {
+  margin: 7px 0 10px;
+  font-size: clamp(28px, 3.5vw, 42px);
+  line-height: 1.08;
+}
+
+.section-heading p,
+.availability-copy > p {
+  line-height: 1.55;
+}
+
+.section-kicker {
+  font-size: 10px;
+  letter-spacing: .1em;
+}
+
+.amenities-grid {
+  grid-template-columns: repeat(4, 1fr);
+  gap: 10px;
+}
+
+.amenity-card {
+  padding: 18px;
+  border-radius: 14px;
+}
+
+.amenity-card:hover {
+  transform: none;
+  box-shadow: 0 8px 25px rgba(17,47,54,.06);
+}
+
+.amenity-icon {
+  width: 40px;
+  height: 40px;
+  border-radius: 11px;
+}
+
+.amenity-card h3 {
+  margin: 12px 0 4px;
+  font-size: 14px;
+}
+
+.amenity-card p {
+  font-size: 12px;
+  line-height: 1.45;
+}
+
+.gallery-section {
+  padding: 60px 0;
+  color: var(--ink);
+  background: #f3f7f5;
+}
+
+.section-heading.light p {
+  color: var(--muted);
+}
+
+.section-heading.light .section-kicker {
+  color: var(--green);
+}
+
+.gallery-grid {
+  grid-template-columns: 1.35fr 1fr 1fr 1fr;
+  grid-template-rows: 190px;
+  gap: 9px;
+}
+
+.gallery-grid button,
+.gallery-grid button.gallery-main {
+  grid-row: auto;
+  border-radius: 12px;
+}
+
+.gallery-grid button:nth-child(n+5) {
+  display: none;
+}
+
+.pricing-section {
+  padding-bottom: 64px;
+}
+
+.pricing-grid {
+  gap: 12px;
+}
+
+.price-card {
+  padding: 22px;
+  border-radius: 15px;
+}
+
+.price-card.featured {
+  color: var(--ink);
+  background: #f0faf6;
+  border-color: #b9dfd2;
+  transform: none;
+  box-shadow: none;
+}
+
+.price-card.featured > p {
+  color: var(--muted);
+}
+
+.popular-badge {
+  top: 13px;
+  right: 13px;
+  padding: 5px 8px;
+  font-size: 8px;
+}
+
+.price-card > p {
+  min-height: 0;
+  margin-bottom: 16px;
+}
+
+.price-row {
+  padding: 12px 0;
+}
+
+.availability-section {
+  padding: 64px 0;
+}
+
+.availability-layout {
+  gap: 40px;
+}
+
+.final-cta {
+  width: min(1100px, 90%);
+  margin: 64px auto;
+  padding: 28px 32px;
+  border-radius: 16px;
+}
+
+.final-cta h2 {
+  font-size: clamp(26px, 3vw, 38px);
+}
+
+footer {
+  padding-top: 34px;
+  padding-bottom: 34px;
+}
+
+@media (max-width: 900px) {
+  .hero {
+    min-height: 470px;
+    height: 60vh;
+  }
+
+  .hero-copy {
+    width: min(620px, 80%);
+  }
+
+  .trust-card {
+    display: none;
+  }
+
+  .amenities-grid {
+    grid-template-columns: repeat(2, 1fr);
+  }
+
+  .gallery-grid {
+    grid-template-columns: 1.35fr 1fr 1fr;
+  }
+
+  .gallery-grid button:nth-child(4) {
+    display: none;
+  }
+}
+
+@media (max-width: 680px) {
+  .hero {
+    min-height: 430px;
+    height: 56vh;
+    max-height: 500px;
+  }
+
+  .hero-content {
+    width: 88%;
+    margin-top: 52px;
+  }
+
+  .hero-copy {
+    width: 100%;
+  }
+
+  .hero h1 {
+    font-size: clamp(31px, 10vw, 42px);
+    letter-spacing: -.045em;
+  }
+
+  .hero-copy > p {
+    margin: 13px 0 18px;
+    font-size: 13px;
+  }
+
+  .hero-actions {
+    gap: 8px;
+  }
+
+  .btn-primary,
+  .btn-secondary {
+    min-height: 44px;
+    padding: 11px 13px;
+    font-size: 12px;
+  }
+
+  .hero-arrow {
+    display: none;
+  }
+
+  .quick-info {
+    width: 92%;
+    margin-top: -18px;
+    grid-template-columns: 1fr 1fr 1fr;
+    overflow: hidden;
+  }
+
+  .quick-info > div {
+    gap: 7px;
+    padding: 11px 8px;
+    text-align: center;
+    flex-direction: column;
+  }
+
+  .quick-info > div + div {
+    border-left: 1px solid var(--border);
+    border-top: 0;
+  }
+
+  .quick-info span {
+    font-size: 9px;
+  }
+
+  .quick-info strong {
+    font-size: 10px;
+  }
+
+  .quick-info svg {
+    width: 18px;
+  }
+
+  .amenities-section,
+  .pricing-section,
+  .availability-section {
+    padding: 44px 0;
+  }
+
+  .section-heading {
+    margin-bottom: 20px;
+  }
+
+  .section-heading h2,
+  .availability-copy h2 {
+    font-size: 28px;
+  }
+
+  .amenities-grid {
+    grid-template-columns: 1fr 1fr;
+    gap: 8px;
+  }
+
+  .amenity-card {
+    padding: 14px;
+  }
+
+  .amenity-card p {
+    font-size: 11px;
+  }
+
+  .gallery-section {
+    padding: 44px 0;
+  }
+
+  .gallery-grid {
+    display: flex;
+    overflow-x: auto;
+    gap: 8px;
+    scroll-snap-type: x mandatory;
+    scrollbar-width: none;
+  }
+
+  .gallery-grid::-webkit-scrollbar {
+    display: none;
+  }
+
+  .gallery-grid button,
+  .gallery-grid button.gallery-main,
+  .gallery-grid button:nth-child(4) {
+    display: block;
+    flex: 0 0 78%;
+    height: 220px;
+    scroll-snap-align: start;
+  }
+
+  .pricing-grid {
+    grid-template-columns: 1fr;
+    gap: 9px;
+  }
+
+  .price-card {
+    padding: 18px;
+  }
+
+  .availability-layout {
+    gap: 24px;
+  }
+
+  .final-cta {
+    margin: 44px auto;
+    padding: 22px;
+  }
+}

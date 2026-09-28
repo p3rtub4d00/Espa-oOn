@@ -286,3 +286,42 @@
     grid-column: auto;
   }
 }
+
+
+/* EspaçoOn visit scheduler — aquatic blue theme */
+.visit-backdrop {
+  background: rgba(7, 29, 46, .76);
+}
+
+.visit-modal {
+  background: #f8fbfe;
+}
+
+.visit-hero {
+  background: #0f3554;
+}
+
+.visit-hero > span {
+  color: #9ed9ff;
+}
+
+.visit-input:focus-within {
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.09);
+}
+
+.visit-note {
+  border-color: #cce5f8;
+  background: #f0f8ff;
+}
+
+.visit-submit,
+.visit-success button {
+  color: white;
+  background: #1f8efa;
+}
+
+.visit-submit:hover,
+.visit-success button:hover {
+  background: #167bdc;
+}

@@ -181,12 +181,6 @@ const settingsSchema = new mongoose.Schema(
     rentalHours: mongoose.Schema.Types.Mixed,
     gallery: [String],
     amenities: [mongoose.Schema.Types.Mixed],
-    whatsapp: {
-      ownerName: String,
-      ownerPhone: String,
-      notifyPaidReservation: { type: Boolean, default: true },
-      notifyNewVisit: { type: Boolean, default: true },
-    },
     notifications: {
       notifyPaidReservation: { type: Boolean, default: true },
       notifyNewVisit: { type: Boolean, default: true },
@@ -267,12 +261,6 @@ const DEFAULT_SETTINGS = {
     { id: 'snooker', name: 'Sinuca', description: 'Mesa de sinuca disponível para os convidados.', icon: 'game' },
     { id: 'support', name: 'Área de apoio', description: 'Estrutura para confraternizações.', icon: 'food' },
   ],
-  whatsapp: {
-    ownerName: '',
-    ownerPhone: '',
-    notifyPaidReservation: true,
-    notifyNewVisit: true,
-  },
   notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
@@ -1015,7 +1003,7 @@ app.get('/api/settings', async (_req, res, next) => {
   try {
     const settings = await Settings.findOne({ key: 'main' }).lean()
     const source = settings || DEFAULT_SETTINGS
-    const { whatsapp, notifications, ...publicSettings } = source
+    const { notifications, ...publicSettings } = source
     res.json(publicSettings)
   } catch (error) {
     next(error)
@@ -1055,19 +1043,6 @@ app.get('/api/availability', async (_req, res, next) => {
 app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res, next) => {
   try {
     const update = sanitizeSettingsUpdate(req.body)
-
-    if (update.whatsapp !== undefined) {
-      update.whatsapp = {
-        ownerName: textValue(update.whatsapp?.ownerName, 100),
-        ownerPhone: onlyDigits(update.whatsapp?.ownerPhone).slice(0, 13),
-        notifyPaidReservation: update.whatsapp?.notifyPaidReservation !== false,
-        notifyNewVisit: update.whatsapp?.notifyNewVisit !== false,
-      }
-
-      if (update.whatsapp.ownerPhone && !isValidPhone(update.whatsapp.ownerPhone)) {
-        return res.status(400).json({ error: 'Número de WhatsApp inválido.' })
-      }
-    }
 
     const settings = await Settings.findOneAndUpdate(
       { key: 'main' },

@@ -1,5 +1,6 @@
 import { useMemo, useState } from 'react'
 import { CalendarDays, CheckCircle2, Clock3, MapPin, Phone, UserRound, X } from 'lucide-react'
+import { api } from '../data/api'
 import './visit.css'
 
 function onlyDigits(value) {
@@ -23,6 +24,7 @@ export default function VisitScheduler({ onClose }) {
     time: '',
   })
   const [errors, setErrors] = useState({})
+  const [saving, setSaving] = useState(false)
 
   const bookingCode = useMemo(
     () => 'VIS-' + Math.floor(100000 + Math.random() * 900000),
@@ -37,7 +39,7 @@ export default function VisitScheduler({ onClose }) {
     setErrors((current) => ({ ...current, [field]: '' }))
   }
 
-  const submit = () => {
+  const submit = async () => {
     const next = {}
     if (form.name.trim().length < 3) next.name = 'Informe seu nome.'
     if (onlyDigits(form.phone).length < 10) next.phone = 'Informe um telefone válido.'
@@ -58,9 +60,15 @@ export default function VisitScheduler({ onClose }) {
       status: 'pending-owner-confirmation',
     }
 
-    const stored = JSON.parse(localStorage.getItem('espacoon_visits') || '[]')
-    localStorage.setItem('espacoon_visits', JSON.stringify([...stored, visit]))
-    setDone(true)
+    setSaving(true)
+    try {
+      await api.createVisit(visit)
+      setDone(true)
+    } catch (error) {
+      setErrors((current) => ({ ...current, submit: error.message || 'Não foi possível enviar a solicitação.' }))
+    } finally {
+      setSaving(false)
+    }
   }
 
   return (
@@ -144,8 +152,9 @@ export default function VisitScheduler({ onClose }) {
                 </span>
               </div>
 
-              <button className="visit-submit" onClick={submit}>
-                Enviar solicitação de visita
+              {errors.submit && <small className="visit-submit-error">{errors.submit}</small>}
+              <button className="visit-submit" onClick={submit} disabled={saving}>
+                {saving ? 'Enviando...' : 'Enviar solicitação de visita'}
               </button>
             </div>
           </>

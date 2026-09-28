@@ -12,6 +12,8 @@ import {
   FileCheck2,
   Images,
   ListPlus,
+  ChevronLeft,
+  ChevronRight,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -69,6 +71,7 @@ export default function AdminPanel({ onClose }) {
   const [settings, setSettings] = useState(loadSettings)
   const [loading, setLoading] = useState(true)
   const [adminError, setAdminError] = useState('')
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
 
   useEffect(() => {
     let activeRequest = true
@@ -96,7 +99,35 @@ export default function AdminPanel({ onClose }) {
     }
   }, [])
   const prices = settings.prices
-  const blockedDays = new Set(settings.blockedDays || [])
+  const blockedDates = new Set(settings.blockedDates || [])
+
+  const adminMonthDays = useMemo(() => {
+    const year = calendarMonth.getFullYear()
+    const month = calendarMonth.getMonth()
+    const count = new Date(year, month + 1, 0).getDate()
+    return Array.from({ length: count }, (_, i) => i + 1)
+  }, [calendarMonth])
+
+  const adminFirstWeekday = useMemo(
+    () => new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay(),
+    [calendarMonth],
+  )
+
+  const adminMonthLabel = useMemo(
+    () => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+      .format(calendarMonth)
+      .replace(/^./, (letter) => letter.toUpperCase()),
+    [calendarMonth],
+  )
+
+  const toISODate = (year, monthIndex, day) =>
+    [year, String(monthIndex + 1).padStart(2, '0'), String(day).padStart(2, '0')].join('-')
+
+  const reservationISO = (reservation) => {
+    if (reservation.dateISO) return reservation.dateISO
+    const match = String(reservation.date || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+    return match ? match[3] + '-' + match[2] + '-' + match[1] : ''
+  }
 
   const persistSettings = async (next) => {
     setSettings(next)
@@ -215,11 +246,11 @@ export default function AdminPanel({ onClose }) {
                       <span className="round-icon"><Clock3 /></span>
                       <span className="list-main">
                         <strong>{visit.name}</strong>
-                        <small>{visit.date.split('-').reverse().join('/')} às {visit.time}</small>
+                        <small>{(visit.confirmedDate || visit.requestedDate || '-').split('-').reverse().join('/')} às {visit.confirmedTime || visit.requestedTime || '-'}</small>
                       </span>
                     </div>
                   )) : (
-                    <div className="admin-empty">Nenhuma visita foi agendada neste navegador ainda.</div>
+                    <div className="admin-empty">Nenhuma visita foi solicitada ainda.</div>
                   )}
                 </div>
               </div>
@@ -229,27 +260,66 @@ export default function AdminPanel({ onClose }) {
 
         {active === 'calendar' && (
           <section className="admin-card large">
-            <div className="admin-card-title">
-              <div><span>Agenda mensal</span><strong>Outubro 2026</strong></div>
-              <button>Bloquear data</button>
+            <div className="admin-card-title admin-calendar-title">
+              <div><span>Agenda mensal</span><strong>{adminMonthLabel}</strong></div>
+              <div className="admin-calendar-nav">
+                <button
+                  onClick={() => setCalendarMonth(
+                    new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+                  )}
+                  aria-label="Mês anterior"
+                >
+                  <ChevronLeft size={17} />
+                </button>
+                <button
+                  onClick={() => setCalendarMonth(
+                    new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1)
+                  )}
+                  aria-label="Próximo mês"
+                >
+                  <ChevronRight size={17} />
+                </button>
+              </div>
             </div>
+
+            <div className="admin-calendar-weekdays">
+              {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((label, index) => (
+                <span key={label + index}>{label}</span>
+              ))}
+            </div>
+
             <div className="admin-calendar">
-              {Array.from({ length: 4 }).map((_, i) => <span key={'e'+i} />)}
-              {Array.from({ length: 31 }, (_, i) => i + 1).map((day) => {
-                const reservation = reservations.find((r) => Number(r.day) === day)
-                const blocked = blockedDays.has(day)
+              {Array.from({ length: adminFirstWeekday }).map((_, i) => <span key={'e'+i} />)}
+              {adminMonthDays.map((day) => {
+                const iso = toISODate(calendarMonth.getFullYear(), calendarMonth.getMonth(), day)
+                const reservation = reservations.find((r) => reservationISO(r) === iso)
+                const legacyBlocked = calendarMonth.getFullYear() === 2026
+                  && calendarMonth.getMonth() === 9
+                  && (settings.blockedDays || []).includes(day)
+                const blocked = blockedDates.has(iso) || legacyBlocked
+
                 const toggleBlocked = () => {
                   if (reservation) return
-                  const nextDays = blocked
-                    ? settings.blockedDays.filter((item) => Number(item) !== day)
-                    : [...settings.blockedDays, day]
-                  const next = { ...settings, blockedDays: nextDays }
+
+                  const current = settings.blockedDates || []
+                  const nextDates = blocked
+                    ? current.filter((item) => item !== iso)
+                    : [...current, iso]
+
+                  const next = {
+                    ...settings,
+                    blockedDates: nextDates,
+                    blockedDays: legacyBlocked
+                      ? (settings.blockedDays || []).filter((item) => Number(item) !== day)
+                      : (settings.blockedDays || []),
+                  }
                   persistSettings(next)
                 }
+
                 return (
                   <button
                     className={reservation ? 'reserved' : blocked ? 'blocked' : ''}
-                    key={day}
+                    key={iso}
                     onClick={toggleBlocked}
                     title={reservation ? 'Data reservada' : blocked ? 'Clique para liberar' : 'Clique para bloquear'}
                   >

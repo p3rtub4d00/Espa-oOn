@@ -112,6 +112,8 @@ const reservationSchema = new mongoose.Schema(
     holdUntil: Date,
     paidAt: Date,
     pushPaidNotifiedAt: Date,
+    reservationStatus: { type: String, default: 'active', index: true },
+    cancellation: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true },
 )
@@ -136,6 +138,8 @@ const contractSchema = new mongoose.Schema(
     status: { type: String, default: 'signed-awaiting-payment' },
     paymentStatus: { type: String, default: 'awaiting-payment' },
     paidAt: Date,
+    cancellationPolicyText: String,
+    cancellation: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true },
 )
@@ -184,6 +188,9 @@ const settingsSchema = new mongoose.Schema(
     notifications: {
       notifyPaidReservation: { type: Boolean, default: true },
       notifyNewVisit: { type: Boolean, default: true },
+    },
+    cancellationPolicy: {
+      text: String,
     },
   },
   { timestamps: true },
@@ -264,6 +271,9 @@ const DEFAULT_SETTINGS = {
   notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
+  },
+  cancellationPolicy: {
+    text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
   },
 }
 
@@ -399,7 +409,7 @@ function displayDateToISO(value) {
 }
 
 function contractHash(contract) {
-  const canonical = [
+  const canonicalParts = [
     contract.id,
     contract.reservationId,
     contract.reservationDateISO || '',
@@ -411,9 +421,13 @@ function contractHash(contract) {
     onlyDigits(contract.customer?.phone),
     contract.signedAt instanceof Date ? contract.signedAt.toISOString() : String(contract.signedAt || ''),
     contract.signature || '',
-  ].join('|')
+  ]
 
-  return crypto.createHash('sha256').update(canonical).digest('hex').toUpperCase()
+  if (contract.cancellationPolicyText) {
+    canonicalParts.push(contract.cancellationPolicyText)
+  }
+
+  return crypto.createHash('sha256').update(canonicalParts.join('|')).digest('hex').toUpperCase()
 }
 
 function validateProductionConfig() {
@@ -654,6 +668,16 @@ function sanitizeSettingsUpdate(body = {}) {
       error.statusCode = 400
       throw error
     }
+  }
+
+  if (body.cancellationPolicy !== undefined) {
+    const policyText = textValue(body.cancellationPolicy?.text, 2000)
+    if (policyText.length < 20) {
+      const error = new Error('A política de cancelamento deve ter pelo menos 20 caracteres.')
+      error.statusCode = 400
+      throw error
+    }
+    update.cancellationPolicy = { text: policyText }
   }
 
   return update
@@ -1099,6 +1123,16 @@ app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
 
     const settings = await currentSettings()
     const price = priceForDate(reservationDateISO, payload.period, settings)
+    const cancellationPolicyText = textValue(
+      settings.cancellationPolicy?.text || DEFAULT_SETTINGS.cancellationPolicy.text,
+      2000,
+    )
+
+    if (textValue(payload.cancellationPolicyText, 2000) !== cancellationPolicyText) {
+      return res.status(409).json({
+        error: 'A política de cancelamento foi atualizada. Feche o contrato e abra novamente antes de assinar.',
+      })
+    }
 
     const contractRecord = {
       id: payload.id,
@@ -1110,6 +1144,7 @@ app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
       customer,
       signedAt,
       signature,
+      cancellationPolicyText,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
     }
@@ -1493,14 +1528,39 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
       } else if (['PAYMENT_REFUNDED', 'PAYMENT_DELETED'].includes(event)) {
         const status = event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled'
 
+        const cancellationUpdate = event === 'PAYMENT_REFUNDED'
+          ? {
+              reservationStatus: 'cancelled',
+              'cancellation.refundStatus': 'provider-confirmed',
+              'cancellation.refundRecordedAt': new Date(),
+            }
+          : { reservationStatus: 'cancelled' }
+
         await Reservation.updateOne(
           { id: reservation.id },
-          { $set: { paymentStatus: status, asaasStatus: payment?.status || event } },
+          {
+            $set: {
+              paymentStatus: status,
+              asaasStatus: payment?.status || event,
+              ...cancellationUpdate,
+            },
+          },
         )
 
         await Contract.updateOne(
           { id: reservation.contractId },
-          { $set: { paymentStatus: status } },
+          {
+            $set: {
+              paymentStatus: status,
+              status: 'cancelled',
+              ...(event === 'PAYMENT_REFUNDED'
+                ? {
+                    'cancellation.refundStatus': 'provider-confirmed',
+                    'cancellation.refundRecordedAt': new Date(),
+                  }
+                : {}),
+            },
+          },
         )
 
         if (reservation.dateISO) {
@@ -1960,6 +2020,108 @@ app.delete('/api/admin/reservations/:id', requireAdmin, async (req, res, next) =
     ])
 
     res.json({ ok: true, id })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/reservations/:id/cancel', requireAdmin, async (req, res, next) => {
+  try {
+    const id = textValue(req.params.id, 60)
+    const reason = textValue(req.body?.reason, 500)
+    const refundAmount = Math.round(Number(req.body?.refundAmount || 0) * 100) / 100
+
+    const reservation = await Reservation.findOne({ id }).lean()
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
+
+    if (reservation.reservationStatus === 'cancelled') {
+      return res.status(409).json({ error: 'Esta reserva já foi cancelada.' })
+    }
+
+    if (reservation.paymentStatus !== 'paid') {
+      return res.status(409).json({
+        error: 'Somente reservas com pagamento recebido podem ser canceladas por este fluxo.',
+      })
+    }
+
+    if (reason.length < 5) {
+      return res.status(400).json({ error: 'Informe o motivo do cancelamento.' })
+    }
+
+    if (!Number.isFinite(refundAmount) || refundAmount < 0 || refundAmount > Number(reservation.price || 0)) {
+      return res.status(400).json({ error: 'Valor de reembolso inválido.' })
+    }
+
+    const cancellation = {
+      reason,
+      cancelledAt: new Date(),
+      refundAmount,
+      refundStatus: refundAmount > 0 ? 'pending' : 'none',
+      refundRecordedAt: null,
+    }
+
+    const saved = await Reservation.findOneAndUpdate(
+      { id, reservationStatus: { $ne: 'cancelled' } },
+      { $set: { reservationStatus: 'cancelled', cancellation } },
+      { new: true },
+    ).lean()
+
+    if (!saved) return res.status(409).json({ error: 'A reserva já foi alterada.' })
+
+    await Promise.all([
+      Contract.updateOne(
+        { id: reservation.contractId },
+        { $set: { status: 'cancelled', cancellation } },
+      ),
+      DateLock.deleteOne({
+        _id: reservation.dateISO,
+        reservationId: reservation.id,
+      }),
+    ])
+
+    res.json(saved)
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/reservations/:id/refund-recorded', requireAdmin, async (req, res, next) => {
+  try {
+    const id = textValue(req.params.id, 60)
+    const reservation = await Reservation.findOne({ id }).lean()
+
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
+    if (reservation.reservationStatus !== 'cancelled') {
+      return res.status(409).json({ error: 'A reserva ainda não foi cancelada.' })
+    }
+
+    const refundAmount = Number(reservation.cancellation?.refundAmount || 0)
+    if (refundAmount <= 0) {
+      return res.status(409).json({ error: 'Esta reserva não possui reembolso a registrar.' })
+    }
+
+    if (reservation.cancellation?.refundStatus !== 'pending') {
+      return res.status(409).json({ error: 'O reembolso desta reserva já foi registrado.' })
+    }
+
+    const cancellation = {
+      ...(reservation.cancellation || {}),
+      refundStatus: 'recorded',
+      refundRecordedAt: new Date(),
+    }
+
+    const saved = await Reservation.findOneAndUpdate(
+      { id, 'cancellation.refundStatus': 'pending' },
+      { $set: { cancellation } },
+      { new: true },
+    ).lean()
+
+    await Contract.updateOne(
+      { id: reservation.contractId },
+      { $set: { cancellation } },
+    )
+
+    res.json(saved)
   } catch (error) {
     next(error)
   }

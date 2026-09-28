@@ -522,9 +522,7 @@ function App() {
                   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12)
                   const past = date < todayOnly
                   const blockedDates = siteSettings.blockedDates || []
-                  const legacyBlocked = calendarMonth.getFullYear() === 2026 && calendarMonth.getMonth() === 9
-                    && (siteSettings.blockedDays || []).includes(day)
-                  const busy = reservedDates.has(iso) || blockedDates.includes(iso) || legacyBlocked || past
+                  const busy = reservedDates.has(iso) || blockedDates.includes(iso) || past
                   const selected = selectedDate === iso
 
                   return (
@@ -598,7 +596,7 @@ function App() {
           <span>Espaço<span>On</span></span>
         </a>
         <p>Locação de espaço de lazer • Sistema em desenvolvimento</p>
-        <span>© 2026 EspaçoOn</span>
+        <span>© {new Date().getFullYear()} EspaçoOn</span>
       </footer>
     </div>
   )

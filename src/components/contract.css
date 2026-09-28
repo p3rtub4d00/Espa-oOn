@@ -538,3 +538,51 @@
     width: 100%;
   }
 }
+
+
+/* EspaçoOn contract — aquatic blue theme */
+.contract-backdrop {
+  background: rgba(7, 29, 46, .78);
+}
+
+.contract-modal {
+  background: #f8fbfe;
+}
+
+.contract-topbar {
+  background: #0f3554;
+}
+
+.contract-heading > span,
+.contract-success > span {
+  color: #1f8efa;
+}
+
+.contract-evidence,
+.contract-disclaimer {
+  border-color: #cce5f8;
+  background: #f0f8ff;
+}
+
+.sign-contract-button,
+.finish-contract-button {
+  color: white;
+  background: #1f8efa;
+}
+
+.sign-contract-button:hover,
+.finish-contract-button:hover {
+  background: #167bdc;
+}
+
+.verify-contract-button {
+  border-color: #b9d8f0;
+  color: #176db5;
+  background: #edf7ff;
+}
+
+.contract-success-icon,
+.verified-badge {
+  color: #176db5;
+  background: #e8f4ff;
+}

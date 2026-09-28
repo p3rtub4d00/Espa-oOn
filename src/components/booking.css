@@ -213,7 +213,7 @@
 }
 
 .booking-security,
-.simulation-note,
+.payment-note,
 .next-contract {
   margin: 18px 0 22px;
   padding: 14px;
@@ -228,14 +228,14 @@
 }
 
 .booking-security svg,
-.simulation-note svg,
+.payment-note svg,
 .next-contract svg {
   flex: 0 0 auto;
   color: #1f8efa;
 }
 
 .booking-security strong,
-.simulation-note strong,
+.payment-note strong,
 .next-contract strong {
   display: block;
   margin-bottom: 2px;
@@ -659,7 +659,7 @@
 
 .booking-security,
 .next-contract,
-.simulation-note {
+.payment-note {
   border-color: #cce5f8;
   background: #f0f8ff;
 }

@@ -15,7 +15,7 @@
   max-height: calc(100vh - 48px);
   overflow: auto;
   border-radius: 26px;
-  background: #eef2ef;
+  background: #f2f6fa;
   box-shadow: 0 40px 120px rgba(0,0,0,.4);
 }
 
@@ -28,7 +28,7 @@
   align-items: center;
   justify-content: space-between;
   color: white;
-  background: #07161d;
+  background: #0f3554;
 }
 
 .contract-topbar span,
@@ -37,7 +37,7 @@
 }
 
 .contract-topbar span {
-  color: #7bdcbd;
+  color: #9ed9ff;
   font-size: 9px;
   font-weight: 900;
   letter-spacing: .12em;
@@ -72,7 +72,7 @@
 .contract-heading > span,
 .contract-success > span,
 .verification-sheet > span {
-  color: #14765f;
+  color: #176db5;
   font-size: 9px;
   font-weight: 900;
   letter-spacing: .12em;
@@ -105,7 +105,7 @@
   grid-template-columns: repeat(3, 1fr);
   border: 1px solid rgba(16,35,45,.08);
   border-radius: 14px;
-  background: #f8faf8;
+  background: #f8fbfe;
 }
 
 .contract-meta > div {
@@ -154,13 +154,13 @@
   gap: 10px;
   border-radius: 12px;
   color: #5e7379;
-  background: #eaf3ee;
+  background: #edf7ff;
   font-size: 10px;
 }
 
 .contract-evidence svg {
   flex: 0 0 auto;
-  color: #167f68;
+  color: #1f8efa;
 }
 
 .contract-evidence strong {
@@ -190,7 +190,7 @@
 }
 
 .signature-title span {
-  color: #14765f;
+  color: #176db5;
   font-size: 9px;
   font-weight: 900;
   text-transform: uppercase;
@@ -203,13 +203,13 @@
 }
 
 .signature-title svg {
-  color: #167f68;
+  color: #1f8efa;
 }
 
 .signature-canvas-wrap {
   position: relative;
   overflow: hidden;
-  border: 1px dashed #9fb6af;
+  border: 1px dashed #a8bdcc;
   border-radius: 13px;
   background:
     linear-gradient(#fff, #fff),
@@ -261,7 +261,7 @@
 
 .contract-accept input {
   margin-top: 2px;
-  accent-color: #167f68;
+  accent-color: #1f8efa;
 }
 
 .sign-contract-button,
@@ -281,7 +281,7 @@
   width: 100%;
   border: 0;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .sign-contract-button:disabled {
@@ -303,7 +303,7 @@
   place-items: center;
   border-radius: 50%;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .contract-success-icon svg,
@@ -396,14 +396,14 @@
   text-align: left;
   border-radius: 12px;
   color: #657b80;
-  background: #dfeae5;
+  background: #dfeaf3;
   font-size: 10px;
   line-height: 1.55;
 }
 
 .contract-disclaimer svg {
   flex: 0 0 auto;
-  color: #167f68;
+  color: #1f8efa;
 }
 
 .contract-disclaimer strong {
@@ -427,7 +427,7 @@
 .finish-contract-button {
   border: 0;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .verification-sheet {

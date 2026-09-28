@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ContractFlow from './ContractFlow'
 import { getPriceForDay, loadSettings } from '../data/settings'
+import { sharePaymentDocuments } from '../utils/documents'
 import {
   ArrowLeft,
   Check,
@@ -12,6 +13,7 @@ import {
   LockKeyhole,
   QrCode,
   ShieldCheck,
+  Share2,
   UserRound,
   X,
 } from 'lucide-react'
@@ -54,6 +56,7 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
   const [copied, setCopied] = useState(false)
   const [contractOpen, setContractOpen] = useState(false)
   const [signedContract, setSignedContract] = useState(null)
+  const [deliveryStatus, setDeliveryStatus] = useState('idle')
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -85,13 +88,13 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
   }
 
   useEffect(() => {
-    if (step !== 5) return
+    if (step !== 5 || deliveryStatus === 'sharing') return
     const timer = window.setTimeout(() => {
       onClose()
       window.scrollTo({ top: 0, behavior: 'smooth' })
-    }, 1800)
+    }, 4200)
     return () => window.clearTimeout(timer)
-  }, [step, onClose])
+  }, [step, deliveryStatus, onClose])
 
   const updateField = (field, value) => {
     let next = value
@@ -127,14 +130,22 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
     }
   }
 
-  const confirmPayment = () => {
-    if (!signedContract) return
+  const confirmPayment = async () => {
+    if (!signedContract || deliveryStatus === 'sharing') return
 
+    const paidAt = new Date().toISOString()
     const reservation = {
       ...draftReservation,
       paymentStatus: 'approved-simulated',
       contractId: signedContract.id,
-      paidAt: new Date().toISOString(),
+      paidAt,
+    }
+
+    const paidContract = {
+      ...signedContract,
+      status: 'signed-paid-demo',
+      paymentStatus: 'approved-simulated',
+      paidAt,
     }
 
     const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
@@ -143,14 +154,36 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
 
     const contracts = JSON.parse(localStorage.getItem('espacoon_contracts') || '[]')
     const updatedContracts = contracts.map((item) =>
-      item.id === signedContract.id
-        ? { ...item, status: 'signed-paid-demo', paymentStatus: 'approved-simulated', paidAt: reservation.paidAt }
-        : item,
+      item.id === signedContract.id ? paidContract : item,
     )
     localStorage.setItem('espacoon_contracts', JSON.stringify(updatedContracts))
 
+    setSignedContract(paidContract)
     onReserved?.(day)
     setStep(5)
+    setDeliveryStatus('sharing')
+
+    try {
+      const result = await sharePaymentDocuments(reservation, paidContract)
+      setDeliveryStatus(result.method)
+    } catch {
+      setDeliveryStatus('error')
+    }
+  }
+
+  const resendDocuments = async () => {
+    if (!signedContract) return
+    const reservations = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
+    const reservation = reservations.find((item) => item.id === reservationId)
+    if (!reservation) return
+
+    setDeliveryStatus('sharing')
+    try {
+      const result = await sharePaymentDocuments(reservation, signedContract)
+      setDeliveryStatus(result.method)
+    } catch {
+      setDeliveryStatus('error')
+    }
   }
 
   return (
@@ -380,9 +413,13 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
                 <button className="booking-back" onClick={() => setStep(3)}>
                   <ArrowLeft size={17} /> Voltar
                 </button>
-                <button className="booking-primary payment" onClick={confirmPayment}>
+                <button
+                  className="booking-primary payment"
+                  onClick={confirmPayment}
+                  disabled={deliveryStatus === 'sharing'}
+                >
                   <LockKeyhole size={17} />
-                  Simular pagamento aprovado
+                  {deliveryStatus === 'sharing' ? 'Gerando documentos...' : 'Simular pagamento aprovado'}
                 </button>
               </div>
             </div>
@@ -395,7 +432,7 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
               <h2>Pagamento confirmado!</h2>
               <p>
                 A reserva de <strong>{dateLabel}</strong> foi concluída para <strong>{form.name}</strong>.
-                Você será levado de volta para a página inicial.
+                O comprovante e o contrato foram preparados para compartilhamento.
               </p>
 
               <div className="success-ticket">
@@ -404,6 +441,31 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
                 <div><span>Valor</span><strong>{money(price)}</strong></div>
                 <div><span>Status</span><strong className="paid-status">Pago • simulação</strong></div>
               </div>
+
+              <div className="document-delivery-status">
+                <Share2 />
+                <span>
+                  <strong>
+                    {deliveryStatus === 'share'
+                      ? 'Documentos compartilhados'
+                      : deliveryStatus === 'download-whatsapp'
+                        ? 'PDFs gerados e WhatsApp aberto'
+                        : deliveryStatus === 'cancelled'
+                          ? 'Compartilhamento cancelado'
+                          : deliveryStatus === 'error'
+                            ? 'Não foi possível compartilhar automaticamente'
+                            : 'Preparando documentos'}
+                  </strong>
+                  Comprovante de pagamento + contrato assinado.
+                </span>
+              </div>
+
+              {(deliveryStatus === 'cancelled' || deliveryStatus === 'error') && (
+                <button className="booking-primary resend-documents" onClick={resendDocuments}>
+                  <Share2 size={17} />
+                  Enviar documentos novamente
+                </button>
+              )}
             </div>
           )}
         </div>

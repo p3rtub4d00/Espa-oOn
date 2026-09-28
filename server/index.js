@@ -1191,18 +1191,17 @@ app.get('/api/contracts/:id/qr', lookupLimiter, async (req, res, next) => {
 app.get('/api/reservations/:code', lookupLimiter, async (req, res, next) => {
   try {
     const code = textValue(req.params.code, 60).toUpperCase()
-    const phoneEnd = onlyDigits(req.query.phoneEnd)
+    const cpf = onlyDigits(req.query.cpf)
 
-    if (!isValidId(code, 'ESP') || phoneEnd.length !== 4) {
-      return res.status(400).json({ error: 'Dados de consulta inválidos.' })
+    if (!isValidId(code, 'ESP') || !isValidCpf(cpf)) {
+      return res.status(400).json({ error: 'Código da reserva ou CPF inválido.' })
     }
 
     const reservation = await Reservation.findOne({ id: code }).lean()
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
 
-    const phone = normalizePhone(reservation.customer?.phone)
-    if (phone.slice(-4) !== phoneEnd) {
-      return res.status(403).json({ error: 'Telefone não confere.' })
+    if (!secureEqual(onlyDigits(reservation.customer?.cpf), cpf)) {
+      return res.status(403).json({ error: 'CPF não confere com a reserva.' })
     }
 
     const contract = reservation.contractId

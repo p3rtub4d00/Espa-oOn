@@ -26,6 +26,7 @@ import {
   MessageCircle,
   BellRing,
   Download,
+  Menu,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -137,6 +138,7 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
   const [pushSubscription, setPushSubscription] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMessage, setPushMessage] = useState('')
+  const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -305,14 +307,36 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
 
   return (
     <div className="admin-shell">
-      <aside className="admin-sidebar">
+      {mobileMenuOpen && (
+        <button
+          className="admin-mobile-overlay"
+          aria-label="Fechar menu"
+          onClick={() => setMobileMenuOpen(false)}
+        />
+      )}
+
+      <aside className={`admin-sidebar ${mobileMenuOpen ? 'mobile-open' : ''}`}>
+        <button
+          className="admin-mobile-close"
+          aria-label="Fechar menu"
+          onClick={() => setMobileMenuOpen(false)}
+        >
+          <X size={20} />
+        </button>
         <div className="admin-brand">
           <BrandLogo className="brand-logo-admin" showAdmin />
         </div>
 
         <nav>
           {menu.map(([id, label, Icon]) => (
-            <button className={active === id ? 'active' : ''} onClick={() => setActive(id)} key={id}>
+            <button
+              className={active === id ? 'active' : ''}
+              onClick={() => {
+                setActive(id)
+                setMobileMenuOpen(false)
+              }}
+              key={id}
+            >
               <Icon size={18} />
               <span>{label}</span>
             </button>
@@ -333,6 +357,15 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
       </aside>
 
       <main className="admin-main">
+        <button
+          className="admin-mobile-menu-button"
+          onClick={() => setMobileMenuOpen(true)}
+          aria-label="Abrir menu administrativo"
+        >
+          <Menu size={20} />
+          <span>Menu</span>
+        </button>
+
         <header className="admin-header">
           <div>
             <span>Painel administrativo</span>

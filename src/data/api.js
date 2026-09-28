@@ -45,6 +45,9 @@ export const api = {
       body: JSON.stringify(contract),
     }),
 
+  verifyContract: (id, hash) =>
+    request('/api/contracts/' + encodeURIComponent(id) + '/verify?hash=' + encodeURIComponent(hash)),
+
   createPixPayment: (reservation, contractId) =>
     request('/api/payments/asaas/pix', {
       method: 'POST',
@@ -78,4 +81,7 @@ export const api = {
     body.append('image', file)
     return request('/api/admin/images', { method: 'POST', body })
   },
+
+  deleteImage: (id) =>
+    request('/api/admin/images/' + encodeURIComponent(id), { method: 'DELETE' }),
 }

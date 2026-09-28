@@ -5,7 +5,7 @@
   padding: 24px;
   display: grid;
   place-items: center;
-  background: rgba(3, 15, 20, .78);
+  background: rgba(7,29,46,.78);
   backdrop-filter: blur(10px);
 }
 
@@ -14,7 +14,7 @@
   max-height: calc(100vh - 48px);
   overflow: auto;
   border-radius: 26px;
-  background: #f9fbf8;
+  background: #f8fbfe;
   box-shadow: 0 40px 110px rgba(0, 0, 0, .35);
 }
 
@@ -27,7 +27,7 @@
   align-items: center;
   justify-content: space-between;
   color: white;
-  background: #0a1a21;
+  background: #0f3554;
 }
 
 .booking-top span,
@@ -41,7 +41,7 @@
 }
 
 .booking-kicker {
-  color: #78ddbd;
+  color: #9ed9ff;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .12em;
@@ -94,7 +94,7 @@
   flex: 0 0 auto;
   border: 1px solid #d7e0dc;
   border-radius: 50%;
-  background: #f9fbf8;
+  background: #f8fbfe;
   font-size: 11px;
   font-weight: 800;
 }
@@ -103,19 +103,19 @@
   position: relative;
   z-index: 1;
   padding-right: 6px;
-  background: #f9fbf8;
+  background: #f8fbfe;
   font-size: 10px;
   font-weight: 700;
 }
 
 .booking-progress > div.active {
-  color: #137861;
+  color: #176db5;
 }
 
 .booking-progress > div.active span {
-  border-color: #167f68;
+  border-color: #1f8efa;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .booking-content {
@@ -123,7 +123,7 @@
 }
 
 .booking-heading > span {
-  color: #16806a;
+  color: #1f8efa;
   font-size: 10px;
   font-weight: 800;
   letter-spacing: .1em;
@@ -167,8 +167,8 @@
 }
 
 .period-card.selected {
-  border-color: #219578;
-  box-shadow: inset 0 0 0 1px #219578, 0 14px 30px rgba(22,127,104,.09);
+  border-color: #1f8efa;
+  box-shadow: inset 0 0 0 1px #1f8efa, 0 14px 30px rgba(31,142,250,.09);
 }
 
 .period-icon {
@@ -177,8 +177,8 @@
   display: grid;
   place-items: center;
   border-radius: 13px;
-  color: #126c58;
-  background: #e5f3ed;
+  color: #176db5;
+  background: #e8f4ff;
 }
 
 .period-card strong,
@@ -209,7 +209,7 @@
   place-items: center;
   border-radius: 50%;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .booking-security,
@@ -222,7 +222,7 @@
   gap: 11px;
   border-radius: 14px;
   color: #496167;
-  background: #eaf3ee;
+  background: #edf7ff;
   font-size: 11px;
   line-height: 1.55;
 }
@@ -231,7 +231,7 @@
 .simulation-note svg,
 .next-contract svg {
   flex: 0 0 auto;
-  color: #167f68;
+  color: #1f8efa;
 }
 
 .booking-security strong,
@@ -258,11 +258,11 @@
 .booking-primary {
   border: 0;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .booking-primary:hover {
-  background: #0d6b56;
+  background: #176db5;
 }
 
 .booking-step > .booking-primary {
@@ -317,8 +317,8 @@
 }
 
 .input-wrap:focus-within {
-  border-color: #309b80;
-  box-shadow: 0 0 0 3px rgba(48,155,128,.09);
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.09);
 }
 
 .input-wrap.error {
@@ -382,7 +382,7 @@
 }
 
 .booking-summary .summary-price {
-  color: #107258;
+  color: #176db5;
   font-size: 18px;
 }
 
@@ -393,7 +393,7 @@
   gap: 16px;
   border-radius: 16px;
   color: white;
-  background: #0a1a21;
+  background: #0f3554;
 }
 
 .fake-qr {
@@ -403,7 +403,7 @@
   display: grid;
   place-items: center;
   border-radius: 13px;
-  color: #0a1a21;
+  color: #0f3554;
   background: white;
 }
 
@@ -423,7 +423,7 @@
 }
 
 .pix-copy > span {
-  color: #83dabe;
+  color: #8fcfff;
   font-size: 10px;
   font-weight: 800;
 }
@@ -452,7 +452,7 @@
 }
 
 .booking-primary.payment {
-  background: #0c755d;
+  background: #176db5;
 }
 
 .booking-success {
@@ -468,8 +468,8 @@
   place-items: center;
   border-radius: 50%;
   color: white;
-  background: #167f68;
-  box-shadow: 0 14px 34px rgba(22,127,104,.24);
+  background: #1f8efa;
+  box-shadow: 0 14px 34px rgba(31,142,250,.24);
 }
 
 .success-icon svg {
@@ -478,7 +478,7 @@
 }
 
 .booking-success > span {
-  color: #148168;
+  color: #1f8efa;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: .12em;
@@ -536,7 +536,7 @@
 }
 
 .paid-status {
-  color: #14735c !important;
+  color: #176db5 !important;
 }
 
 .next-contract {

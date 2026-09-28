@@ -1,4 +1,5 @@
 import { useEffect, useMemo, useState } from 'react'
+import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
   CalendarDays,
@@ -132,6 +133,13 @@ export default function AdminPanel({ onClose }) {
     if (reservation.dateISO) return reservation.dateISO
     const match = String(reservation.date || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
     return match ? match[3] + '-' + match[2] + '-' + match[1] : ''
+  }
+
+  const openReservationDetails = (event, reservation) => {
+    event?.preventDefault?.()
+    event?.stopPropagation?.()
+    if (!reservation) return
+    setSelectedReservation({ ...reservation })
   }
 
   const persistSettings = async (next) => {
@@ -325,13 +333,21 @@ export default function AdminPanel({ onClose }) {
 
                 return (
                   <button
+                    type="button"
                     className={reservation ? 'reserved' : blocked ? 'blocked' : ''}
                     key={iso}
-                    onClick={() => reservation ? setSelectedReservation(reservation) : toggleBlocked()}
+                    onClick={(event) => reservation ? openReservationDetails(event, reservation) : toggleBlocked()}
                     title={reservation ? 'Clique para ver os dados da reserva' : blocked ? 'Clique para liberar' : 'Clique para bloquear'}
                   >
                     <b>{day}</b>
-                    <small>{reservation ? reservation.period : blocked ? 'Bloqueado' : 'Livre'}</small>
+                    <small>
+                      {reservation ? (
+                        <>
+                          {reservation.period}
+                          <em className="calendar-view-hint">Ver reserva</em>
+                        </>
+                      ) : blocked ? 'Bloqueado' : 'Livre'}
+                    </small>
                   </button>
                 )
               })}
@@ -584,9 +600,15 @@ export default function AdminPanel({ onClose }) {
         )}
       </main>
 
-      {selectedReservation && (
-        <div className="reservation-detail-backdrop" role="dialog" aria-modal="true" aria-label="Detalhes da reserva">
-          <div className="reservation-detail-modal">
+      {selectedReservation && createPortal(
+        <div
+          className="reservation-detail-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Detalhes da reserva"
+          onClick={() => setSelectedReservation(null)}
+        >
+          <div className="reservation-detail-modal" onClick={(event) => event.stopPropagation()}>
             <div className="reservation-detail-top">
               <div>
                 <span>Reserva do dia</span>
@@ -685,7 +707,8 @@ export default function AdminPanel({ onClose }) {
               </div>
             </div>
           </div>
-        </div>
+        </div>,
+        document.body,
       )}
     </div>
   )

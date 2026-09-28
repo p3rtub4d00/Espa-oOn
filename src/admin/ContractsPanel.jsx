@@ -120,12 +120,20 @@ export default function ContractsPanel() {
                   <span>EspaçoOn</span>
                   <h2>Contrato de locação do espaço de lazer</h2>
                 </div>
-                <i className={selected.paymentStatus === 'paid' || selected.status === 'signed-paid' ? 'paid' : 'pending'}>
-                  {selected.paymentStatus === 'paid' || selected.status === 'signed-paid'
-                    ? 'Assinado e pago'
-                    : selected.paymentStatus === 'manual-review'
-                      ? 'Assinado • conferência manual'
-                      : 'Assinado • aguardando pagamento'}
+                <i className={
+                  selected.status === 'cancelled'
+                    ? 'pending'
+                    : selected.paymentStatus === 'paid' || selected.status === 'signed-paid'
+                      ? 'paid'
+                      : 'pending'
+                }>
+                  {selected.status === 'cancelled'
+                    ? 'Reserva cancelada'
+                    : selected.paymentStatus === 'paid' || selected.status === 'signed-paid'
+                      ? 'Assinado e pago'
+                      : selected.paymentStatus === 'manual-review'
+                        ? 'Assinado • conferência manual'
+                        : 'Assinado • aguardando pagamento'}
                 </i>
               </div>
 
@@ -145,8 +153,22 @@ export default function ContractsPanel() {
                 <p><strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.</p>
                 <p><strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.</p>
                 <p><strong>4. Pagamento.</strong> O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.</p>
-                <p><strong>5. Assinatura eletrônica.</strong> O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.</p>
+                <p><strong>5. Cancelamento e reembolso.</strong> {selected.cancellationPolicyText || 'A política de cancelamento registrada no momento da assinatura integra este contrato.'}</p>
+                <p><strong>6. Assinatura eletrônica.</strong> O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.</p>
               </div>
+
+              {selected.cancellation && (
+                <div className="admin-contract-note">
+                  <ShieldCheck />
+                  <span>
+                    Reserva cancelada em {selected.cancellation.cancelledAt
+                      ? new Date(selected.cancellation.cancelledAt).toLocaleString('pt-BR')
+                      : 'data não informada'}.
+                    {' '}Motivo: {selected.cancellation.reason || '-'}.
+                    {' '}Reembolso registrado: {money(selected.cancellation.refundAmount || 0)}.
+                  </span>
+                </div>
+              )}
 
               <div className="admin-contract-signature">
                 <div>

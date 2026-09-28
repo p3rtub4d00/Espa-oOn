@@ -48,8 +48,8 @@ export default function ContractsPanel() {
 
   const qrUrl = useMemo(() => {
     if (!selected) return ''
-    const text = 'EspaçoOn | Contrato ' + selected.id + ' | Hash ' + selected.hash
-    return 'https://api.qrserver.com/v1/create-qr-code/?size=220x220&data=' + encodeURIComponent(text)
+    return '/api/contracts/' + encodeURIComponent(selected.id) +
+      '/qr?hash=' + encodeURIComponent(selected.hash)
   }, [selected])
 
   return (
@@ -120,10 +120,12 @@ export default function ContractsPanel() {
                   <span>EspaçoOn</span>
                   <h2>Contrato de locação do espaço de lazer</h2>
                 </div>
-                <i className={['paid', 'approved-simulated'].includes(selected.paymentStatus) || ['signed-paid', 'signed-paid-demo'].includes(selected.status) ? 'paid' : 'pending'}>
-                  {['paid', 'approved-simulated'].includes(selected.paymentStatus) || ['signed-paid', 'signed-paid-demo'].includes(selected.status)
+                <i className={selected.paymentStatus === 'paid' || selected.status === 'signed-paid' ? 'paid' : 'pending'}>
+                  {selected.paymentStatus === 'paid' || selected.status === 'signed-paid'
                     ? 'Assinado e pago'
-                    : 'Assinado • aguardando pagamento'}
+                    : selected.paymentStatus === 'manual-review'
+                      ? 'Assinado • conferência manual'
+                      : 'Assinado • aguardando pagamento'}
                 </i>
               </div>
 
@@ -174,7 +176,7 @@ export default function ContractsPanel() {
               <div className="admin-contract-note">
                 <ShieldCheck />
                 <span>
-                  Este painel exibe exatamente o registro de contrato armazenado nesta demonstração.
+                  Este painel exibe o registro eletrônico armazenado no servidor do EspaçoOn.
                 </span>
               </div>
             </div>

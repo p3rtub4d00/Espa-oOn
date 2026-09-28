@@ -7,7 +7,6 @@ export const DEFAULT_SETTINGS = {
     sunday12: 650,
     sunday24: 850,
   },
-  blockedDays: [],
   blockedDates: [],
   specialDates: [],
   rentalHours: {
@@ -34,7 +33,6 @@ export function loadSettings() {
     ...DEFAULT_SETTINGS,
     prices: { ...DEFAULT_SETTINGS.prices },
     rentalHours: { ...DEFAULT_SETTINGS.rentalHours },
-    blockedDays: [],
     blockedDates: [],
     specialDates: [],
     gallery: [...DEFAULT_SETTINGS.gallery],
@@ -53,14 +51,7 @@ export function getPriceForDate(dateValue, period, settings = loadSettings()) {
     String(date.getDate()).padStart(2, '0'),
   ].join('-')
 
-  const special = settings.specialDates.find((item) =>
-    item.date === iso || (
-      item.date == null &&
-      Number(item.day) === date.getDate() &&
-      date.getMonth() === 9 &&
-      date.getFullYear() === 2026
-    )
-  )
+  const special = settings.specialDates.find((item) => item.date === iso)
 
   if (special) {
     return Number(period === '12h' ? special.price12 : special.price24)
@@ -76,6 +67,3 @@ export function getPriceForDate(dateValue, period, settings = loadSettings()) {
   return Number(period === '12h' ? settings.prices.weekday12 : settings.prices.weekday24)
 }
 
-export function getPriceForDay(day, period, settings = loadSettings()) {
-  return getPriceForDate(new Date(2026, 9, day), period, settings)
-}

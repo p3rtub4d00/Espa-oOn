@@ -1131,3 +1131,451 @@
   border-color: #1f8efa;
   box-shadow: 0 0 0 3px rgba(31,142,250,.10);
 }
+
+
+/* Admin access */
+.admin-login-shell {
+  min-height: 100vh;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background:
+    radial-gradient(circle at top left, rgba(31,142,250,.12), transparent 34%),
+    #f4f8fc;
+}
+
+.admin-login-card {
+  width: min(430px, 100%);
+  padding: 28px;
+  border: 1px solid rgba(15,53,84,.10);
+  border-radius: 22px;
+  background: white;
+  box-shadow: 0 24px 70px rgba(15,53,84,.12);
+}
+
+.admin-login-brand {
+  display: flex;
+  align-items: center;
+  gap: 11px;
+}
+
+.admin-login-brand > span {
+  width: 42px;
+  height: 42px;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: white;
+  background: #1f8efa;
+  font-weight: 900;
+}
+
+.admin-login-brand strong,
+.admin-login-brand small {
+  display: block;
+}
+
+.admin-login-brand strong {
+  color: #1d2a33;
+  font-size: 17px;
+}
+
+.admin-login-brand small {
+  margin-top: 2px;
+  color: #7b8d9a;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+.admin-login-icon {
+  width: 52px;
+  height: 52px;
+  margin: 30px 0 18px;
+  display: grid;
+  place-items: center;
+  border-radius: 15px;
+  color: #176db5;
+  background: #e8f4ff;
+}
+
+.admin-login-copy > span {
+  color: #1f8efa;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+.admin-login-copy h1 {
+  margin: 7px 0 8px;
+  color: #1d2a33;
+  font-size: 28px;
+  letter-spacing: -.8px;
+}
+
+.admin-login-copy p {
+  margin: 0 0 22px;
+  color: #667783;
+  font-size: 12px;
+  line-height: 1.6;
+}
+
+.admin-login-card form {
+  display: grid;
+  gap: 13px;
+}
+
+.admin-login-card label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #506774;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-login-input {
+  min-height: 46px;
+  padding: 0 12px;
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  border: 1px solid rgba(15,53,84,.13);
+  border-radius: 11px;
+  color: #78909e;
+  background: #fbfdff;
+}
+
+.admin-login-input:focus-within {
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.09);
+}
+
+.admin-login-input input {
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #1d2a33;
+  background: transparent;
+  font-size: 14px;
+}
+
+.admin-login-error {
+  margin: 0;
+  color: #a84d45;
+  font-size: 10px;
+}
+
+.admin-login-submit,
+.admin-login-back {
+  min-height: 46px;
+  border-radius: 11px;
+  font-weight: 800;
+}
+
+.admin-login-submit {
+  border: 0;
+  color: white;
+  background: #1f8efa;
+}
+
+.admin-login-submit:hover {
+  background: #167bdc;
+}
+
+.admin-login-back {
+  width: 100%;
+  margin-top: 10px;
+  border: 1px solid rgba(15,53,84,.12);
+  color: #46606f;
+  background: white;
+}
+
+/* Signed contract viewer */
+.contract-view-button {
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #b9d8f0;
+  border-radius: 9px;
+  color: #176db5;
+  background: #edf7ff;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.admin-contract-backdrop {
+  position: fixed;
+  z-index: 300;
+  inset: 0;
+  padding: 24px;
+  display: grid;
+  place-items: center;
+  background: rgba(7,29,46,.78);
+  backdrop-filter: blur(9px);
+}
+
+.admin-contract-modal {
+  width: min(860px, 100%);
+  max-height: calc(100vh - 48px);
+  overflow: auto;
+  border-radius: 20px;
+  background: #f8fbfe;
+  box-shadow: 0 35px 100px rgba(0,0,0,.28);
+}
+
+.admin-contract-top {
+  position: sticky;
+  z-index: 2;
+  top: 0;
+  padding: 16px 20px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: white;
+  background: #0f3554;
+}
+
+.admin-contract-top span,
+.admin-contract-top strong {
+  display: block;
+}
+
+.admin-contract-top span {
+  color: #9ed9ff;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-contract-top strong {
+  margin-top: 3px;
+  font-size: 15px;
+}
+
+.admin-contract-top button {
+  width: 38px;
+  height: 38px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.14);
+  border-radius: 10px;
+  color: white;
+  background: rgba(255,255,255,.06);
+}
+
+.admin-contract-document {
+  padding: 24px;
+}
+
+.admin-contract-heading {
+  display: flex;
+  justify-content: space-between;
+  gap: 20px;
+  align-items: flex-start;
+}
+
+.admin-contract-heading span {
+  color: #1f8efa;
+  font-size: 9px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-contract-heading h2 {
+  margin: 5px 0 0;
+  color: #1d2a33;
+  font-size: 24px;
+}
+
+.admin-contract-heading i {
+  padding: 7px 9px;
+  border-radius: 999px;
+  font-size: 8px;
+  font-style: normal;
+  font-weight: 800;
+  white-space: nowrap;
+}
+
+.admin-contract-heading i.paid {
+  color: #176db5;
+  background: #e8f4ff;
+}
+
+.admin-contract-heading i.pending {
+  color: #7a641e;
+  background: #fff5cb;
+}
+
+.admin-contract-meta {
+  margin: 22px 0;
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 9px;
+}
+
+.admin-contract-meta > div {
+  padding: 11px;
+  border: 1px solid rgba(15,53,84,.09);
+  border-radius: 10px;
+  background: white;
+}
+
+.admin-contract-meta span,
+.admin-contract-meta strong {
+  display: block;
+}
+
+.admin-contract-meta span {
+  color: #82939f;
+  font-size: 8px;
+  text-transform: uppercase;
+  font-weight: 800;
+}
+
+.admin-contract-meta strong {
+  margin-top: 4px;
+  color: #294553;
+  font-size: 10px;
+}
+
+.admin-contract-text {
+  padding: 18px;
+  border: 1px solid rgba(15,53,84,.08);
+  border-radius: 13px;
+  background: white;
+}
+
+.admin-contract-text p {
+  margin: 0 0 11px;
+  color: #526a78;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.admin-contract-text p:last-child {
+  margin-bottom: 0;
+}
+
+.admin-contract-signature {
+  margin-top: 16px;
+  display: grid;
+  grid-template-columns: 1fr 180px;
+  gap: 14px;
+}
+
+.admin-contract-signature > div {
+  padding: 14px;
+  border: 1px solid rgba(15,53,84,.08);
+  border-radius: 12px;
+  background: white;
+}
+
+.admin-contract-signature span,
+.admin-contract-signature small {
+  display: block;
+}
+
+.admin-contract-signature span {
+  color: #82939f;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.admin-contract-signature img {
+  max-width: 100%;
+  max-height: 120px;
+  margin: 8px 0;
+  object-fit: contain;
+}
+
+.admin-contract-signature small {
+  color: #516774;
+  font-size: 9px;
+}
+
+.admin-contract-proof {
+  text-align: center;
+}
+
+.admin-contract-proof img {
+  width: 120px;
+  height: 120px;
+}
+
+.admin-contract-proof span {
+  margin-top: 4px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+}
+
+.admin-contract-evidence,
+.admin-contract-note {
+  margin-top: 12px;
+  padding: 12px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border-radius: 11px;
+}
+
+.admin-contract-evidence {
+  border: 1px solid #cce5f8;
+  background: #f0f8ff;
+}
+
+.admin-contract-evidence span,
+.admin-contract-evidence strong {
+  display: block;
+}
+
+.admin-contract-evidence strong {
+  margin-bottom: 3px;
+  font-size: 9px;
+}
+
+.admin-contract-evidence span {
+  color: #516774;
+  font-size: 9px;
+}
+
+.admin-contract-note {
+  color: #667783;
+  background: #f2f6fa;
+  font-size: 9px;
+}
+
+@media (max-width: 680px) {
+  .admin-login-shell {
+    padding: 14px;
+  }
+
+  .admin-login-card {
+    padding: 22px;
+  }
+
+  .admin-contract-backdrop {
+    padding: 10px;
+  }
+
+  .admin-contract-document {
+    padding: 16px;
+  }
+
+  .admin-contract-heading {
+    flex-direction: column;
+  }
+
+  .admin-contract-meta {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .admin-contract-signature {
+    grid-template-columns: 1fr;
+  }
+}

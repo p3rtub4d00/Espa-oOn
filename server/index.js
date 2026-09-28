@@ -309,15 +309,32 @@ function contractHash(contract) {
 
 function validateProductionConfig() {
   const errors = []
+  const warnings = []
+
   if (!MONGODB_URI) errors.push('MONGODB_URI')
-  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 10) errors.push('ADMIN_PASSWORD (mínimo 10 caracteres)')
-  if (!JWT_SECRET || JWT_SECRET.length < 32) errors.push('JWT_SECRET (mínimo 32 caracteres)')
+  if (!ADMIN_PASSWORD) errors.push('ADMIN_PASSWORD')
+  if (!JWT_SECRET) errors.push('JWT_SECRET')
   if (!ASAAS_API_KEY || !ASAAS_API_KEY.startsWith('$aact_prod_')) errors.push('ASAAS_API_KEY de produção')
   if (ASAAS_ENV !== 'production') errors.push('ASAAS_ENV=production')
-  if (!ASAAS_WEBHOOK_TOKEN || ASAAS_WEBHOOK_TOKEN.length < 32) errors.push('ASAAS_WEBHOOK_TOKEN (mínimo 32 caracteres)')
+
+  if (ADMIN_PASSWORD && ADMIN_PASSWORD.length < 10) {
+    warnings.push('ADMIN_PASSWORD deveria ter pelo menos 10 caracteres')
+  }
+  if (JWT_SECRET && JWT_SECRET.length < 32) {
+    warnings.push('JWT_SECRET deveria ter pelo menos 32 caracteres')
+  }
+  if (!ASAAS_WEBHOOK_TOKEN) {
+    warnings.push('ASAAS_WEBHOOK_TOKEN não configurado; confirmação por webhook ficará indisponível')
+  } else if (ASAAS_WEBHOOK_TOKEN.length < 32) {
+    warnings.push('ASAAS_WEBHOOK_TOKEN deveria ter pelo menos 32 caracteres')
+  }
+
+  if (warnings.length) {
+    console.warn('Avisos de configuração:', warnings.join(' | '))
+  }
 
   if (errors.length) {
-    throw new Error('Configuração de produção inválida: ' + errors.join(', '))
+    throw new Error('Configuração essencial ausente ou inválida: ' + errors.join(', '))
   }
 }
 

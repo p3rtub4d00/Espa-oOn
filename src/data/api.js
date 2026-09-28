@@ -67,6 +67,8 @@ export const api = {
     }),
 
   adminReservations: () => request('/api/admin/reservations'),
+  deletePendingReservation: (id) =>
+    request('/api/admin/reservations/' + encodeURIComponent(id), { method: 'DELETE' }),
   adminContracts: () => request('/api/admin/contracts'),
   adminVisits: () => request('/api/admin/visits'),
   adminRevenue: (month) =>

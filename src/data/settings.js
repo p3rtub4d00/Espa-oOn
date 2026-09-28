@@ -33,6 +33,16 @@ export const DEFAULT_SETTINGS = {
   cancellationPolicy: {
     text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
   },
+  establishment: {
+    name: 'EspaçoOn',
+    ownerName: '',
+    phone: '',
+    address: '',
+    city: '',
+    state: '',
+    locationNote: '',
+    openingHours: '',
+  },
 }
 
 export function loadSettings() {
@@ -46,6 +56,7 @@ export function loadSettings() {
     amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
     notifications: { ...DEFAULT_SETTINGS.notifications },
     cancellationPolicy: { ...DEFAULT_SETTINGS.cancellationPolicy },
+    establishment: { ...DEFAULT_SETTINGS.establishment },
   }
 }
 

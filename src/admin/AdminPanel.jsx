@@ -27,6 +27,8 @@ import {
   Download,
   Menu,
   Building2,
+  Palette,
+  Upload,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -46,6 +48,7 @@ const menu = [
   ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
   ['establishment', 'Estabelecimento', Building2],
+  ['branding', 'Marca', Palette],
   ['policies', 'Cancelamento', FileText],
   ['notifications', 'Notificações', BellRing],
   ['system', 'Dados', ShieldAlert],
@@ -158,7 +161,13 @@ function openWhatsAppVisitRejection(visit, reason) {
   )
 }
 
-export default function AdminPanel({ onClose, onInstall, appInstalled = false }) {
+export default function AdminPanel({
+  onClose,
+  onInstall,
+  appInstalled = false,
+  initialBranding = {},
+  initialBrandName = 'EspaçoOn',
+}) {
   const [active, setActive] = useState('overview')
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
@@ -190,6 +199,7 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMessage, setPushMessage] = useState('')
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
+  const [brandingUploadBusy, setBrandingUploadBusy] = useState(false)
 
   useEffect(() => {
     let alive = true
@@ -356,8 +366,17 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
       .sort((a, b) => reservationISO(a).localeCompare(reservationISO(b)))
   }, [reservations])
 
+  const currentBranding = settings.branding || initialBranding || {}
+  const currentBrandName = settings.establishment?.name || initialBrandName || 'EspaçoOn'
+
+  const adminThemeStyle = {
+    '--brand-primary': currentBranding.primaryColor || '#0f3554',
+    '--brand-secondary': currentBranding.secondaryColor || '#1f8efa',
+    '--brand-accent': currentBranding.accentColor || '#53b9ff',
+  }
+
   return (
-    <div className="admin-shell">
+    <div className="admin-shell" style={adminThemeStyle}>
       {mobileMenuOpen && (
         <button
           className="admin-mobile-overlay"
@@ -375,7 +394,15 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
           <X size={20} />
         </button>
         <div className="admin-brand">
-          <BrandLogo className="brand-logo-admin" showAdmin />
+          <BrandLogo
+            className="brand-logo-admin"
+            showAdmin
+            name={currentBrandName}
+            logoUrl={currentBranding.logoUrl}
+            primaryColor={currentBranding.primaryColor}
+            secondaryColor={currentBranding.secondaryColor}
+            accentColor={currentBranding.accentColor}
+          />
         </div>
 
         <nav>
@@ -1196,6 +1223,192 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
                   Testar rota
                 </button>
               )}
+            </div>
+          </section>
+        )}
+
+        {active === 'branding' && (
+          <section className="admin-card large branding-settings">
+            <div className="admin-card-title">
+              <div>
+                <span>Identidade visual</span>
+                <strong>Personalização da marca</strong>
+              </div>
+              <Palette />
+            </div>
+
+            <div className="branding-preview">
+              <span>Pré-visualização</span>
+              <div className="branding-preview-box">
+                <BrandLogo
+                  className="brand-logo-preview"
+                  name={currentBrandName}
+                  logoUrl={currentBranding.logoUrl}
+                  primaryColor={currentBranding.primaryColor}
+                  secondaryColor={currentBranding.secondaryColor}
+                  accentColor={currentBranding.accentColor}
+                />
+              </div>
+              <small>
+                O nome exibido vem de Estabelecimento. Para mudar o nome da marca, altere o campo “Nome do espaço”.
+              </small>
+            </div>
+
+            <div className="branding-logo-control">
+              <div>
+                <strong>Logo personalizada</strong>
+                <span>Envie PNG, JPG ou WebP de até 5 MB. Se não houver logo, o símbolo padrão será utilizado.</span>
+              </div>
+
+              <div className="branding-logo-actions">
+                <label className="branding-upload-button">
+                  <Upload size={16} />
+                  {brandingUploadBusy ? 'Enviando...' : 'Enviar logo'}
+                  <input
+                    type="file"
+                    accept="image/png,image/jpeg,image/webp"
+                    disabled={brandingUploadBusy}
+                    onChange={async (event) => {
+                      const file = event.target.files?.[0]
+                      event.target.value = ''
+                      if (!file) return
+
+                      setBrandingUploadBusy(true)
+                      setAdminError('')
+                      try {
+                        const uploaded = await api.uploadImage(file)
+                        const next = {
+                          ...settings,
+                          branding: {
+                            ...(settings.branding || {}),
+                            logoUrl: uploaded.url,
+                          },
+                        }
+                        const saved = await api.saveSettings(next)
+                        setSettings(saved)
+                        setAdminError('Logo atualizada com sucesso.')
+                      } catch (error) {
+                        setAdminError(error.message || 'Não foi possível enviar a logo.')
+                      } finally {
+                        setBrandingUploadBusy(false)
+                      }
+                    }}
+                  />
+                </label>
+
+                {currentBranding.logoUrl && (
+                  <button
+                    className="branding-remove-button"
+                    disabled={brandingUploadBusy}
+                    onClick={async () => {
+                      setBrandingUploadBusy(true)
+                      setAdminError('')
+                      const oldUrl = currentBranding.logoUrl
+                      try {
+                        const next = {
+                          ...settings,
+                          branding: {
+                            ...(settings.branding || {}),
+                            logoUrl: '',
+                          },
+                        }
+                        const saved = await api.saveSettings(next)
+                        setSettings(saved)
+
+                        const match = String(oldUrl).match(/^\/api\/images\/([a-f0-9]{24})$/i)
+                        if (match) {
+                          await api.deleteImage(match[1]).catch(() => {})
+                        }
+
+                        setAdminError('Logo personalizada removida. A identidade padrão voltou a ser usada.')
+                      } catch (error) {
+                        setAdminError(error.message || 'Não foi possível remover a logo.')
+                      } finally {
+                        setBrandingUploadBusy(false)
+                      }
+                    }}
+                  >
+                    <Trash2 size={15} />
+                    Usar logo padrão
+                  </button>
+                )}
+              </div>
+            </div>
+
+            <div className="branding-colors">
+              {[
+                ['Cor principal', 'primaryColor', '#0f3554'],
+                ['Cor secundária', 'secondaryColor', '#1f8efa'],
+                ['Cor de destaque', 'accentColor', '#53b9ff'],
+              ].map(([label, key, fallback]) => (
+                <label key={key}>
+                  <span>{label}</span>
+                  <div>
+                    <input
+                      type="color"
+                      value={currentBranding[key] || fallback}
+                      onChange={(event) => {
+                        setSettings((current) => ({
+                          ...current,
+                          branding: {
+                            ...(current.branding || {}),
+                            [key]: event.target.value,
+                          },
+                        }))
+                      }}
+                    />
+                    <input
+                      className="branding-hex"
+                      value={currentBranding[key] || fallback}
+                      maxLength={7}
+                      onChange={(event) => {
+                        setSettings((current) => ({
+                          ...current,
+                          branding: {
+                            ...(current.branding || {}),
+                            [key]: event.target.value,
+                          },
+                        }))
+                      }}
+                    />
+                  </div>
+                </label>
+              ))}
+            </div>
+
+            <div className="branding-actions">
+              <button
+                onClick={async () => {
+                  setAdminError('')
+                  try {
+                    const saved = await api.saveSettings(settings)
+                    setSettings(saved)
+                    setAdminError('Identidade visual salva com sucesso.')
+                  } catch (error) {
+                    setAdminError(error.message || 'Não foi possível salvar a identidade visual.')
+                  }
+                }}
+              >
+                <CheckCircle2 size={16} />
+                Salvar identidade visual
+              </button>
+
+              <button
+                className="secondary"
+                onClick={() => {
+                  setSettings((current) => ({
+                    ...current,
+                    branding: {
+                      ...(current.branding || {}),
+                      primaryColor: '#0f3554',
+                      secondaryColor: '#1f8efa',
+                      accentColor: '#53b9ff',
+                    },
+                  }))
+                }}
+              >
+                Restaurar cores padrão
+              </button>
             </div>
           </section>
         )}

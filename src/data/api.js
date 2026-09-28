@@ -70,6 +70,15 @@ export const api = {
   adminReservations: () => request('/api/admin/reservations'),
   deletePendingReservation: (id) =>
     request('/api/admin/reservations/' + encodeURIComponent(id), { method: 'DELETE' }),
+  cancelPaidReservation: (id, reason, refundAmount) =>
+    request('/api/admin/reservations/' + encodeURIComponent(id) + '/cancel', {
+      method: 'POST',
+      body: JSON.stringify({ reason, refundAmount }),
+    }),
+  markRefundRecorded: (id) =>
+    request('/api/admin/reservations/' + encodeURIComponent(id) + '/refund-recorded', {
+      method: 'POST',
+    }),
   adminContracts: () => request('/api/admin/contracts'),
   adminVisits: () => request('/api/admin/visits'),
   adminRevenue: (month) =>

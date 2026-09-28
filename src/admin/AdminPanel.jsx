@@ -14,6 +14,10 @@ import {
   ListPlus,
   ChevronLeft,
   ChevronRight,
+  X,
+  Phone,
+  FileText,
+  CheckCircle2,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -72,6 +76,7 @@ export default function AdminPanel({ onClose }) {
   const [loading, setLoading] = useState(true)
   const [adminError, setAdminError] = useState('')
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
+  const [selectedReservation, setSelectedReservation] = useState(null)
 
   useEffect(() => {
     let activeRequest = true
@@ -322,8 +327,8 @@ export default function AdminPanel({ onClose }) {
                   <button
                     className={reservation ? 'reserved' : blocked ? 'blocked' : ''}
                     key={iso}
-                    onClick={toggleBlocked}
-                    title={reservation ? 'Data reservada' : blocked ? 'Clique para liberar' : 'Clique para bloquear'}
+                    onClick={() => reservation ? setSelectedReservation(reservation) : toggleBlocked()}
+                    title={reservation ? 'Clique para ver os dados da reserva' : blocked ? 'Clique para liberar' : 'Clique para bloquear'}
                   >
                     <b>{day}</b>
                     <small>{reservation ? reservation.period : blocked ? 'Bloqueado' : 'Livre'}</small>
@@ -578,6 +583,110 @@ export default function AdminPanel({ onClose }) {
           </section>
         )}
       </main>
+
+      {selectedReservation && (
+        <div className="reservation-detail-backdrop" role="dialog" aria-modal="true" aria-label="Detalhes da reserva">
+          <div className="reservation-detail-modal">
+            <div className="reservation-detail-top">
+              <div>
+                <span>Reserva do dia</span>
+                <strong>{selectedReservation.date}</strong>
+              </div>
+              <button onClick={() => setSelectedReservation(null)} aria-label="Fechar detalhes">
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="reservation-detail-body">
+              <div className="reservation-detail-status">
+                <CheckCircle2 />
+                <div>
+                  <span>Status</span>
+                  <strong>
+                    {['paid', 'approved-simulated'].includes(selectedReservation.paymentStatus)
+                      ? 'Pagamento confirmado'
+                      : selectedReservation.paymentStatus === 'confirmed-asaas'
+                        ? 'Confirmado • aguardando liquidação'
+                        : selectedReservation.paymentStatus === 'pending-asaas'
+                          ? 'Aguardando Pix'
+                          : 'Pendente'}
+                  </strong>
+                </div>
+              </div>
+
+              <div className="reservation-detail-grid">
+                <div>
+                  <span>Cliente</span>
+                  <strong>{selectedReservation.customer?.name || '-'}</strong>
+                </div>
+                <div>
+                  <span>Telefone</span>
+                  <strong>{selectedReservation.customer?.phone || '-'}</strong>
+                </div>
+                <div>
+                  <span>CPF</span>
+                  <strong>{selectedReservation.customer?.cpf || '-'}</strong>
+                </div>
+                <div>
+                  <span>Período</span>
+                  <strong>{selectedReservation.period || '-'}</strong>
+                </div>
+                <div>
+                  <span>Valor</span>
+                  <strong>{money(selectedReservation.price)}</strong>
+                </div>
+                <div>
+                  <span>Código da reserva</span>
+                  <strong>{selectedReservation.id}</strong>
+                </div>
+                <div>
+                  <span>Contrato</span>
+                  <strong>{selectedReservation.contractId || 'Não vinculado'}</strong>
+                </div>
+                <div>
+                  <span>Pagamento</span>
+                  <strong>{selectedReservation.asaasStatus || selectedReservation.paymentStatus || '-'}</strong>
+                </div>
+              </div>
+
+              {selectedReservation.customer?.address && (
+                <div className="reservation-detail-address">
+                  <span>Endereço do cliente</span>
+                  <strong>{selectedReservation.customer.address}</strong>
+                </div>
+              )}
+
+              <div className="reservation-detail-actions">
+                {selectedReservation.customer?.phone && (
+                  <button
+                    className="whatsapp"
+                    onClick={() => {
+                      const number = normalizeWhatsAppNumber(selectedReservation.customer.phone)
+                      if (number) window.open('https://wa.me/' + number, '_blank', 'noopener,noreferrer')
+                    }}
+                  >
+                    <Phone size={16} />
+                    Abrir WhatsApp
+                  </button>
+                )}
+
+                {selectedReservation.contractId && (
+                  <button
+                    className="contract"
+                    onClick={() => {
+                      setSelectedReservation(null)
+                      setActive('contracts')
+                    }}
+                  >
+                    <FileText size={16} />
+                    Ver contratos
+                  </button>
+                )}
+              </div>
+            </div>
+          </div>
+        </div>
+      )}
     </div>
   )
 }

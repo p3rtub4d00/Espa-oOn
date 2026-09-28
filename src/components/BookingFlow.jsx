@@ -28,6 +28,24 @@ function onlyDigits(value) {
   return value.replace(/\D/g, '')
 }
 
+function isValidCpf(value) {
+  const cpf = onlyDigits(value)
+  if (cpf.length !== 11 || /^(\d)\1{10}$/.test(cpf)) return false
+
+  const calcDigit = (base, factor) => {
+    let total = 0
+    for (const digit of base) {
+      total += Number(digit) * factor--
+    }
+    const remainder = (total * 10) % 11
+    return remainder === 10 ? 0 : remainder
+  }
+
+  const first = calcDigit(cpf.slice(0, 9), 10)
+  const second = calcDigit(cpf.slice(0, 10), 11)
+  return first === Number(cpf[9]) && second === Number(cpf[10])
+}
+
 function formatCpf(value) {
   const digits = onlyDigits(value).slice(0, 11)
   return digits
@@ -116,7 +134,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const validate = () => {
     const next = {}
     if (form.name.trim().length < 3) next.name = 'Informe seu nome completo.'
-    if (onlyDigits(form.cpf).length !== 11) next.cpf = 'Informe um CPF com 11 dígitos.'
+    if (!isValidCpf(form.cpf)) next.cpf = 'Informe um CPF válido.'
     if (onlyDigits(form.phone).length < 10) next.phone = 'Informe um telefone válido.'
     if (form.address.trim().length < 8) next.address = 'Informe seu endereço.'
     setErrors(next)

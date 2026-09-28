@@ -2484,3 +2484,253 @@
     font-size: 16px;
   }
 }
+
+
+/* Push notifications */
+.push-settings-title {
+  align-items: center;
+}
+
+.push-settings-title > svg {
+  color: #176db5;
+}
+
+.push-device-card {
+  margin-top: 16px;
+  padding: 16px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  border: 1px solid #cfe2ef;
+  border-radius: 14px;
+  background: #f7fbff;
+}
+
+.push-device-info {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.push-device-info strong,
+.push-device-info span {
+  display: block;
+}
+
+.push-device-info strong {
+  color: #294553;
+  font-size: 11px;
+}
+
+.push-device-info span {
+  margin-top: 4px;
+  color: #7a8f99;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.push-status-icon {
+  width: 42px;
+  height: 42px;
+  flex: 0 0 auto;
+  display: grid;
+  place-items: center;
+  border-radius: 12px;
+  color: #728894;
+  background: #e8f0f5;
+}
+
+.push-status-icon.active {
+  color: #176db5;
+  background: #e5f4ff;
+}
+
+.push-device-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.push-device-actions button {
+  min-height: 40px;
+  padding: 0 13px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.push-enable-button,
+.push-test-button {
+  border: 0;
+  color: white;
+  background: #1f8efa;
+}
+
+.push-disable-button {
+  border: 1px solid #d7e3eb;
+  color: #6d818b;
+  background: white;
+}
+
+.push-device-actions button:disabled {
+  opacity: .5;
+  cursor: not-allowed;
+}
+
+.push-summary {
+  margin-top: 14px;
+  display: grid;
+  grid-template-columns: repeat(2, 1fr);
+  gap: 10px;
+}
+
+.push-summary article {
+  padding: 14px;
+  border: 1px solid rgba(15,53,84,.08);
+  border-radius: 12px;
+  background: #f8fbfe;
+}
+
+.push-summary span,
+.push-summary strong,
+.push-summary small {
+  display: block;
+}
+
+.push-summary span {
+  color: #7d9098;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.push-summary strong {
+  margin-top: 5px;
+  color: #294553;
+  font-size: 16px;
+}
+
+.push-summary small {
+  margin-top: 4px;
+  color: #8a9ba3;
+  font-size: 8px;
+}
+
+.push-notification-options {
+  margin-top: 16px;
+  display: grid;
+  gap: 10px;
+}
+
+.push-notification-options article {
+  padding: 13px 14px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(15,53,84,.09);
+  border-radius: 12px;
+  background: white;
+}
+
+.push-notification-options article > div {
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+}
+
+.push-notification-options article svg {
+  color: #176db5;
+  flex: 0 0 auto;
+}
+
+.push-notification-options span,
+.push-notification-options strong,
+.push-notification-options small {
+  display: block;
+}
+
+.push-notification-options strong {
+  color: #294553;
+  font-size: 10px;
+}
+
+.push-notification-options small {
+  margin-top: 4px;
+  color: #7d9098;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.push-notification-options button {
+  min-width: 92px;
+  min-height: 34px;
+  padding: 0 10px;
+  border: 1px solid #d7e3eb;
+  border-radius: 999px;
+  color: #758891;
+  background: white;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.push-notification-options button.enabled {
+  border-color: #b9d8f0;
+  color: #176db5;
+  background: #edf7ff;
+}
+
+.push-help {
+  margin-top: 16px;
+  padding: 13px 14px;
+  border: 1px solid #dbe8f0;
+  border-radius: 11px;
+  background: #fbfdff;
+}
+
+.push-help strong,
+.push-help span {
+  display: block;
+}
+
+.push-help strong {
+  color: #294553;
+  font-size: 9px;
+}
+
+.push-help span {
+  margin-top: 4px;
+  color: #7b8e97;
+  font-size: 8px;
+  line-height: 1.55;
+}
+
+@media (max-width: 680px) {
+  .push-device-card,
+  .push-notification-options article {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .push-device-actions {
+    width: 100%;
+    flex-direction: column;
+  }
+
+  .push-device-actions button {
+    width: 100%;
+  }
+
+  .push-summary {
+    grid-template-columns: 1fr;
+  }
+
+  .push-notification-options button {
+    width: 100%;
+  }
+}

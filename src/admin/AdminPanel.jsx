@@ -112,6 +112,52 @@ function openWhatsAppConfirmation(visit, date, time) {
   )
 }
 
+function openWhatsAppVisitProposal(visit, date, time, ownerMessage = '') {
+  const number = normalizeWhatsAppNumber(visit.phone)
+  if (!number) return
+
+  const formattedDate = date ? date.split('-').reverse().join('/') : ''
+  const message = [
+    'Olá, ' + visit.name + '!',
+    '',
+    'Recebemos sua solicitação de visita ao EspaçoOn.',
+    'Gostaríamos de sugerir outro horário:',
+    'Data: ' + formattedDate,
+    'Horário: ' + time,
+    ownerMessage ? '' : null,
+    ownerMessage || null,
+    '',
+    'Se estiver de acordo, responda por aqui para confirmarmos.',
+  ].filter(Boolean).join('\n')
+
+  window.open(
+    'https://wa.me/' + number + '?text=' + encodeURIComponent(message),
+    '_blank',
+    'noopener,noreferrer',
+  )
+}
+
+function openWhatsAppVisitRejection(visit, reason) {
+  const number = normalizeWhatsAppNumber(visit.phone)
+  if (!number) return
+
+  const message = [
+    'Olá, ' + visit.name + '!',
+    '',
+    'Sobre sua solicitação de visita ao EspaçoOn, infelizmente não conseguiremos atender neste momento.',
+    '',
+    'Motivo: ' + reason,
+    '',
+    'Se desejar, responda por aqui para verificarmos outra possibilidade.',
+  ].join('\n')
+
+  window.open(
+    'https://wa.me/' + number + '?text=' + encodeURIComponent(message),
+    '_blank',
+    'noopener,noreferrer',
+  )
+}
+
 export default function AdminPanel({ onClose, onInstall, appInstalled = false }) {
   const [active, setActive] = useState('overview')
   const [reservations, setReservations] = useState([])
@@ -700,7 +746,7 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
                       return saved
                     } catch (error) {
                       setAdminError(error.message || 'Não foi possível atualizar a visita.')
-                      return nextVisit
+                      return null
                     }
                   }
 
@@ -814,25 +860,58 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
                             </button>
                             <button
                               className="propose"
-                              onClick={() => updateVisit({
-                                ...v,
-                                status: 'counter-proposed',
-                                confirmedDate: v.confirmedDate || requestedDate,
-                                confirmedTime: v.confirmedTime || requestedTime,
-                                respondedAt: new Date().toISOString(),
-                              })}
+                              onClick={async () => {
+                                const proposedDate = v.confirmedDate || requestedDate
+                                const proposedTime = v.confirmedTime || requestedTime
+
+                                if (!proposedDate || !proposedTime) {
+                                  setAdminError('Informe a nova data e o novo horário antes de enviar a sugestão.')
+                                  return
+                                }
+
+                                const savedVisit = await updateVisit({
+                                  ...v,
+                                  status: 'counter-proposed',
+                                  confirmedDate: proposedDate,
+                                  confirmedTime: proposedTime,
+                                  respondedAt: new Date().toISOString(),
+                                })
+
+                                if (savedVisit?.status === 'counter-proposed') {
+                                  openWhatsAppVisitProposal(
+                                    savedVisit,
+                                    proposedDate,
+                                    proposedTime,
+                                    savedVisit.ownerMessage || '',
+                                  )
+                                }
+                              }}
                             >
                               Sugerir outro horário
                             </button>
                             <button
                               className="reject"
-                              onClick={() => updateVisit({
-                                ...v,
-                                status: 'rejected',
-                                respondedAt: new Date().toISOString(),
-                              })}
+                              onClick={async () => {
+                                const reason = String(v.ownerMessage || '').trim()
+
+                                if (reason.length < 3) {
+                                  setAdminError('Informe a justificativa no campo “Mensagem para o cliente” antes de recusar.')
+                                  return
+                                }
+
+                                const savedVisit = await updateVisit({
+                                  ...v,
+                                  ownerMessage: reason,
+                                  status: 'rejected',
+                                  respondedAt: new Date().toISOString(),
+                                })
+
+                                if (savedVisit?.status === 'rejected') {
+                                  openWhatsAppVisitRejection(savedVisit, reason)
+                                }
+                              }}
                             >
-                              Recusar
+                              Recusar e avisar no WhatsApp
                             </button>
                           </div>
                         </>

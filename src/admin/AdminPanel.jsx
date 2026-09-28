@@ -547,8 +547,11 @@ export default function AdminPanel({ onClose }) {
                                   confirmedTime,
                                   respondedAt: new Date().toISOString(),
                                 }
-                                updateVisit(nextVisit)
-                                openWhatsAppConfirmation(nextVisit, confirmedDate, confirmedTime)
+                                updateVisit(nextVisit).then((savedVisit) => {
+                                  if (savedVisit?.status === 'confirmed') {
+                                    openWhatsAppConfirmation(savedVisit, confirmedDate, confirmedTime)
+                                  }
+                                })
                               }}
                             >
                               Confirmar e avisar no WhatsApp

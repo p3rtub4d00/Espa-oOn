@@ -2756,3 +2756,156 @@
 .admin-install-app:hover {
   background: rgba(31, 142, 250, .24);
 }
+
+
+/* Mobile admin hamburger drawer */
+.admin-mobile-menu-button,
+.admin-mobile-close,
+.admin-mobile-overlay {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .admin-shell {
+    display: block;
+  }
+
+  .admin-main {
+    padding: 18px 14px 28px;
+  }
+
+  .admin-mobile-menu-button {
+    margin-bottom: 14px;
+    min-height: 42px;
+    padding: 0 13px;
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+    border: 0;
+    border-radius: 10px;
+    color: white;
+    background: #0f3554;
+    font-size: 10px;
+    font-weight: 900;
+  }
+
+  .admin-mobile-overlay {
+    position: fixed;
+    z-index: 998;
+    inset: 0;
+    display: block;
+    border: 0;
+    background: rgba(5, 20, 31, .55);
+    backdrop-filter: blur(2px);
+  }
+
+  .admin-sidebar {
+    position: fixed;
+    z-index: 999;
+    top: 0;
+    left: 0;
+    bottom: 0;
+    width: min(82vw, 300px);
+    height: 100dvh;
+    padding: 18px 14px;
+    display: flex;
+    flex-direction: column;
+    transform: translateX(-105%);
+    transition: transform .24s ease;
+    box-shadow: 18px 0 50px rgba(0,0,0,.22);
+    overflow: hidden;
+  }
+
+  .admin-sidebar.mobile-open {
+    transform: translateX(0);
+  }
+
+  .admin-mobile-close {
+    position: absolute;
+    top: 12px;
+    right: 12px;
+    width: 38px;
+    height: 38px;
+    display: grid;
+    place-items: center;
+    border: 1px solid rgba(255,255,255,.14);
+    border-radius: 10px;
+    color: white;
+    background: rgba(255,255,255,.06);
+  }
+
+  .admin-brand {
+    display: block;
+    padding: 2px 46px 18px 4px;
+  }
+
+  .brand-logo-admin .brand-logo-word {
+    display: inline-flex;
+    font-size: 16px;
+  }
+
+  .brand-logo-admin .brand-logo-word > small {
+    display: block;
+  }
+
+  .admin-sidebar nav {
+    min-height: 0;
+    height: auto;
+    flex: 1 1 auto;
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: 5px;
+    overflow-y: auto;
+    overflow-x: hidden;
+    padding: 2px 2px 10px 0;
+  }
+
+  .admin-sidebar nav button {
+    width: 100%;
+    min-width: 0;
+    min-height: 44px;
+    padding: 0 12px;
+    flex: 0 0 auto;
+    justify-content: flex-start;
+    gap: 10px;
+    border-radius: 10px;
+  }
+
+  .admin-sidebar nav button span {
+    display: inline;
+  }
+
+  .admin-install-app,
+  .admin-back {
+    display: flex;
+    width: 100%;
+    margin-top: 8px;
+    flex: 0 0 auto;
+  }
+
+  .admin-back {
+    margin-top: 8px;
+  }
+
+  .admin-header {
+    align-items: flex-start;
+    margin-bottom: 20px;
+  }
+
+  .admin-user {
+    flex: 0 0 auto;
+  }
+
+  .admin-user span {
+    display: none;
+  }
+
+  .admin-card {
+    overflow: visible;
+  }
+
+  .admin-calendar,
+  .admin-table {
+    min-width: 0;
+  }
+}

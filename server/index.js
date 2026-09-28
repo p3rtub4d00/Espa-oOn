@@ -416,34 +416,20 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    asaas: {
-      configured: Boolean(ASAAS_API_KEY),
-      environment: ASAAS_ENV,
-      keyType: ASAAS_API_KEY?.startsWith('$aact_prod_')
-        ? 'production'
-        : ASAAS_API_KEY?.startsWith('$aact_hmlg_')
-          ? 'sandbox'
-          : ASAAS_API_KEY
-            ? 'unknown'
-            : 'missing',
-      webhookTokenConfigured: Boolean(ASAAS_WEBHOOK_TOKEN),
-    },
   })
 })
 
-app.post('/api/admin/login', (req, res) => {
+app.post('/api/admin/login', loginLimiter, (req, res) => {
   const password = String(req.body?.password || '')
-  if (!ADMIN_PASSWORD) {
-    return res.status(503).json({ error: 'ADMIN_PASSWORD não configurada no Render.' })
-  }
-  if (password !== ADMIN_PASSWORD) {
+  if (!secureEqual(password, ADMIN_PASSWORD)) {
     return res.status(401).json({ error: 'Senha incorreta.' })
   }
 
   res.cookie('espacoon_admin', signAdminToken(), {
     httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'strict',
+    secure: true,
+    path: '/',
     maxAge: 12 * 60 * 60 * 1000,
   })
   res.json({ ok: true })
@@ -454,7 +440,12 @@ app.get('/api/admin/session', requireAdmin, (_req, res) => {
 })
 
 app.post('/api/admin/logout', (_req, res) => {
-  res.clearCookie('espacoon_admin')
+  res.clearCookie('espacoon_admin', {
+    httpOnly: true,
+    sameSite: 'strict',
+    secure: true,
+    path: '/',
+  })
   res.json({ ok: true })
 })
 
@@ -535,7 +526,7 @@ app.get('/api/availability', async (_req, res, next) => {
   }
 })
 
-app.put('/api/admin/settings', requireAdmin, async (req, res, next) => {
+app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res, next) => {
   try {
     const allowed = ['prices', 'blockedDays', 'blockedDates', 'specialDates', 'rentalHours', 'gallery', 'amenities']
     const update = {}
@@ -553,43 +544,67 @@ app.put('/api/admin/settings', requireAdmin, async (req, res, next) => {
   }
 })
 
-app.post('/api/contracts', async (req, res, next) => {
+app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
   try {
-    const payload = req.body
-    if (!payload?.id || !payload?.reservationId) {
-      return res.status(400).json({ error: 'Contrato inválido.' })
+    const payload = req.body || {}
+    if (!isValidId(payload.id, 'CTR') || !isValidId(payload.reservationId, 'ESP')) {
+      return res.status(400).json({ error: 'Identificação do contrato inválida.' })
     }
-    const contract = await Contract.findOneAndUpdate(
-      { id: payload.id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
-    res.status(201).json(contract)
+
+    if (!isValidPeriod(payload.period)) {
+      return res.status(400).json({ error: 'Período da reserva inválido.' })
+    }
+
+    const customer = {
+      name: textValue(payload.customer?.name, 120),
+      cpf: onlyDigits(payload.customer?.cpf),
+      phone: onlyDigits(payload.customer?.phone),
+      address: textValue(payload.customer?.address, 240),
+    }
+
+    if (customer.name.length < 3 || !isValidCpf(customer.cpf) || !isValidPhone(customer.phone)) {
+      return res.status(400).json({ error: 'Dados do locatário inválidos.' })
+    }
+
+    const signature = String(payload.signature || '')
+    if (!signature.startsWith('data:image/png;base64,') || signature.length > 2_500_000) {
+      return res.status(400).json({ error: 'Assinatura eletrônica inválida ou muito grande.' })
+    }
+
+    const signedAt = new Date(payload.signedAt)
+    if (Number.isNaN(signedAt.getTime())) {
+      return res.status(400).json({ error: 'Data da assinatura inválida.' })
+    }
+
+    const existing = await Contract.findOne({ id: payload.id }).lean()
+    if (existing) {
+      return res.status(200).json(existing)
+    }
+
+    const contractRecord = {
+      id: payload.id,
+      reservationId: payload.reservationId,
+      reservationDate: textValue(payload.reservationDate, 20),
+      reservationDateISO: textValue(payload.reservationDateISO, 10),
+      period: payload.period,
+      price: Number(payload.price || 0),
+      customer,
+      signedAt,
+      signature,
+      status: 'signed-awaiting-payment',
+      paymentStatus: 'awaiting-payment',
+    }
+
+    contractRecord.hash = contractHash(contractRecord)
+
+    const contract = await Contract.create(contractRecord)
+    res.status(201).json(contract.toObject())
   } catch (error) {
     next(error)
   }
 })
 
-app.post('/api/reservations', async (req, res, next) => {
-  try {
-    const payload = req.body
-    if (!payload?.id || !payload?.customer?.phone || !payload?.date) {
-      return res.status(400).json({ error: 'Reserva inválida.' })
-    }
-
-    const reservation = await Reservation.findOneAndUpdate(
-      { id: payload.id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
-
-    res.status(201).json(reservation)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/payments/asaas/pix', async (req, res, next) => {
+app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
   try {
     const { reservation, contractId } = req.body || {}
     if (!reservation?.id || !reservation?.dateISO || !reservation?.period || !contractId) {
@@ -601,12 +616,17 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
       return res.status(400).json({ error: 'Contrato assinado não encontrado para esta reserva.' })
     }
 
+    const contractDateISO = contract.reservationDateISO || displayDateToISO(contract.reservationDate)
+    if (!contractDateISO || !isValidPeriod(contract.period)) {
+      return res.status(400).json({ error: 'O contrato não possui uma data ou período válido.' })
+    }
+
     const settings = await currentSettings()
-    const serverPrice = priceForDate(reservation.dateISO, reservation.period, settings)
+    const serverPrice = priceForDate(contractDateISO, contract.period, settings)
 
     const now = new Date()
     const conflict = await Reservation.findOne({
-      dateISO: reservation.dateISO,
+      dateISO: contractDateISO,
       id: { $ne: reservation.id },
       $or: [
         { paymentStatus: { $in: ['confirmed-asaas', 'paid', 'approved-simulated'] } },
@@ -641,7 +661,7 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
       })
     }
 
-    const customer = await getOrCreateAsaasCustomer(reservation.customer, reservation.id)
+    const customer = await getOrCreateAsaasCustomer(contract.customer, reservation.id)
     const dueDate = new Date().toISOString().slice(0, 10)
 
     const reconciled = await asaasRequest(
@@ -655,7 +675,7 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
         billingType: 'PIX',
         value: serverPrice,
         dueDate,
-        description: 'Reserva EspaçoOn - ' + displayDate(reservation.dateISO) + ' - ' + reservation.period,
+        description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
         externalReference: reservation.id,
       },
     })
@@ -666,7 +686,12 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
       { id: reservation.id },
       {
         $set: {
-          ...reservation,
+          id: reservation.id,
+          day: Number(contractDateISO.slice(-2)),
+          date: contract.reservationDate || displayDate(contractDateISO),
+          dateISO: contractDateISO,
+          period: contract.period,
+          customer: contract.customer,
           price: serverPrice,
           contractId,
           paymentStatus: 'pending-asaas',
@@ -705,10 +730,20 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
   }
 })
 
-app.get('/api/payments/asaas/:reservationId/status', async (req, res, next) => {
+app.get('/api/payments/asaas/:reservationId/status', paymentLimiter, async (req, res, next) => {
   try {
     const reservation = await Reservation.findOne({ id: req.params.reservationId }).lean()
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
+    if (reservation.paymentStatus === 'paid') {
+      const contract = await Contract.findOne({ id: reservation.contractId }).lean()
+      return res.json({
+        paid: true,
+        reservation,
+        contract,
+        asaasStatus: reservation.asaasStatus || 'RECEIVED',
+      })
+    }
+
     if (!reservation.asaasPaymentId) {
       return res.status(400).json({ error: 'Esta reserva ainda não possui cobrança Asaas.' })
     }
@@ -783,15 +818,32 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
     }
 
     const incomingToken = req.get('asaas-access-token')
-    if (incomingToken !== ASAAS_WEBHOOK_TOKEN) {
+    if (!secureEqual(incomingToken, ASAAS_WEBHOOK_TOKEN)) {
       return res.status(401).json({ error: 'Webhook não autorizado.' })
     }
 
     const { id, event, payment } = req.body || {}
     if (!id || !event) return res.status(400).json({ error: 'Evento inválido.' })
 
-    const duplicate = await WebhookEvent.findOne({ id }).lean()
-    if (duplicate) return res.status(200).json({ ok: true, duplicate: true })
+    const existingEvent = await WebhookEvent.findOne({ id }).lean()
+    if (existingEvent?.status === 'processed') {
+      return res.status(200).json({ ok: true, duplicate: true })
+    }
+
+    if (existingEvent) {
+      await WebhookEvent.updateOne(
+        { id },
+        { $set: { status: 'processing', lastError: null }, $inc: { attempts: 1 } },
+      )
+    } else {
+      await WebhookEvent.create({
+        id,
+        event,
+        paymentId: payment?.id,
+        status: 'processing',
+        attempts: 1,
+      })
+    }
 
     const reservation = payment?.externalReference
       ? await Reservation.findOne({ id: payment.externalReference }).lean()
@@ -824,20 +876,25 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
       }
     }
 
-    await WebhookEvent.create({
-      id,
-      event,
-      paymentId: payment?.id,
-    })
+    await WebhookEvent.updateOne(
+      { id },
+      { $set: { status: 'processed', processedAt: new Date(), lastError: null } },
+    )
 
     res.status(200).json({ ok: true })
   } catch (error) {
-    if (error?.code === 11000) return res.status(200).json({ ok: true, duplicate: true })
+    const eventId = req.body?.id
+    if (eventId) {
+      await WebhookEvent.updateOne(
+        { id: eventId },
+        { $set: { status: 'failed', lastError: String(error?.message || 'Erro no processamento').slice(0, 500) } },
+      ).catch(() => {})
+    }
     next(error)
   }
 })
 
-app.get('/api/reservations/:code', async (req, res, next) => {
+app.get('/api/reservations/:code', lookupLimiter, async (req, res, next) => {
   try {
     const code = String(req.params.code || '').toUpperCase()
     const phoneEnd = String(req.query.phoneEnd || '').replace(/\D/g, '')
@@ -879,16 +936,25 @@ app.get('/api/admin/contracts', requireAdmin, async (_req, res, next) => {
   }
 })
 
-app.post('/api/visits', async (req, res, next) => {
+app.post('/api/visits', publicWriteLimiter, async (req, res, next) => {
   try {
-    const payload = req.body
-    if (!payload?.id || !payload?.name || !payload?.phone) {
+    const payload = req.body || {}
+    const visitData = {
+      id: textValue(payload.id, 40),
+      name: textValue(payload.name, 120),
+      phone: onlyDigits(payload.phone),
+      requestedDate: textValue(payload.requestedDate || payload.date, 10),
+      requestedTime: textValue(payload.requestedTime || payload.time, 5),
+      status: 'pending-owner-confirmation',
+    }
+
+    if (!visitData.id || visitData.name.length < 3 || !isValidPhone(visitData.phone) || !/^\d{4}-\d{2}-\d{2}$/.test(visitData.requestedDate)) {
       return res.status(400).json({ error: 'Solicitação de visita inválida.' })
     }
 
     const visit = await Visit.findOneAndUpdate(
-      { id: payload.id },
-      { $set: payload },
+      { id: visitData.id },
+      { $setOnInsert: visitData },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean()
 
@@ -908,9 +974,15 @@ app.get('/api/admin/visits', requireAdmin, async (_req, res, next) => {
 
 app.patch('/api/admin/visits/:id', requireAdmin, async (req, res, next) => {
   try {
+    const allowed = ['confirmedDate', 'confirmedTime', 'ownerMessage', 'status', 'respondedAt']
+    const update = {}
+    for (const key of allowed) {
+      if (req.body?.[key] !== undefined) update[key] = req.body[key]
+    }
+
     const visit = await Visit.findOneAndUpdate(
       { id: req.params.id },
-      { $set: req.body },
+      { $set: update },
       { new: true },
     ).lean()
     if (!visit) return res.status(404).json({ error: 'Visita não encontrada.' })
@@ -974,7 +1046,7 @@ app.use((error, _req, res, _next) => {
   }
   const status = Number(error?.statusCode) || 500
   res.status(status).json({
-    error: status >= 500 ? (error?.message || 'Erro interno do servidor.') : error.message,
+    error: status >= 500 ? 'Erro interno do servidor.' : error.message,
   })
 })
 

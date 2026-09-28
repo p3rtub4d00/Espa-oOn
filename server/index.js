@@ -1736,6 +1736,43 @@ app.delete('/api/admin/push/subscribe', requireAdmin, async (req, res, next) => 
   }
 })
 
+app.post('/api/admin/push/test-background', requireAdmin, async (req, res, next) => {
+  try {
+    const endpoint = textValue(req.body?.endpoint, 2000)
+    if (!endpoint) {
+      return res.status(400).json({ error: 'Dispositivo não informado.' })
+    }
+
+    const exists = await PushSubscription.findOne({ endpoint, enabled: true }).lean()
+    if (!exists) {
+      return res.status(404).json({ error: 'Este dispositivo não está mais cadastrado.' })
+    }
+
+    res.json({
+      ok: true,
+      message: 'Teste agendado para 15 segundos.',
+    })
+
+    setTimeout(async () => {
+      try {
+        await sendPushNotification(
+          {
+            title: 'Teste em segundo plano',
+            body: 'O EspaçoOn conseguiu notificar você com o app fechado.',
+            url: '/admin',
+            tag: 'espacoon-background-test-' + Date.now(),
+          },
+          endpoint,
+        )
+      } catch (error) {
+        console.warn('Falha no teste Push em segundo plano:', error?.message || error)
+      }
+    }, 15000)
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post('/api/admin/push/test', requireAdmin, async (req, res, next) => {
   try {
     const endpoint = textValue(req.body?.endpoint, 2000) || null

@@ -1579,3 +1579,48 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+.admin-calendar-title {
+  align-items: center;
+}
+
+.admin-calendar-nav {
+  display: flex;
+  gap: 7px;
+}
+
+.admin-calendar-nav button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(15,53,84,.12);
+  border-radius: 9px;
+  color: #176db5;
+  background: #edf7ff;
+}
+
+.admin-calendar-weekdays {
+  margin: 12px 0 7px;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  gap: 6px;
+}
+
+.admin-calendar-weekdays span {
+  text-align: center;
+  color: #82939f;
+  font-size: 8px;
+  font-weight: 800;
+}
+
+@media (max-width: 680px) {
+  .admin-calendar-title {
+    align-items: stretch;
+  }
+
+  .admin-calendar-nav {
+    margin-top: 8px;
+  }
+}

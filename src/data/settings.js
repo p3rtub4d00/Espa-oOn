@@ -43,6 +43,12 @@ export const DEFAULT_SETTINGS = {
     locationNote: '',
     openingHours: '',
   },
+  branding: {
+    logoUrl: '',
+    primaryColor: '#0f3554',
+    secondaryColor: '#1f8efa',
+    accentColor: '#53b9ff',
+  },
 }
 
 export function loadSettings() {
@@ -57,6 +63,7 @@ export function loadSettings() {
     notifications: { ...DEFAULT_SETTINGS.notifications },
     cancellationPolicy: { ...DEFAULT_SETTINGS.cancellationPolicy },
     establishment: { ...DEFAULT_SETTINGS.establishment },
+    branding: { ...DEFAULT_SETTINGS.branding },
   }
 }
 

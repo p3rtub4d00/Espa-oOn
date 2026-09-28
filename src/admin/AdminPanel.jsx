@@ -28,6 +28,7 @@ import {
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
+import BrandLogo from '../components/BrandLogo'
 import { loadSettings } from '../data/settings'
 import { api } from '../data/api'
 import './admin.css'
@@ -265,9 +266,7 @@ export default function AdminPanel({ onClose }) {
     <div className="admin-shell">
       <aside className="admin-sidebar">
         <div className="admin-brand">
-          <span>E</span>
-          <strong>EspaçoOn</strong>
-          <small>Admin</small>
+          <BrandLogo className="brand-logo-admin" showAdmin />
         </div>
 
         <nav>

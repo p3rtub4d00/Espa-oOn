@@ -828,7 +828,16 @@ export default function AdminPanel({ onClose }) {
                       },
                     }))
                   }}
-                  onBlur={() => persistSettings(settings)}
+                  onBlur={(event) => {
+                    const next = {
+                      ...settings,
+                      whatsapp: {
+                        ...(settings.whatsapp || {}),
+                        ownerName: event.target.value.trim(),
+                      },
+                    }
+                    persistSettings(next)
+                  }}
                   placeholder="Ex.: Rafael"
                 />
               </label>
@@ -848,7 +857,16 @@ export default function AdminPanel({ onClose }) {
                       },
                     }))
                   }}
-                  onBlur={() => persistSettings(settings)}
+                  onBlur={(event) => {
+                    const next = {
+                      ...settings,
+                      whatsapp: {
+                        ...(settings.whatsapp || {}),
+                        ownerPhone: event.target.value.replace(/\D/g, '').slice(0, 13),
+                      },
+                    }
+                    persistSettings(next)
+                  }}
                   placeholder="Ex.: 5569999999999"
                 />
                 <small>Use DDI + DDD + número. Ex.: 5569999999999</small>

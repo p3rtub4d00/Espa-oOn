@@ -202,6 +202,12 @@ const settingsSchema = new mongoose.Schema(
       locationNote: String,
       openingHours: String,
     },
+    branding: {
+      logoUrl: String,
+      primaryColor: String,
+      secondaryColor: String,
+      accentColor: String,
+    },
   },
   { timestamps: true },
 )
@@ -294,6 +300,12 @@ const DEFAULT_SETTINGS = {
     state: '',
     locationNote: '',
     openingHours: '',
+  },
+  branding: {
+    logoUrl: '',
+    primaryColor: '#0f3554',
+    secondaryColor: '#1f8efa',
+    accentColor: '#53b9ff',
   },
 }
 
@@ -731,6 +743,37 @@ function sanitizeSettingsUpdate(body = {}) {
     }
 
     update.establishment = establishment
+  }
+
+  if (body.branding !== undefined) {
+    const colorPattern = /^#[0-9a-fA-F]{6}$/
+    const logoUrl = textValue(body.branding?.logoUrl, 1000)
+    const primaryColor = textValue(body.branding?.primaryColor, 7)
+    const secondaryColor = textValue(body.branding?.secondaryColor, 7)
+    const accentColor = textValue(body.branding?.accentColor, 7)
+
+    if (
+      logoUrl &&
+      !/^https:\/\//i.test(logoUrl) &&
+      !/^\/api\/images\/[a-f0-9]{24}$/i.test(logoUrl)
+    ) {
+      const error = new Error('Endereço da logo inválido.')
+      error.statusCode = 400
+      throw error
+    }
+
+    if (![primaryColor, secondaryColor, accentColor].every((value) => colorPattern.test(value))) {
+      const error = new Error('As cores da marca devem estar no formato hexadecimal, como #1F8EFA.')
+      error.statusCode = 400
+      throw error
+    }
+
+    update.branding = {
+      logoUrl,
+      primaryColor,
+      secondaryColor,
+      accentColor,
+    }
   }
 
   return update

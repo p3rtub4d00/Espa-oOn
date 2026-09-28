@@ -29,23 +29,23 @@ const heroSlides = [
   {
     image:
       'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=2000&q=88',
-    eyebrow: 'Seu evento merece um lugar especial',
-    title: 'Um espaço completo para viver bons momentos.',
-    text: 'Piscina, lazer, esporte e estrutura para reunir família e amigos com conforto e privacidade.',
+    eyebrow: 'Clube para família e amigos',
+    title: 'Piscina, lazer e espaço para curtir o dia.',
+    text: 'Veja as fotos, confira os valores e escolha uma data disponível sem complicação.',
   },
   {
     image:
       'https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=2000&q=88',
-    eyebrow: 'Lazer do seu jeito',
-    title: 'Reserve 12h ou 24h, direto pelo celular.',
-    text: 'Consulte disponibilidade em tempo real, veja os valores e organize sua locação sem depender de atendimento.',
+    eyebrow: 'Reserva simples',
+    title: 'Escolha 12h ou 24h e faça tudo pelo celular.',
+    text: 'A agenda mostra as datas disponíveis e você segue direto para a reserva.',
   },
   {
     image:
       'https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=2000&q=88',
-    eyebrow: 'Mais facilidade para você',
-    title: 'Escolha a data. Confira. Reserve.',
-    text: 'Uma experiência simples e transparente desde a primeira visita até a confirmação da reserva.',
+    eyebrow: 'Quer conhecer antes?',
+    title: 'Veja o espaço ou solicite uma visita.',
+    text: 'Escolha um horário sugerido e aguarde a confirmação do proprietário pelo WhatsApp.',
   },
 ]
 
@@ -264,12 +264,9 @@ function App() {
 
         <section className="section amenities-section" id="estrutura">
           <div className="section-heading">
-            <span className="section-kicker">Tudo em um só lugar</span>
-            <h2>Estrutura para você aproveitar cada momento.</h2>
-            <p>
-              Um ambiente pensado para confraternizações, aniversários, encontros de família
-              e aquele fim de semana especial com os amigos.
-            </p>
+            <span className="section-kicker">O que tem no clube</span>
+            <h2>Estrutura disponível.</h2>
+            <p>Confira o que você terá disponível durante a locação.</p>
           </div>
 
           <div className="amenities-grid">
@@ -289,9 +286,9 @@ function App() {
         <section className="gallery-section" id="galeria">
           <div className="section gallery-inner">
             <div className="section-heading light">
-              <span className="section-kicker">Conheça o espaço</span>
-              <h2>Um lugar que dá vontade de ficar.</h2>
-              <p>Veja alguns detalhes da estrutura disponível para sua locação.</p>
+              <span className="section-kicker">Fotos do espaço</span>
+              <h2>Veja como é o clube.</h2>
+              <p>Fotos cadastradas pelo proprietário.</p>
             </div>
 
             <div className="gallery-grid">
@@ -306,12 +303,9 @@ function App() {
 
         <section className="section pricing-section" id="precos">
           <div className="section-heading">
-            <span className="section-kicker">Valores transparentes</span>
-            <h2>Escolha o melhor dia para o seu evento.</h2>
-            <p>
-              Valores demonstrativos nesta primeira versão. Depois você poderá definir todos
-              eles pelo painel administrativo.
-            </p>
+            <span className="section-kicker">Preços</span>
+            <h2>Veja os valores antes de reservar.</h2>
+            <p>Escolha o período e depois consulte uma data disponível.</p>
           </div>
 
           <div className="pricing-grid">
@@ -364,12 +358,9 @@ function App() {
         <section className="availability-section" id="agenda">
           <div className="section availability-layout">
             <div className="availability-copy">
-              <span className="section-kicker">Agenda do espaço</span>
-              <h2>Escolha sua data sem precisar esperar resposta.</h2>
-              <p>
-                Confira as datas disponíveis e avance para uma reserva completa de demonstração.
-                Nesta fase, os dados ficam apenas neste navegador e o pagamento Pix é simulado.
-              </p>
+              <span className="section-kicker">Disponibilidade</span>
+              <h2>Escolha uma data livre.</h2>
+              <p>Selecione o dia desejado para começar sua reserva ou solicite uma visita antes.</p>
 
               <div className="legend">
                 <span><i className="dot available" /> Disponível</span>
@@ -442,33 +433,11 @@ function App() {
           </div>
         </section>
 
-        <section className="how-section section">
-          <div className="section-heading">
-            <span className="section-kicker">Sem complicação</span>
-            <h2>Da escolha da data à confirmação.</h2>
-          </div>
-
-          <div className="steps">
-            {[
-              ['01', 'Escolha a data', 'Confira no calendário quando o espaço está livre.'],
-              ['02', 'Selecione o período', 'Escolha entre locação de 12 horas ou 24 horas.'],
-              ['03', 'Informe seus dados', 'Preencha os dados necessários para sua reserva.'],
-              ['04', 'Confirme a reserva', 'Nesta fase inicial, o pagamento será simulado.'],
-            ].map(([number, title, text]) => (
-              <article key={number}>
-                <span>{number}</span>
-                <h3>{title}</h3>
-                <p>{text}</p>
-              </article>
-            ))}
-          </div>
-        </section>
-
         <section className="final-cta">
           <div>
-            <span className="section-kicker">Seu próximo evento começa aqui</span>
-            <h2>Já sabe a data que deseja?</h2>
-            <p>Consulte a agenda e veja se o espaço está disponível.</p>
+            <span className="section-kicker">Pronto para reservar?</span>
+            <h2>Veja as datas disponíveis.</h2>
+            <p>Escolha o dia e siga para a reserva.</p>
           </div>
           <button onClick={() => scrollTo('agenda')}>
             Ver datas disponíveis

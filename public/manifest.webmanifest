@@ -1,8 +1,8 @@
 {
-  "name": "EspaçoOn",
-  "short_name": "EspaçoOn",
-  "description": "Reservas e gestão do EspaçoOn",
-  "start_url": "/",
+  "name": "EspaçoOn Admin",
+  "short_name": "EspaçoOn Admin",
+  "description": "Painel administrativo do EspaçoOn",
+  "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
   "background_color": "#0f3554",
@@ -21,7 +21,7 @@
       "purpose": "any maskable"
     }
   ],
-  "id": "/",
+  "id": "/admin",
   "display_override": [
     "window-controls-overlay",
     "standalone",

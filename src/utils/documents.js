@@ -98,9 +98,9 @@ export function createContractPdf(contract) {
   const clauses = [
     ['1. Objeto.', 'O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma EspaçoOn, na data e período informados acima.'],
     ['2. Uso do espaço.', 'O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.'],
-    ['3. Responsabilidade.', 'Danos causados ao patrimônio durante o período de locação poderão ser atribuídos ao responsável pela reserva conforme as condições do contrato.'],
-    ['4. Pagamento.', 'O valor contratado é o indicado neste documento e o status de pagamento é registrado junto à reserva.'],
-    ['5. Assinatura eletrônica.', 'O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash de verificação.'],
+    ['3. Responsabilidade.', 'O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.'],
+    ['4. Pagamento.', 'O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.'],
+    ['5. Assinatura eletrônica.', 'O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.'],
   ]
 
   clauses.forEach(([title, body]) => {
@@ -160,7 +160,7 @@ export function buildPaymentMessage(reservation, contract) {
     'Valor: ' + money(reservation.price),
     'Contrato: ' + (contract?.id || reservation.contractId || '-'),
     '',
-    'Guarde o código da reserva para consultar seus dados posteriormente.',
+    'Guarde o código da reserva para consultar seus dados posteriormente no EspaçoOn.',
   ].join('\n')
 }
 

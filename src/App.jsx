@@ -93,8 +93,6 @@ const priceCards = [
   },
 ]
 
-const mockBusyDays = new Set([3, 10, 17, 24, 31])
-
 function App() {
   const [slide, setSlide] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
@@ -478,7 +476,7 @@ function App() {
                 <span className="calendar-empty" />
                 <span className="calendar-empty" />
                 {monthDays.map((day) => {
-                  const busy = mockBusyDays.has(day) || reservedDays.has(day) || siteSettings.blockedDays.includes(day)
+                  const busy = reservedDays.has(day) || siteSettings.blockedDays.includes(day)
                   const selected = selectedDay === day
                   return (
                     <button

@@ -1015,7 +1015,7 @@ app.get('/api/settings', async (_req, res, next) => {
   try {
     const settings = await Settings.findOne({ key: 'main' }).lean()
     const source = settings || DEFAULT_SETTINGS
-    const { whatsapp, ...publicSettings } = source
+    const { whatsapp, notifications, ...publicSettings } = source
     res.json(publicSettings)
   } catch (error) {
     next(error)

@@ -25,6 +25,7 @@ import {
   KeyRound,
   MessageCircle,
   BellRing,
+  Download,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -110,7 +111,7 @@ function openWhatsAppConfirmation(visit, date, time) {
   )
 }
 
-export default function AdminPanel({ onClose }) {
+export default function AdminPanel({ onClose, onInstall, appInstalled = false }) {
   const [active, setActive] = useState('overview')
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
@@ -317,6 +318,13 @@ export default function AdminPanel({ onClose }) {
             </button>
           ))}
         </nav>
+
+        {!appInstalled && (
+          <button className="admin-install-app" onClick={onInstall}>
+            <Download size={17} />
+            Instalar EspaçoOn
+          </button>
+        )}
 
         <button className="admin-back" onClick={onClose}>
           <ArrowLeft size={17} />

@@ -601,12 +601,68 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
                   <span>{r.period}</span>
                   <span>{money(r.price)}</span>
                   <span>
-                    <i className={r.paymentStatus === 'paid' ? 'status-ok' : 'visit-status pending'}>
-                      {paymentStatusLabel(r.paymentStatus)}
+                    <i className={
+                      r.reservationStatus === 'cancelled'
+                        ? 'visit-status rejected'
+                        : r.paymentStatus === 'paid'
+                          ? 'status-ok'
+                          : 'visit-status pending'
+                    }>
+                      {r.reservationStatus === 'cancelled'
+                        ? (
+                            Number(r.cancellation?.refundAmount || 0) > 0
+                              ? r.cancellation?.refundStatus === 'pending'
+                                ? 'Cancelada • reembolso pendente'
+                                : 'Cancelada • reembolso registrado'
+                              : 'Cancelada'
+                          )
+                        : paymentStatusLabel(r.paymentStatus)}
                     </i>
                   </span>
                   <span className="reservation-row-actions">
-                    {['pending-asaas', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
+                    {r.reservationStatus === 'cancelled' ? (
+                      r.cancellation?.refundStatus === 'pending' ? (
+                        <button
+                          className="refund-record-button"
+                          onClick={async () => {
+                            const confirmed = window.confirm(
+                              'Confirma que o valor de ' +
+                              money(r.cancellation?.refundAmount || 0) +
+                              ' já foi devolvido ao cliente?'
+                            )
+                            if (!confirmed) return
+
+                            setAdminError('')
+                            try {
+                              const saved = await api.markRefundRecorded(r.id)
+                              setReservations((current) =>
+                                current.map((item) => item.id === r.id ? saved : item)
+                              )
+                            } catch (error) {
+                              setAdminError(error.message || 'Não foi possível registrar o reembolso.')
+                            }
+                          }}
+                        >
+                          <CheckCircle2 size={14} />
+                          Marcar devolvido
+                        </button>
+                      ) : (
+                        <small className="reservation-protected">Histórico</small>
+                      )
+                    ) : r.paymentStatus === 'paid' ? (
+                      <button
+                        className="cancel-paid-reservation"
+                        onClick={() => {
+                          setCancellingReservation(r)
+                          setCancellationReason('')
+                          setCancellationRefund('0')
+                          setCancellationError('')
+                        }}
+                      >
+                        <X size={14} />
+                        Cancelar
+                      </button>
+                    ) : ['pending-asaas', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
                       <button
                         className="delete-pending-reservation"
                         disabled={deletingReservationId === r.id}
@@ -968,6 +1024,52 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
             </div>
           </section>
         )}
+        {active === 'policies' && (
+          <section className="admin-card large cancellation-policy-panel">
+            <div className="admin-card-title">
+              <div>
+                <span>Regras comerciais</span>
+                <strong>Política de cancelamento e reembolso</strong>
+              </div>
+              <FileText />
+            </div>
+
+            <div className="cancellation-policy-info">
+              <ShieldAlert size={20} />
+              <span>
+                Este texto aparece no contrato antes da assinatura. Use uma regra clara e compatível
+                com a política real do estabelecimento.
+              </span>
+            </div>
+
+            <label className="cancellation-policy-field">
+              <span>Texto da política</span>
+              <textarea
+                rows={8}
+                value={settings.cancellationPolicy?.text || ''}
+                onChange={(event) => {
+                  setSettings((current) => ({
+                    ...current,
+                    cancellationPolicy: {
+                      ...(current.cancellationPolicy || {}),
+                      text: event.target.value,
+                    },
+                  }))
+                }}
+                placeholder="Descreva as condições de cancelamento e eventual reembolso."
+              />
+            </label>
+
+            <button
+              className="cancellation-policy-save"
+              onClick={() => persistSettings(settings)}
+            >
+              <FileCheck2 size={16} />
+              Salvar política
+            </button>
+          </section>
+        )}
+
         {active === 'notifications' && (
           <section className="admin-card large push-settings">
             <div className="admin-card-title push-settings-title">
@@ -1328,6 +1430,131 @@ export default function AdminPanel({ onClose, onInstall, appInstalled = false })
                 >
                   <Trash2 size={17} />
                   {resetLoading ? 'Apagando...' : 'Apagar definitivamente'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
+      {cancellingReservation && createPortal(
+        <div
+          className="cancel-reservation-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Cancelar reserva paga"
+          onClick={() => !cancellationBusy && setCancellingReservation(null)}
+        >
+          <div className="cancel-reservation-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="cancel-reservation-top">
+              <div>
+                <span>Cancelamento controlado</span>
+                <strong>{cancellingReservation.id}</strong>
+              </div>
+              <button
+                onClick={() => !cancellationBusy && setCancellingReservation(null)}
+                aria-label="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="cancel-reservation-body">
+              <div className="cancel-reservation-summary">
+                <span>{cancellingReservation.customer?.name || 'Cliente'}</span>
+                <strong>{cancellingReservation.date} • {money(cancellingReservation.price)}</strong>
+              </div>
+
+              <label>
+                <span>Motivo do cancelamento</span>
+                <textarea
+                  rows={4}
+                  value={cancellationReason}
+                  onChange={(event) => setCancellationReason(event.target.value)}
+                  placeholder="Ex.: Cliente solicitou cancelamento com antecedência."
+                />
+              </label>
+
+              <label>
+                <span>Valor que deverá ser devolvido ao cliente</span>
+                <div className="cancel-refund-input">
+                  <small>R$</small>
+                  <input
+                    type="number"
+                    min="0"
+                    max={Number(cancellingReservation.price || 0)}
+                    step="0.01"
+                    value={cancellationRefund}
+                    onChange={(event) => setCancellationRefund(event.target.value)}
+                  />
+                </div>
+                <small>
+                  Informe 0,00 quando não houver reembolso. O sistema apenas registra o valor;
+                  nenhum Pix será devolvido automaticamente.
+                </small>
+              </label>
+
+              {cancellationError && (
+                <div className="cancel-reservation-error">{cancellationError}</div>
+              )}
+
+              <div className="cancel-reservation-warning">
+                <ShieldAlert size={18} />
+                <span>
+                  Ao confirmar, a data será liberada para novas reservas e este registro permanecerá
+                  no histórico.
+                </span>
+              </div>
+
+              <div className="cancel-reservation-actions">
+                <button
+                  className="cancel"
+                  disabled={cancellationBusy}
+                  onClick={() => setCancellingReservation(null)}
+                >
+                  Voltar
+                </button>
+                <button
+                  className="confirm"
+                  disabled={cancellationBusy}
+                  onClick={async () => {
+                    const refundAmount = Number(cancellationRefund || 0)
+                    if (cancellationReason.trim().length < 5) {
+                      setCancellationError('Informe o motivo do cancelamento.')
+                      return
+                    }
+                    if (
+                      !Number.isFinite(refundAmount) ||
+                      refundAmount < 0 ||
+                      refundAmount > Number(cancellingReservation.price || 0)
+                    ) {
+                      setCancellationError('Informe um valor de reembolso válido.')
+                      return
+                    }
+
+                    setCancellationBusy(true)
+                    setCancellationError('')
+                    try {
+                      const saved = await api.cancelPaidReservation(
+                        cancellingReservation.id,
+                        cancellationReason.trim(),
+                        refundAmount,
+                      )
+                      setReservations((current) =>
+                        current.map((item) => item.id === saved.id ? saved : item)
+                      )
+                      setCancellingReservation(null)
+                      setAdminError('Reserva cancelada. A data foi liberada e o histórico foi preservado.')
+                    } catch (error) {
+                      setCancellationError(error.message || 'Não foi possível cancelar a reserva.')
+                    } finally {
+                      setCancellationBusy(false)
+                    }
+                  }}
+                >
+                  <Trash2 size={16} />
+                  {cancellationBusy ? 'Cancelando...' : 'Confirmar cancelamento'}
                 </button>
               </div>
             </div>

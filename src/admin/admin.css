@@ -2909,3 +2909,326 @@
     min-width: 0;
   }
 }
+
+
+/* Cancellation policy and paid reservation cancellation */
+.cancellation-policy-info {
+  margin: 14px 0 18px;
+  padding: 13px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #cfe2ef;
+  border-radius: 12px;
+  color: #506b79;
+  background: #f5faff;
+  font-size: 9px;
+  line-height: 1.55;
+}
+
+.cancellation-policy-info svg {
+  flex: 0 0 auto;
+  color: #176db5;
+}
+
+.cancellation-policy-field {
+  display: block;
+}
+
+.cancellation-policy-field > span {
+  display: block;
+  margin-bottom: 7px;
+  color: #536b76;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.cancellation-policy-field textarea {
+  width: 100%;
+  min-height: 180px;
+  padding: 13px;
+  resize: vertical;
+  border: 1px solid rgba(15,53,84,.14);
+  border-radius: 12px;
+  outline: 0;
+  color: #294553;
+  background: white;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.6;
+}
+
+.cancellation-policy-field textarea:focus {
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.10);
+}
+
+.cancellation-policy-save {
+  margin-top: 13px;
+  min-height: 42px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  color: white;
+  background: #1f8efa;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.cancel-paid-reservation,
+.refund-record-button {
+  min-height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border-radius: 9px;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.cancel-paid-reservation {
+  border: 1px solid #efcbc6;
+  color: #a3433b;
+  background: #fff4f2;
+}
+
+.refund-record-button {
+  border: 1px solid #bad9ef;
+  color: #176db5;
+  background: #edf7ff;
+}
+
+.cancel-reservation-backdrop {
+  position: fixed;
+  z-index: 10020;
+  inset: 0;
+  padding: 16px;
+  display: grid;
+  place-items: center;
+  background: rgba(7,27,42,.82);
+  backdrop-filter: blur(8px);
+}
+
+.cancel-reservation-modal {
+  width: min(590px, 100%);
+  max-height: calc(100vh - 32px);
+  overflow: auto;
+  border-radius: 18px;
+  background: white;
+  box-shadow: 0 30px 90px rgba(0,0,0,.30);
+}
+
+.cancel-reservation-top {
+  padding: 16px 18px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  color: white;
+  background: #7d312c;
+}
+
+.cancel-reservation-top span,
+.cancel-reservation-top strong {
+  display: block;
+}
+
+.cancel-reservation-top span {
+  color: #ffd4d0;
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.cancel-reservation-top strong {
+  margin-top: 3px;
+  font-size: 15px;
+}
+
+.cancel-reservation-top button {
+  width: 36px;
+  height: 36px;
+  display: grid;
+  place-items: center;
+  border: 1px solid rgba(255,255,255,.18);
+  border-radius: 10px;
+  color: white;
+  background: rgba(255,255,255,.08);
+}
+
+.cancel-reservation-body {
+  padding: 18px;
+}
+
+.cancel-reservation-summary {
+  margin-bottom: 16px;
+  padding: 12px 13px;
+  border: 1px solid #dce7ee;
+  border-radius: 11px;
+  background: #f8fbfd;
+}
+
+.cancel-reservation-summary span,
+.cancel-reservation-summary strong {
+  display: block;
+}
+
+.cancel-reservation-summary span {
+  color: #82939f;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.cancel-reservation-summary strong {
+  margin-top: 4px;
+  color: #294553;
+  font-size: 11px;
+}
+
+.cancel-reservation-body label {
+  display: block;
+  margin-top: 14px;
+}
+
+.cancel-reservation-body label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #506873;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.cancel-reservation-body textarea,
+.cancel-refund-input {
+  width: 100%;
+  border: 1px solid rgba(15,53,84,.14);
+  border-radius: 10px;
+  background: white;
+}
+
+.cancel-reservation-body textarea {
+  min-height: 94px;
+  padding: 11px;
+  resize: vertical;
+  outline: 0;
+  font: inherit;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.cancel-refund-input {
+  min-height: 42px;
+  padding: 0 11px;
+  display: flex;
+  align-items: center;
+  gap: 7px;
+}
+
+.cancel-refund-input small {
+  color: #70858f;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.cancel-refund-input input {
+  width: 100%;
+  min-height: 40px;
+  border: 0;
+  outline: 0;
+  color: #294553;
+  background: transparent;
+  font: inherit;
+  font-size: 12px;
+  font-weight: 800;
+}
+
+.cancel-reservation-body label > small {
+  display: block;
+  margin-top: 6px;
+  color: #84969e;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.cancel-reservation-warning,
+.cancel-reservation-error {
+  margin-top: 14px;
+  padding: 11px 12px;
+  border-radius: 10px;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.cancel-reservation-warning {
+  display: flex;
+  gap: 9px;
+  border: 1px solid #f0cbc7;
+  color: #82453f;
+  background: #fff5f3;
+}
+
+.cancel-reservation-warning svg {
+  flex: 0 0 auto;
+}
+
+.cancel-reservation-error {
+  border: 1px solid #efcac5;
+  color: #94423b;
+  background: #fff5f3;
+}
+
+.cancel-reservation-actions {
+  margin-top: 18px;
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+}
+
+.cancel-reservation-actions button {
+  min-height: 40px;
+  padding: 0 13px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.cancel-reservation-actions .cancel {
+  border: 1px solid rgba(15,53,84,.12);
+  color: #536a75;
+  background: white;
+}
+
+.cancel-reservation-actions .confirm {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  border: 0;
+  color: white;
+  background: #b94b42;
+}
+
+.cancel-reservation-actions button:disabled {
+  opacity: .5;
+  cursor: wait;
+}
+
+@media (max-width: 680px) {
+  .cancellation-policy-save {
+    width: 100%;
+    justify-content: center;
+  }
+
+  .cancel-reservation-actions {
+    flex-direction: column-reverse;
+  }
+
+  .cancel-reservation-actions button {
+    width: 100%;
+    justify-content: center;
+  }
+}

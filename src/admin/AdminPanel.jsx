@@ -32,6 +32,8 @@ import { loadSettings } from '../data/settings'
 import { api } from '../data/api'
 import './admin.css'
 
+const ADMIN_PANEL_BUILD = 'whatsapp-settings'
+
 const menu = [
   ['overview', 'Visão geral', Gauge],
   ['calendar', 'Agenda', CalendarDays],

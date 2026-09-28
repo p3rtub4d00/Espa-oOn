@@ -79,6 +79,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const [paymentError, setPaymentError] = useState('')
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [asaasStatus, setAsaasStatus] = useState('')
+  const [holdSeconds, setHoldSeconds] = useState(15 * 60)
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -184,6 +185,13 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       const result = await api.createPixPayment(draftReservation, signedContract.id)
       setPixPayment(result)
       setAsaasStatus(result.payment?.status || '')
+      if (result.reservation?.holdUntil) {
+        const remaining = Math.max(
+          0,
+          Math.floor((new Date(result.reservation.holdUntil).getTime() - Date.now()) / 1000),
+        )
+        setHoldSeconds(remaining)
+      }
     } catch (error) {
       setPaymentError(error.message || 'Não foi possível gerar o Pix.')
     } finally {
@@ -199,6 +207,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       setAsaasStatus(result.asaasStatus || '')
       if (result.paid) {
         await finishPaidReservation(result)
+      } else if (result.expired) {
+        setPaymentError('O prazo desta cobrança expirou. A data foi liberada e você precisa gerar um novo Pix.')
+        setPixPayment(null)
+        setHoldSeconds(0)
       }
     } catch (error) {
       setPaymentError(error.message || 'Não foi possível verificar o pagamento.')
@@ -222,6 +234,16 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
     return () => window.clearInterval(timer)
   }, [step, pixPayment, reservationId])
+
+  useEffect(() => {
+    if (step !== 4 || !pixPayment) return
+
+    const timer = window.setInterval(() => {
+      setHoldSeconds((current) => Math.max(0, current - 1))
+    }, 1000)
+
+    return () => window.clearInterval(timer)
+  }, [step, pixPayment])
 
   const resendDocuments = async () => {
     if (!signedContract || !paidReservation) return
@@ -487,6 +509,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                         {checkingPayment
                           ? 'Verificando agora...'
                           : 'O sistema verifica automaticamente. Você também pode conferir manualmente.'}
+                      </small>
+                      <small>
+                        Reserva temporária da data: {String(Math.floor(holdSeconds / 60)).padStart(2, '0')}:
+                        {String(holdSeconds % 60).padStart(2, '0')}
                       </small>
                     </div>
                     <button onClick={verifyPayment} disabled={checkingPayment}>

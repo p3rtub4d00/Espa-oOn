@@ -349,10 +349,7 @@ export default function AdminPanel({ onClose }) {
               {adminMonthDays.map((day) => {
                 const iso = toISODate(calendarMonth.getFullYear(), calendarMonth.getMonth(), day)
                 const reservation = reservations.find((r) => reservationISO(r) === iso && isActiveReservation(r))
-                const legacyBlocked = calendarMonth.getFullYear() === 2026
-                  && calendarMonth.getMonth() === 9
-                  && (settings.blockedDays || []).includes(day)
-                const blocked = blockedDates.has(iso) || legacyBlocked
+                const blocked = blockedDates.has(iso)
 
                 const toggleBlocked = () => {
                   if (reservation) return
@@ -365,9 +362,6 @@ export default function AdminPanel({ onClose }) {
                   const next = {
                     ...settings,
                     blockedDates: nextDates,
-                    blockedDays: legacyBlocked
-                      ? (settings.blockedDays || []).filter((item) => Number(item) !== day)
-                      : (settings.blockedDays || []),
                   }
                   persistSettings(next)
                 }

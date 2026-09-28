@@ -118,25 +118,6 @@ function App() {
   }, [])
 
   useEffect(() => {
-    if (lightboxIndex == null) return
-
-    const onKeyDown = (event) => {
-      if (event.key === 'Escape') closeLightbox()
-      if (event.key === 'ArrowRight') nextLightbox()
-      if (event.key === 'ArrowLeft') prevLightbox()
-    }
-
-    const previousOverflow = document.body.style.overflow
-    document.body.style.overflow = 'hidden'
-    window.addEventListener('keydown', onKeyDown)
-
-    return () => {
-      document.body.style.overflow = previousOverflow
-      window.removeEventListener('keydown', onKeyDown)
-    }
-  }, [lightboxIndex, publicGallery.length])
-
-  useEffect(() => {
     let active = true
 
     Promise.all([api.getSettings(), api.getAvailability()])
@@ -266,6 +247,25 @@ function App() {
     setLightboxIndex((current) =>
       current == null ? 0 : (current - 1 + publicGallery.length) % publicGallery.length
     )
+
+  useEffect(() => {
+    if (lightboxIndex == null) return
+
+    const onKeyDown = (event) => {
+      if (event.key === 'Escape') closeLightbox()
+      if (event.key === 'ArrowRight') nextLightbox()
+      if (event.key === 'ArrowLeft') prevLightbox()
+    }
+
+    const previousOverflow = document.body.style.overflow
+    document.body.style.overflow = 'hidden'
+    window.addEventListener('keydown', onKeyDown)
+
+    return () => {
+      document.body.style.overflow = previousOverflow
+      window.removeEventListener('keydown', onKeyDown)
+    }
+  }, [lightboxIndex, publicGallery.length])
 
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })

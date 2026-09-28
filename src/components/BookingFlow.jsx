@@ -80,6 +80,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [asaasStatus, setAsaasStatus] = useState('')
   const [holdSeconds, setHoldSeconds] = useState(15 * 60)
+  const [liveSettings, setLiveSettings] = useState(settings)
+  const [preparingContract, setPreparingContract] = useState(false)
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -93,7 +95,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     return new Date(year, month - 1, day, 12)
   }, [dateISO])
 
-  const price = getPriceForDate(dateISO, period, settings)
+  const price = getPriceForDate(dateISO, period, liveSettings)
+  const lockedPrice = Number(signedContract?.price ?? price)
   const dateLabel = useMemo(() => {
     const [year, month, day] = dateISO.split('-')
     return day + '/' + month + '/' + year
@@ -142,10 +145,24 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     return Object.keys(next).length === 0
   }
 
-  const goToContract = () => {
-    if (!validate()) return
-    setStep(3)
-    setContractOpen(true)
+  const goToContract = async () => {
+    if (!validate() || preparingContract) return
+    setPreparingContract(true)
+    setErrors((current) => ({ ...current, server: '' }))
+
+    try {
+      const latestSettings = await api.getSettings()
+      setLiveSettings(latestSettings)
+      setStep(3)
+      setContractOpen(true)
+    } catch (error) {
+      setErrors((current) => ({
+        ...current,
+        server: error.message || 'Não foi possível atualizar os dados da reserva. Tente novamente.',
+      }))
+    } finally {
+      setPreparingContract(false)
+    }
   }
 
   const copyPix = async () => {
@@ -319,7 +336,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                       <strong>{title}</strong>
                       <small>{description}</small>
                     </span>
-                    <b>{money(getPriceForDate(dateISO, value, settings))}</b>
+                    <b>{money(getPriceForDate(dateISO, value, liveSettings))}</b>
                     <i>{period === value && <Check size={15} />}</i>
                   </button>
                 ))}
@@ -400,13 +417,15 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 </label>
               </div>
 
+              {errors.server && <p className="booking-server-error">{errors.server}</p>}
+
               <div className="booking-actions">
                 <button className="booking-back" onClick={() => setStep(1)}>
                   <ArrowLeft size={17} /> Voltar
                 </button>
-                <button className="booking-primary" onClick={goToContract}>
+                <button className="booking-primary" onClick={goToContract} disabled={preparingContract}>
                   <FileSignature size={17} />
-                  Ler e assinar contrato
+                  {preparingContract ? 'Atualizando reserva...' : 'Ler e assinar contrato'}
                 </button>
               </div>
             </div>
@@ -424,7 +443,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div><span>Locatário</span><strong>{form.name}</strong></div>
                 <div><span>Data</span><strong>{dateLabel}</strong></div>
                 <div><span>Período</span><strong>{period}</strong></div>
-                <div><span>Valor do contrato</span><strong className="summary-price">{money(price)}</strong></div>
+                <div><span>Valor do contrato</span><strong className="summary-price">{money(lockedPrice)}</strong></div>
               </div>
 
               <div className="next-contract">
@@ -438,7 +457,14 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
               </div>
 
               <div className="booking-actions">
-                <button className="booking-back" onClick={() => setStep(2)}>
+                <button
+                  className="booking-back"
+                  onClick={() => {
+                    setSignedContract(null)
+                    setPixPayment(null)
+                    setStep(2)
+                  }}
+                >
                   <ArrowLeft size={17} /> Corrigir dados
                 </button>
                 {!signedContract ? (
@@ -467,7 +493,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div><span>Data</span><strong>{dateLabel}</strong></div>
                 <div><span>Período</span><strong>{period === '12h' ? '12 horas' : '24 horas'}</strong></div>
                 <div><span>Responsável</span><strong>{form.name}</strong></div>
-                <div><span>Total</span><strong className="summary-price">{money(price)}</strong></div>
+                <div><span>Total</span><strong className="summary-price">{money(lockedPrice)}</strong></div>
               </div>
 
               {paymentLoading && (
@@ -566,7 +592,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
               <div className="success-ticket">
                 <div><span>Reserva</span><strong>{reservationId}</strong></div>
                 <div><span>Contrato</span><strong>{signedContract?.id}</strong></div>
-                <div><span>Valor</span><strong>{money(price)}</strong></div>
+                <div><span>Valor</span><strong>{money(lockedPrice)}</strong></div>
                 <div><span>Status</span><strong className="paid-status">Pago via Pix</strong></div>
               </div>
 

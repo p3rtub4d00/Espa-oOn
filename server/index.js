@@ -508,6 +508,8 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
       },
     })
 
+    const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
+
     const savedReservation = await Reservation.findOneAndUpdate(
       { id: reservation.id },
       {
@@ -524,8 +526,6 @@ app.post('/api/payments/asaas/pix', async (req, res, next) => {
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean()
-
-    const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
 
     await Contract.findOneAndUpdate(
       { id: contractId },

@@ -26,6 +26,12 @@ export const DEFAULT_SETTINGS = {
     { id: 'snooker', name: 'Sinuca', description: 'Mesa de sinuca disponível para os convidados.', icon: 'game' },
     { id: 'support', name: 'Área de apoio', description: 'Estrutura para confraternizações.', icon: 'food' },
   ],
+  whatsapp: {
+    ownerName: '',
+    ownerPhone: '',
+    notifyPaidReservation: true,
+    notifyNewVisit: true,
+  },
 }
 
 export function loadSettings() {
@@ -37,6 +43,7 @@ export function loadSettings() {
     specialDates: [],
     gallery: [...DEFAULT_SETTINGS.gallery],
     amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
+    whatsapp: { ...DEFAULT_SETTINGS.whatsapp },
   }
 }
 

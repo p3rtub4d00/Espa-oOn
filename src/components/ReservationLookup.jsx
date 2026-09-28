@@ -42,9 +42,11 @@ export default function ReservationLookup({ onClose }) {
 
   const paymentLabel = useMemo(() => {
     if (!reservation) return ''
-    return reservation.paymentStatus === 'approved-simulated'
+    return ['paid', 'approved-simulated'].includes(reservation.paymentStatus)
       ? 'Pagamento confirmado'
-      : 'Aguardando pagamento'
+      : reservation.paymentStatus === 'confirmed-asaas'
+        ? 'Confirmado, aguardando liquidação'
+        : 'Aguardando pagamento'
   }, [reservation])
 
   const search = async (event) => {
@@ -224,8 +226,8 @@ export default function ReservationLookup({ onClose }) {
                   <strong>{contract.id}</strong>
                   <small>Hash {contract.hash || '-'}</small>
                 </div>
-                <i className={contract.paymentStatus === 'approved-simulated' ? 'paid' : 'pending'}>
-                  {contract.paymentStatus === 'approved-simulated'
+                <i className={['paid', 'approved-simulated'].includes(contract.paymentStatus) ? 'paid' : 'pending'}>
+                  {['paid', 'approved-simulated'].includes(contract.paymentStatus)
                     ? 'Assinado e pago'
                     : 'Assinado'}
                 </i>
@@ -233,7 +235,7 @@ export default function ReservationLookup({ onClose }) {
             )}
 
             <div className="lookup-actions">
-              {reservation.paymentStatus === 'approved-simulated' && (
+              {['paid', 'approved-simulated'].includes(reservation.paymentStatus) && (
                 <button onClick={downloadReceipt}>
                   <Download size={17} />
                   Baixar comprovante

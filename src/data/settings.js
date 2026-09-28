@@ -32,6 +32,10 @@ export const DEFAULT_SETTINGS = {
     notifyPaidReservation: true,
     notifyNewVisit: true,
   },
+  notifications: {
+    notifyPaidReservation: true,
+    notifyNewVisit: true,
+  },
 }
 
 export function loadSettings() {
@@ -44,6 +48,7 @@ export function loadSettings() {
     gallery: [...DEFAULT_SETTINGS.gallery],
     amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
     whatsapp: { ...DEFAULT_SETTINGS.whatsapp },
+    notifications: { ...DEFAULT_SETTINGS.notifications },
   }
 }
 

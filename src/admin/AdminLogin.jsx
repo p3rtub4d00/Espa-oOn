@@ -1,8 +1,14 @@
 import { useState } from 'react'
 import { KeyRound, LockKeyhole } from 'lucide-react'
 import { api } from '../data/api'
+import BrandLogo from '../components/BrandLogo'
 
-export default function AdminLogin({ onAuthenticated, onBack }) {
+export default function AdminLogin({
+  onAuthenticated,
+  onBack,
+  name = 'EspaçoOn',
+  branding = {},
+}) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
   const [loading, setLoading] = useState(false)
@@ -27,14 +33,25 @@ export default function AdminLogin({ onAuthenticated, onBack }) {
   }
 
   return (
-    <div className="admin-login-shell">
+    <div
+      className="admin-login-shell"
+      style={{
+        '--brand-primary': branding.primaryColor || '#0f3554',
+        '--brand-secondary': branding.secondaryColor || '#1f8efa',
+        '--brand-accent': branding.accentColor || '#53b9ff',
+      }}
+    >
       <div className="admin-login-card">
         <div className="admin-login-brand">
-          <span>E</span>
-          <div>
-            <strong>EspaçoOn</strong>
-            <small>Painel administrativo</small>
-          </div>
+          <BrandLogo
+            className="brand-logo-login"
+            name={name}
+            logoUrl={branding.logoUrl}
+            primaryColor={branding.primaryColor}
+            secondaryColor={branding.secondaryColor}
+            accentColor={branding.accentColor}
+          />
+          <small>Painel administrativo</small>
         </div>
 
         <div className="admin-login-icon">

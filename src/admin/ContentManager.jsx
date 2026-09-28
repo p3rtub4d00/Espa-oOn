@@ -10,7 +10,7 @@ import {
   UtensilsCrossed,
   Waves,
 } from 'lucide-react'
-import { saveSettings } from '../data/settings'
+import { api } from '../data/api'
 
 const iconOptions = [
   ['pool', 'Piscina'],
@@ -31,53 +31,63 @@ export default function ContentManager({ mode, settings, setSettings }) {
   })
   const [message, setMessage] = useState('')
 
-  const persist = (next) => {
+  const persist = async (next) => {
     setSettings(next)
-    saveSettings(next)
+    try {
+      const saved = await api.saveSettings(next)
+      setSettings(saved)
+      return saved
+    } catch (error) {
+      setMessage(error.message || 'Não foi possível salvar as alterações.')
+      throw error
+    }
   }
 
-  const addImageUrl = () => {
+  const addImageUrl = async () => {
     const url = imageUrl.trim()
     if (!url) return
     const next = { ...settings, gallery: [...settings.gallery, url] }
-    persist(next)
-    setImageUrl('')
-    setMessage('Foto adicionada.')
+    try {
+      await persist(next)
+      setImageUrl('')
+      setMessage('Foto adicionada.')
+    } catch {}
   }
 
-  const addLocalImage = (file) => {
+  const addLocalImage = async (file) => {
     if (!file) return
     if (!file.type.startsWith('image/')) {
       setMessage('Escolha um arquivo de imagem.')
       return
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setMessage('Para esta fase de testes, use imagens com até 2 MB.')
+    if (file.size > 5 * 1024 * 1024) {
+      setMessage('Use imagens com até 5 MB.')
       return
     }
 
-    const reader = new FileReader()
-    reader.onload = () => {
-      try {
-        const next = { ...settings, gallery: [...settings.gallery, reader.result] }
-        persist(next)
-        setMessage('Foto adicionada neste navegador.')
-      } catch {
-        setMessage('Não foi possível salvar. Tente uma imagem menor.')
-      }
+    setMessage('Enviando foto...')
+    try {
+      const uploaded = await api.uploadImage(file)
+      const next = { ...settings, gallery: [...settings.gallery, uploaded.url] }
+      await persist(next)
+      setMessage('Foto enviada e salva online.')
+    } catch (error) {
+      setMessage(error.message || 'Não foi possível enviar a foto.')
     }
-    reader.readAsDataURL(file)
   }
 
-  const removeImage = (index) => {
+  const removeImage = async (index) => {
     const next = {
       ...settings,
       gallery: settings.gallery.filter((_, itemIndex) => itemIndex !== index),
     }
-    persist(next)
+    try {
+      await persist(next)
+      setMessage('Foto removida da galeria.')
+    } catch {}
   }
 
-  const addAmenity = () => {
+  const addAmenity = async () => {
     if (!amenity.name.trim()) {
       setMessage('Informe o nome do item.')
       return
@@ -91,17 +101,22 @@ export default function ContentManager({ mode, settings, setSettings }) {
     }
 
     const next = { ...settings, amenities: [...settings.amenities, item] }
-    persist(next)
-    setAmenity({ name: '', description: '', icon: 'game' })
-    setMessage('Item adicionado à estrutura.')
+    try {
+      await persist(next)
+      setAmenity({ name: '', description: '', icon: 'game' })
+      setMessage('Item adicionado à estrutura.')
+    } catch {}
   }
 
-  const removeAmenity = (id) => {
+  const removeAmenity = async (id) => {
     const next = {
       ...settings,
       amenities: settings.amenities.filter((item) => item.id !== id),
     }
-    persist(next)
+    try {
+      await persist(next)
+      setMessage('Item removido.')
+    } catch {}
   }
 
   if (mode === 'gallery') {
@@ -131,7 +146,7 @@ export default function ContentManager({ mode, settings, setSettings }) {
           <div className="upload-local-box">
             <div>
               <strong>Ou envie uma foto do aparelho</strong>
-              <span>Para testes locais, até 2 MB por imagem.</span>
+              <span>As fotos são enviadas para o servidor e ficam disponíveis em qualquer aparelho.</span>
             </div>
             <button onClick={() => fileRef.current?.click()}>Escolher foto</button>
             <input

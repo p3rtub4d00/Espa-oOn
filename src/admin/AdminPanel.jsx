@@ -140,7 +140,9 @@ export default function AdminPanel({ onClose }) {
   }
 
   const revenue = useMemo(
-    () => reservations.reduce((sum, item) => sum + Number(item.price || 0), 0),
+    () => reservations
+      .filter((item) => ['paid', 'approved-simulated'].includes(item.paymentStatus))
+      .reduce((sum, item) => sum + Number(item.price || 0), 0),
     [reservations],
   )
 
@@ -194,9 +196,9 @@ export default function AdminPanel({ onClose }) {
               </article>
               <article>
                 <div><CircleDollarSign /></div>
-                <span>Receita simulada</span>
+                <span>Receita confirmada</span>
                 <strong>{money(revenue)}</strong>
-                <small>pagamentos de demonstração</small>
+                <small>pagamentos recebidos</small>
               </article>
               <article>
                 <div><CalendarCheck2 /></div>

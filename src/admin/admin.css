@@ -3720,3 +3720,62 @@
     width: 100%;
   }
 }
+
+
+.cancellation-policy-actions {
+  margin-top: 13px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+}
+
+.cancellation-policy-actions .cancellation-policy-save {
+  margin-top: 0;
+}
+
+.cancellation-policy-actions > small {
+  color: #7f919b;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.cancellation-policy-message {
+  margin-top: 10px;
+  padding: 10px 12px;
+  border: 1px solid #cfe2ef;
+  border-radius: 10px;
+  color: #315f7d;
+  background: #f5faff;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.admin-contract-policy {
+  margin: 12px 0;
+  padding: 12px 13px;
+  border: 1px solid #cfe2ef;
+  border-radius: 10px;
+  background: #f5faff;
+}
+
+.admin-contract-policy > strong {
+  display: block;
+  margin-bottom: 5px;
+  color: #214e6a;
+}
+
+.admin-contract-policy > p {
+  margin: 0;
+}
+
+@media (max-width: 680px) {
+  .cancellation-policy-actions {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .cancellation-policy-actions .cancellation-policy-save {
+    width: 100%;
+  }
+}

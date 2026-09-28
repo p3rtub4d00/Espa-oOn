@@ -117,7 +117,7 @@ export default function ContractsPanel() {
             <div className="admin-contract-document">
               <div className="admin-contract-heading">
                 <div>
-                  <span>EspaçoOn</span>
+                  <span>{selected.establishmentName || 'EspaçoOn'}</span>
                   <h2>Contrato de locação do espaço de lazer</h2>
                 </div>
                 <i className={
@@ -149,7 +149,7 @@ export default function ContractsPanel() {
               </div>
 
               <div className="admin-contract-text">
-                <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma EspaçoOn, na data e período informados acima.</p>
+                <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma {selected.establishmentName || 'EspaçoOn'}, na data e período informados acima.</p>
                 <p><strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.</p>
                 <p><strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.</p>
                 <p><strong>4. Pagamento.</strong> O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.</p>

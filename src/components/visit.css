@@ -5,7 +5,7 @@
   padding: 24px;
   display: grid;
   place-items: center;
-  background: rgba(3,15,20,.78);
+  background: rgba(7,29,46,.78);
   backdrop-filter: blur(10px);
 }
 
@@ -15,7 +15,7 @@
   max-height: calc(100vh - 48px);
   overflow: auto;
   border-radius: 26px;
-  background: #f8faf7;
+  background: #f8fbfe;
   box-shadow: 0 40px 110px rgba(0,0,0,.35);
 }
 
@@ -37,12 +37,12 @@
 .visit-hero {
   padding: 34px 34px 28px;
   color: white;
-  background: linear-gradient(135deg, #07161d, #0e5d4b);
+  background: linear-gradient(135deg, #0f3554, #0f3554);
 }
 
 .visit-hero > span,
 .visit-success > span {
-  color: #83e3c3;
+  color: #9ed9ff;
   font-size: 10px;
   font-weight: 900;
   letter-spacing: .12em;
@@ -109,12 +109,12 @@
 }
 
 .visit-input:focus-within {
-  border-color: #309b80;
-  box-shadow: 0 0 0 3px rgba(48,155,128,.09);
+  border-color: #1f8efa;
+  box-shadow: 0 0 0 3px rgba(31,142,250,.09);
 }
 
 .visit-input svg {
-  color: #7f9690;
+  color: #7f8f9a;
 }
 
 .visit-input input {
@@ -149,9 +149,9 @@
 }
 
 .visit-times button.selected {
-  border-color: #167f68;
+  border-color: #1f8efa;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .visit-note {
@@ -162,14 +162,14 @@
   gap: 10px;
   border-radius: 13px;
   color: #5b7177;
-  background: #eaf3ee;
+  background: #edf7ff;
   font-size: 11px;
   line-height: 1.5;
 }
 
 .visit-note svg {
   flex: 0 0 auto;
-  color: #167f68;
+  color: #1f8efa;
 }
 
 .visit-note strong {
@@ -184,7 +184,7 @@
   border: 0;
   border-radius: 13px;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
   font-weight: 800;
 }
 
@@ -201,7 +201,7 @@
   place-items: center;
   border-radius: 50%;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
 }
 
 .visit-success > div svg {
@@ -250,7 +250,7 @@
   border: 0;
   border-radius: 12px;
   color: white;
-  background: #167f68;
+  background: #1f8efa;
   font-weight: 800;
 }
 

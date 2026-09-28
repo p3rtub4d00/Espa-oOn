@@ -2456,3 +2456,62 @@
     justify-content: center;
   }
 }
+
+
+/* EspaçoOn admin brand */
+.admin-brand {
+  padding: 2px 6px 24px;
+  display: block;
+}
+
+.brand-logo-admin {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo-admin .brand-logo-mark {
+  width: 48px;
+  height: 48px;
+  flex: 0 0 auto;
+}
+
+.brand-logo-admin .brand-logo-word {
+  position: relative;
+  padding-bottom: 13px;
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+  letter-spacing: -.7px;
+  font-family: Manrope, sans-serif;
+  font-size: 18px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.brand-logo-admin .brand-logo-word > span {
+  color: #ffffff;
+}
+
+.brand-logo-admin .brand-logo-word > strong {
+  color: #53b9ff;
+  font-weight: 850;
+}
+
+.brand-logo-admin .brand-logo-word > small {
+  position: absolute;
+  left: 1px;
+  bottom: 0;
+  display: block;
+  color: #9fc9e7;
+  font-size: 8px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .14em;
+}
+
+@media (max-width: 980px) {
+  .brand-logo-admin .brand-logo-word {
+    font-size: 16px;
+  }
+}

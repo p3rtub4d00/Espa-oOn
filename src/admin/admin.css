@@ -3677,3 +3677,46 @@
     max-width: 200px;
   }
 }
+
+
+/* Reservation push reminders */
+.push-reminder-controls {
+  display: flex;
+  align-items: center;
+  gap: 9px;
+  flex: 0 0 auto;
+}
+
+.push-reminder-controls input[type='time'] {
+  min-height: 36px;
+  padding: 0 9px;
+  border: 1px solid #d7e3eb;
+  border-radius: 9px;
+  color: #294553;
+  background: white;
+  font: inherit;
+  font-size: 9px;
+  font-weight: 800;
+}
+
+.push-reminder-controls button {
+  min-width: 92px;
+}
+
+@media (max-width: 680px) {
+  .push-reminder-option {
+    align-items: stretch !important;
+    flex-direction: column;
+  }
+
+  .push-reminder-controls {
+    width: 100%;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .push-reminder-controls input[type='time'],
+  .push-reminder-controls button {
+    width: 100%;
+  }
+}

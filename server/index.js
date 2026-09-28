@@ -747,6 +747,11 @@ async function releasePendingDateLock(dateISO, reservationId) {
 async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RECEIVED') {
   if (!reservation) return null
 
+  if (reservation.paymentStatus === 'paid') {
+    const contract = await Contract.findOne({ id: reservation.contractId }).lean()
+    return { reservation, contract }
+  }
+
   const currentLock = reservation.dateISO ? await DateLock.findById(reservation.dateISO).lean() : null
   if (currentLock && currentLock.reservationId !== reservation.id) {
     const paidAt = payment?.paymentDate || payment?.clientPaymentDate || new Date()
@@ -812,6 +817,36 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
     },
     { new: true },
   ).lean()
+
+  if (!savedReservation.pushPaidNotifiedAt) {
+    const settings = await currentSettings()
+    if (settings.whatsapp?.notifyPaidReservation !== false) {
+      const title = 'Reserva paga'
+      const body =
+        (savedReservation.customer?.name || 'Cliente') +
+        ' • ' +
+        (savedReservation.date || displayDate(savedReservation.dateISO)) +
+        ' • ' +
+        Number(savedReservation.price || 0).toLocaleString('pt-BR', {
+          style: 'currency',
+          currency: 'BRL',
+        })
+
+      const result = await sendPushNotification({
+        title,
+        body,
+        url: '/admin',
+        tag: 'reservation-' + savedReservation.id,
+      })
+
+      if (result.sent > 0) {
+        await Reservation.updateOne(
+          { id: savedReservation.id, pushPaidNotifiedAt: null },
+          { $set: { pushPaidNotifiedAt: new Date() } },
+        )
+      }
+    }
+  }
 
   console.log('Pagamento processado:', eventName, reservation.id, payment?.id)
   return { reservation: savedReservation, contract: savedContract }
@@ -1636,6 +1671,88 @@ app.get('/api/reservations/:code', lookupLimiter, async (req, res, next) => {
   }
 })
 
+app.get('/api/admin/push/status', requireAdmin, async (_req, res, next) => {
+  try {
+    const config = await ensurePushConfig()
+    const count = await PushSubscription.countDocuments({ enabled: true })
+
+    res.json({
+      supported: true,
+      publicKey: config.publicKey,
+      subscriptions: count,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/push/subscribe', requireAdmin, async (req, res, next) => {
+  try {
+    const subscription = req.body?.subscription
+    const endpoint = textValue(subscription?.endpoint, 2000)
+    const p256dh = textValue(subscription?.keys?.p256dh, 500)
+    const auth = textValue(subscription?.keys?.auth, 500)
+
+    if (!endpoint.startsWith('https://') || !p256dh || !auth) {
+      return res.status(400).json({ error: 'Assinatura de notificação inválida.' })
+    }
+
+    await PushSubscription.findOneAndUpdate(
+      { endpoint },
+      {
+        $set: {
+          endpoint,
+          keys: { p256dh, auth },
+          userAgent: textValue(req.get('user-agent'), 500),
+          enabled: true,
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    )
+
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/api/admin/push/subscribe', requireAdmin, async (req, res, next) => {
+  try {
+    const endpoint = textValue(req.body?.endpoint, 2000)
+    if (!endpoint) return res.status(400).json({ error: 'Dispositivo não informado.' })
+
+    await PushSubscription.deleteOne({ endpoint })
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/push/test', requireAdmin, async (req, res, next) => {
+  try {
+    const endpoint = textValue(req.body?.endpoint, 2000) || null
+    const result = await sendPushNotification(
+      {
+        title: 'EspaçoOn',
+        body: 'As notificações estão funcionando neste dispositivo.',
+        url: '/admin',
+        tag: 'espacoon-test',
+      },
+      endpoint,
+    )
+
+    if (!result.sent) {
+      return res.status(404).json({
+        error: 'Nenhum dispositivo ativo recebeu a notificação.',
+      })
+    }
+
+    res.json({ ok: true, ...result })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.get('/api/admin/revenue', requireAdmin, async (req, res, next) => {
   try {
     const month = textValue(req.query.month, 7)
@@ -1857,11 +1974,40 @@ app.post('/api/visits', publicWriteLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'Solicitação de visita inválida.' })
     }
 
+    const existingVisit = await Visit.findOne({ id: visitData.id }).lean()
+
     const visit = await Visit.findOneAndUpdate(
       { id: visitData.id },
       { $setOnInsert: visitData },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean()
+
+    if (!existingVisit && !visit.pushVisitNotifiedAt) {
+      const settings = await currentSettings()
+
+      if (settings.whatsapp?.notifyNewVisit !== false) {
+        const formattedDate = displayDate(visit.requestedDate)
+        const body =
+          (visit.name || 'Cliente') +
+          ' solicitou visita em ' +
+          formattedDate +
+          (visit.requestedTime ? ' às ' + visit.requestedTime : '')
+
+        const result = await sendPushNotification({
+          title: 'Nova solicitação de visita',
+          body,
+          url: '/admin',
+          tag: 'visit-' + visit.id,
+        })
+
+        if (result.sent > 0) {
+          await Visit.updateOne(
+            { id: visit.id, pushVisitNotifiedAt: null },
+            { $set: { pushVisitNotifiedAt: new Date() } },
+          )
+        }
+      }
+    }
 
     res.status(201).json(visit)
   } catch (error) {

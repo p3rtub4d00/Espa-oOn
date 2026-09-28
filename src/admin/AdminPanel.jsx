@@ -1680,6 +1680,96 @@ export default function AdminPanel({
                   {settings.notifications?.notifyNewVisit !== false ? 'Ativado' : 'Desativado'}
                 </button>
               </article>
+
+              <article className="push-reminder-option">
+                <div>
+                  <Clock3 size={18} />
+                  <span>
+                    <strong>Lembrete no dia anterior</strong>
+                    <small>Avisar o proprietário um dia antes de uma reserva paga.</small>
+                  </span>
+                </div>
+                <div className="push-reminder-controls">
+                  <input
+                    type="time"
+                    value={settings.notifications?.reservationDayBeforeTime || '18:00'}
+                    onChange={(event) => {
+                      setSettings((current) => ({
+                        ...current,
+                        notifications: {
+                          ...(current.notifications || {}),
+                          reservationDayBeforeTime: event.target.value,
+                        },
+                      }))
+                    }}
+                    onBlur={() => persistSettings(settings)}
+                    aria-label="Horário do lembrete no dia anterior"
+                  />
+                  <button
+                    className={settings.notifications?.notifyReservationDayBefore !== false ? 'enabled' : ''}
+                    onClick={async () => {
+                      const next = {
+                        ...settings,
+                        notifications: {
+                          ...(settings.notifications || {}),
+                          notifyReservationDayBefore:
+                            settings.notifications?.notifyReservationDayBefore === false,
+                        },
+                      }
+                      await persistSettings(next)
+                    }}
+                  >
+                    {settings.notifications?.notifyReservationDayBefore !== false
+                      ? 'Ativado'
+                      : 'Desativado'}
+                  </button>
+                </div>
+              </article>
+
+              <article className="push-reminder-option">
+                <div>
+                  <CalendarDays size={18} />
+                  <span>
+                    <strong>Lembrete no dia da reserva</strong>
+                    <small>Avisar o proprietário no próprio dia da locação.</small>
+                  </span>
+                </div>
+                <div className="push-reminder-controls">
+                  <input
+                    type="time"
+                    value={settings.notifications?.reservationSameDayTime || '07:00'}
+                    onChange={(event) => {
+                      setSettings((current) => ({
+                        ...current,
+                        notifications: {
+                          ...(current.notifications || {}),
+                          reservationSameDayTime: event.target.value,
+                        },
+                      }))
+                    }}
+                    onBlur={() => persistSettings(settings)}
+                    aria-label="Horário do lembrete no dia da reserva"
+                  />
+                  <button
+                    className={settings.notifications?.notifyReservationSameDay !== false ? 'enabled' : ''}
+                    onClick={async () => {
+                      const next = {
+                        ...settings,
+                        notifications: {
+                          ...(settings.notifications || {}),
+                          notifyReservationSameDay:
+                            settings.notifications?.notifyReservationSameDay === false,
+                        },
+                      }
+                      await persistSettings(next)
+                    }}
+                  >
+                    {settings.notifications?.notifyReservationSameDay !== false
+                      ? 'Ativado'
+                      : 'Desativado'}
+                  </button>
+                </div>
+              </article>
             </div>
 
             {pushMessage && <div className="admin-demo-note">{pushMessage}</div>}
@@ -1689,6 +1779,7 @@ export default function AdminPanel({
               <span>
                 Android/Chrome: toque em “Ativar neste dispositivo” e permita as notificações.
                 No iPhone, adicione o EspaçoOn à Tela de Início pelo Safari e depois abra o painel pelo ícone instalado.
+                Os lembretes de reserva usam o horário de Porto Velho (RO).
               </span>
             </div>
           </section>

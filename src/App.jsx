@@ -26,7 +26,9 @@ import {
   Car,
   Users,
   Snowflake,
-  Armchair
+  Armchair,
+  Navigation,
+  Phone
 } from 'lucide-react'
 
 const heroSlides = [
@@ -683,6 +685,103 @@ function App() {
           </div>
         </section>
 
+        <section className="location-section" id="localizacao">
+          <div className="section location-layout">
+            <div className="location-copy">
+              <span className="section-kicker">Localização</span>
+              <h2>{siteSettings.establishment?.name || 'EspaçoOn'}</h2>
+              <p>
+                {siteSettings.establishment?.locationNote ||
+                  'Confira o endereço e trace a melhor rota até o espaço.'}
+              </p>
+
+              <div className="location-details">
+                <div>
+                  <MapPin />
+                  <span>
+                    <strong>Endereço</strong>
+                    {[
+                      siteSettings.establishment?.address,
+                      siteSettings.establishment?.city,
+                      siteSettings.establishment?.state,
+                    ].filter(Boolean).join(', ') || 'Endereço ainda não informado'}
+                  </span>
+                </div>
+
+                {siteSettings.establishment?.openingHours && (
+                  <div>
+                    <Clock3 />
+                    <span>
+                      <strong>Atendimento</strong>
+                      {siteSettings.establishment.openingHours}
+                    </span>
+                  </div>
+                )}
+
+                {siteSettings.establishment?.phone && (
+                  <div>
+                    <Phone />
+                    <span>
+                      <strong>Contato</strong>
+                      {siteSettings.establishment.phone}
+                    </span>
+                  </div>
+                )}
+              </div>
+
+              <div className="location-actions">
+                {siteSettings.establishment?.address && (
+                  <button
+                    className="route-button"
+                    onClick={() => {
+                      const destination = [
+                        siteSettings.establishment.address,
+                        siteSettings.establishment.city,
+                        siteSettings.establishment.state,
+                      ].filter(Boolean).join(', ')
+                      window.open(
+                        'https://www.google.com/maps/dir/?api=1&destination=' +
+                          encodeURIComponent(destination),
+                        '_blank',
+                        'noopener,noreferrer',
+                      )
+                    }}
+                  >
+                    <Navigation size={18} />
+                    Traçar rota no Google Maps
+                  </button>
+                )}
+
+                {siteSettings.establishment?.phone && (
+                  <a
+                    className="location-phone"
+                    href={'tel:+' + siteSettings.establishment.phone}
+                  >
+                    <Phone size={17} />
+                    Ligar
+                  </a>
+                )}
+              </div>
+            </div>
+
+            <div className="location-card">
+              <MapPin size={30} />
+              <span>Como chegar</span>
+              <strong>
+                {siteSettings.establishment?.city
+                  ? siteSettings.establishment.city +
+                    (siteSettings.establishment?.state
+                      ? ' - ' + siteSettings.establishment.state
+                      : '')
+                  : 'Localização do espaço'}
+              </strong>
+              <p>
+                Use o botão de rota para abrir o Google Maps já com o destino preenchido.
+              </p>
+            </div>
+          </div>
+        </section>
+
         <section className="final-cta">
           <div>
             <span className="section-kicker">Pronto para reservar?</span>
@@ -772,8 +871,18 @@ function App() {
           <span className="brand-mark">E</span>
           <span>Espaço<span>On</span></span>
         </a>
-        <p>Locação de espaço de lazer • Reserva online</p>
-        <span>© {new Date().getFullYear()} EspaçoOn</span>
+        <p>
+          {siteSettings.establishment?.address
+            ? [
+                siteSettings.establishment.address,
+                siteSettings.establishment.city,
+                siteSettings.establishment.state,
+              ].filter(Boolean).join(' • ')
+            : 'Locação de espaço de lazer • Reserva online'}
+        </p>
+        <span>
+          © {new Date().getFullYear()} {siteSettings.establishment?.name || 'EspaçoOn'}
+        </span>
       </footer>
     </div>
   )

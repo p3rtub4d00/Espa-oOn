@@ -184,11 +184,22 @@ const settingsSchema = new mongoose.Schema(
   { timestamps: true },
 )
 
+const dateLockSchema = new mongoose.Schema(
+  {
+    _id: String,
+    reservationId: { type: String, required: true, index: true },
+    status: { type: String, default: 'pending', index: true },
+    expiresAt: Date,
+  },
+  { timestamps: true },
+)
+
 const Reservation = mongoose.model('Reservation', reservationSchema)
 const Contract = mongoose.model('Contract', contractSchema)
 const Visit = mongoose.model('Visit', visitSchema)
 const Settings = mongoose.model('Settings', settingsSchema)
 const WebhookEvent = mongoose.model('WebhookEvent', webhookEventSchema)
+const DateLock = mongoose.model('DateLock', dateLockSchema)
 
 const DEFAULT_SETTINGS = {
   key: 'main',
@@ -221,12 +232,16 @@ const DEFAULT_SETTINGS = {
   ],
 }
 
-function normalizePhone(value = '') {
+function onlyDigits(value = '') {
   return String(value).replace(/\D/g, '')
 }
 
-function onlyDigits(value = '') {
-  return String(value).replace(/\D/g, '')
+function normalizePhone(value = '') {
+  return onlyDigits(value)
+}
+
+function textValue(value, maxLength = 160) {
+  return String(value ?? '').trim().slice(0, maxLength)
 }
 
 function isValidCpf(value = '') {
@@ -245,10 +260,6 @@ function isValidCpf(value = '') {
   return first === Number(cpf[9]) && second === Number(cpf[10])
 }
 
-function textValue(value, maxLength = 160) {
-  return String(value ?? '').trim().slice(0, maxLength)
-}
-
 function isValidPhone(value = '') {
   const digits = onlyDigits(value)
   return digits.length >= 10 && digits.length <= 13
@@ -259,26 +270,85 @@ function isValidPeriod(value) {
 }
 
 function isValidId(value, prefix) {
-  return new RegExp('^' + prefix + '-[A-Z0-9-]{6,40}
+  return new RegExp('^' + prefix + '-[A-Z0-9-]{6,40}$').test(String(value || ''))
+}
+
+function secureEqual(a = '', b = '') {
+  const aBuffer = Buffer.from(String(a))
+  const bBuffer = Buffer.from(String(b))
+  if (aBuffer.length !== bBuffer.length) return false
+  return crypto.timingSafeEqual(aBuffer, bBuffer)
+}
+
 function displayDate(value) {
   const [year, month, day] = String(value || '').split('-')
   return year && month && day ? day + '/' + month + '/' + year : value
 }
 
+function displayDateToISO(value) {
+  const match = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!match) return null
+  return match[3] + '-' + match[2] + '-' + match[1]
+}
+
+function contractHash(contract) {
+  const canonical = [
+    contract.id,
+    contract.reservationId,
+    contract.reservationDateISO || '',
+    contract.reservationDate || '',
+    contract.period,
+    Number(contract.price || 0).toFixed(2),
+    contract.customer?.name || '',
+    onlyDigits(contract.customer?.cpf),
+    onlyDigits(contract.customer?.phone),
+    contract.signedAt instanceof Date ? contract.signedAt.toISOString() : String(contract.signedAt || ''),
+    contract.signature || '',
+  ].join('|')
+
+  return crypto.createHash('sha256').update(canonical).digest('hex').toUpperCase()
+}
+
+function validateProductionConfig() {
+  const errors = []
+  if (!MONGODB_URI) errors.push('MONGODB_URI')
+  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 10) errors.push('ADMIN_PASSWORD (mínimo 10 caracteres)')
+  if (!JWT_SECRET || JWT_SECRET.length < 32) errors.push('JWT_SECRET (mínimo 32 caracteres)')
+  if (!ASAAS_API_KEY || !ASAAS_API_KEY.startsWith('$aact_prod_')) errors.push('ASAAS_API_KEY de produção')
+  if (ASAAS_ENV !== 'production') errors.push('ASAAS_ENV=production')
+  if (!ASAAS_WEBHOOK_TOKEN || ASAAS_WEBHOOK_TOKEN.length < 32) errors.push('ASAAS_WEBHOOK_TOKEN (mínimo 32 caracteres)')
+
+  if (errors.length) {
+    throw new Error('Configuração de produção inválida: ' + errors.join(', '))
+  }
+}
+
+function signAdminToken() {
+  return jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' })
+}
+
+function requireAdmin(req, res, next) {
+  try {
+    const token = req.cookies.espacoon_admin
+    if (!token) return res.status(401).json({ error: 'Não autenticado.' })
+    const payload = jwt.verify(token, JWT_SECRET)
+    if (payload.role !== 'admin') return res.status(403).json({ error: 'Acesso negado.' })
+    next()
+  } catch {
+    return res.status(401).json({ error: 'Sessão inválida ou expirada.' })
+  }
+}
+
 async function asaasRequest(endpoint, options = {}) {
   if (!ASAAS_API_KEY) {
-    const error = new Error('ASAAS_API_KEY não configurada no Render.')
+    const error = new Error('Serviço de pagamento não configurado.')
     error.statusCode = 503
     throw error
   }
 
   const productionKey = ASAAS_API_KEY.startsWith('$aact_prod_')
-  const sandboxKey = ASAAS_API_KEY.startsWith('$aact_hmlg_')
-  if ((ASAAS_ENV === 'production' && sandboxKey) || (ASAAS_ENV !== 'production' && productionKey)) {
-    const error = new Error(
-      'ASAAS_ENV e ASAAS_API_KEY pertencem a ambientes diferentes. ' +
-      'Use production com chave $aact_prod_ ou sandbox com chave $aact_hmlg_.'
-    )
+  if (ASAAS_ENV !== 'production' || !productionKey) {
+    const error = new Error('Configuração do serviço de pagamento inválida.')
     error.statusCode = 503
     throw error
   }
@@ -287,7 +357,7 @@ async function asaasRequest(endpoint, options = {}) {
     method: options.method || 'GET',
     headers: {
       accept: 'application/json',
-      'User-Agent': 'EspacoOn/1.0 (Node.js; ' + ASAAS_ENV + ')',
+      'User-Agent': 'EspacoOn/1.0',
       access_token: ASAAS_API_KEY,
       ...(options.body ? { 'Content-Type': 'application/json' } : {}),
     },
@@ -298,10 +368,9 @@ async function asaasRequest(endpoint, options = {}) {
   if (!response.ok) {
     const description = data?.errors?.map((item) => item.description).join(' ') ||
       data?.message ||
-      'Erro na comunicação com o Asaas.'
+      'Erro ao processar a solicitação de pagamento.'
     const error = new Error(description)
-    error.statusCode = response.status
-    error.asaas = data
+    error.statusCode = response.status >= 500 ? 502 : response.status
     throw error
   }
 
@@ -311,12 +380,6 @@ async function asaasRequest(endpoint, options = {}) {
 async function getOrCreateAsaasCustomer(customer, reservationId) {
   const cpfCnpj = onlyDigits(customer?.cpf)
   const mobilePhone = onlyDigits(customer?.phone)
-
-  if (!cpfCnpj) {
-    const error = new Error('CPF é obrigatório para gerar a cobrança Pix.')
-    error.statusCode = 400
-    throw error
-  }
 
   if (!isValidCpf(cpfCnpj)) {
     const error = new Error('CPF inválido. Confira o número informado antes de gerar o Pix.')
@@ -352,16 +415,7 @@ function priceForDate(dateISO, period, settings) {
     throw error
   }
 
-  const special = (settings.specialDates || []).find((item) =>
-    item.date === dateISO ||
-    (
-      item.date == null &&
-      Number(item.day) === day &&
-      month === 10 &&
-      year === 2026
-    )
-  )
-
+  const special = (settings.specialDates || []).find((item) => item.date === dateISO)
   if (special) {
     return Number(period === '12h' ? special.price12 : special.price24)
   }
@@ -372,8 +426,99 @@ function priceForDate(dateISO, period, settings) {
   return Number(period === '12h' ? settings.prices.weekday12 : settings.prices.weekday24)
 }
 
+async function acquireDateLock(dateISO, reservationId) {
+  const now = new Date()
+  const existing = await DateLock.findById(dateISO).lean()
+
+  if (existing) {
+    if (existing.reservationId === reservationId) {
+      return { created: false, lock: existing }
+    }
+
+    const expired = existing.status === 'pending' && existing.expiresAt && new Date(existing.expiresAt) <= now
+    if (expired) {
+      await DateLock.deleteOne({
+        _id: dateISO,
+        reservationId: existing.reservationId,
+        status: 'pending',
+        expiresAt: { $lte: now },
+      })
+    } else {
+      const error = new Error('Esta data já possui uma reserva ou pagamento em andamento.')
+      error.statusCode = 409
+      throw error
+    }
+  }
+
+  try {
+    const lock = await DateLock.create({
+      _id: dateISO,
+      reservationId,
+      status: 'pending',
+      expiresAt: new Date(Date.now() + 15 * 60 * 1000),
+    })
+    return { created: true, lock: lock.toObject() }
+  } catch (error) {
+    if (error?.code === 11000) {
+      const conflict = new Error('Esta data acabou de ser reservada por outra pessoa.')
+      conflict.statusCode = 409
+      throw conflict
+    }
+    throw error
+  }
+}
+
+async function releasePendingDateLock(dateISO, reservationId) {
+  if (!dateISO || !reservationId) return
+  await DateLock.deleteOne({
+    _id: dateISO,
+    reservationId,
+    status: 'pending',
+  })
+}
+
 async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RECEIVED') {
   if (!reservation) return null
+
+  const currentLock = reservation.dateISO ? await DateLock.findById(reservation.dateISO).lean() : null
+  if (currentLock && currentLock.reservationId !== reservation.id) {
+    const paidAt = payment?.paymentDate || payment?.clientPaymentDate || new Date()
+
+    const reviewReservation = await Reservation.findOneAndUpdate(
+      { id: reservation.id },
+      {
+        $set: {
+          paymentStatus: 'manual-review',
+          asaasStatus: payment?.status || 'RECEIVED',
+          paidAt,
+        },
+      },
+      { new: true },
+    ).lean()
+
+    await Contract.updateOne(
+      { id: reservation.contractId },
+      { $set: { paymentStatus: 'manual-review', paidAt } },
+    )
+
+    console.error('Pagamento recebido para data já ocupada:', reservation.id, reservation.dateISO)
+    return { reservation: reviewReservation, contract: null, manualReview: true }
+  }
+
+  if (reservation.dateISO) {
+    await DateLock.findOneAndUpdate(
+      { _id: reservation.dateISO },
+      {
+        $set: {
+          reservationId: reservation.id,
+          status: 'paid',
+          expiresAt: null,
+        },
+      },
+      { upsert: true, new: true },
+    )
+  }
+
   const paidAt = payment?.paymentDate || payment?.clientPaymentDate || new Date()
 
   const savedReservation = await Reservation.findOneAndUpdate(
@@ -383,6 +528,7 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
         paymentStatus: 'paid',
         asaasStatus: payment?.status || 'RECEIVED',
         paidAt,
+        holdUntil: null,
       },
     },
     { new: true },
@@ -400,24 +546,38 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
     { new: true },
   ).lean()
 
-  console.log('Asaas:', eventName, reservation.id, payment?.id)
+  console.log('Pagamento processado:', eventName, reservation.id, payment?.id)
   return { reservation: savedReservation, contract: savedContract }
 }
 
+async function cleanupExpiredLocks() {
+  const now = new Date()
+  const locks = await DateLock.find({
+    status: 'pending',
+    expiresAt: { $lte: now },
+  }).lean()
 
-function signAdminToken() {
-  return jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' })
-}
+  for (const lock of locks) {
+    const reservation = await Reservation.findOne({ id: lock.reservationId }).lean()
 
-function requireAdmin(req, res, next) {
-  try {
-    const token = req.cookies.espacoon_admin
-    if (!token) return res.status(401).json({ error: 'Não autenticado.' })
-    const payload = jwt.verify(token, JWT_SECRET)
-    if (payload.role !== 'admin') return res.status(403).json({ error: 'Acesso negado.' })
-    next()
-  } catch {
-    return res.status(401).json({ error: 'Sessão inválida ou expirada.' })
+    if (reservation?.asaasPaymentId) {
+      try {
+        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
+      } catch (error) {
+        console.warn('Não foi possível cancelar cobrança expirada:', reservation.asaasPaymentId)
+      }
+    }
+
+    await Reservation.updateOne(
+      { id: lock.reservationId, paymentStatus: 'pending-asaas' },
+      { $set: { paymentStatus: 'expired', asaasStatus: 'EXPIRED_LOCAL_HOLD' } },
+    )
+
+    await DateLock.deleteOne({
+      _id: lock._id,
+      reservationId: lock.reservationId,
+      status: 'pending',
+    })
   }
 }
 
@@ -441,6 +601,7 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
     path: '/',
     maxAge: 12 * 60 * 60 * 1000,
   })
+
   res.json({ ok: true })
 })
 
@@ -467,67 +628,24 @@ app.get('/api/settings', async (_req, res, next) => {
   }
 })
 
-function displayDateToISO(value) {
-  const match = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-  if (!match) return null
-  return match[3] + '-' + match[2] + '-' + match[1]
-}
-
 app.get('/api/availability', async (_req, res, next) => {
   try {
-    const [reservations, settings] = await Promise.all([
-      Reservation.find(
-        { paymentStatus: { $in: ['pending-asaas', 'confirmed-asaas', 'paid', 'approved-simulated'] } },
-        { day: 1, date: 1, dateISO: 1, paymentStatus: 1, holdUntil: 1, asaasPaymentId: 1, _id: 0 },
-      ).lean(),
+    await cleanupExpiredLocks()
+
+    const [locks, settings] = await Promise.all([
+      DateLock.find({}, { _id: 1 }).lean(),
       Settings.findOne(
         { key: 'main' },
         { blockedDays: 1, blockedDates: 1, _id: 0 },
       ).lean(),
     ])
 
-    const now = new Date()
-    const expiredPending = reservations.filter(
-      (item) =>
-        item.paymentStatus === 'pending-asaas' &&
-        item.holdUntil &&
-        new Date(item.holdUntil) <= now,
-    )
-
-    for (const item of expiredPending) {
-      if (item.asaasPaymentId) {
-        try {
-          await asaasRequest('/payments/' + item.asaasPaymentId, { method: 'DELETE' })
-        } catch (error) {
-          console.warn('Não foi possível excluir cobrança Asaas expirada:', item.asaasPaymentId, error.message)
-        }
-      }
-
-      await Reservation.updateOne(
-        { id: item.id },
-        {
-          $set: {
-            paymentStatus: 'expired',
-            asaasStatus: 'EXPIRED_LOCAL_HOLD',
-          },
-        },
-      )
-    }
-
-    const reservedDates = reservations
-      .filter((item) => {
-        if (item.paymentStatus !== 'pending-asaas') return true
-        return !item.holdUntil || new Date(item.holdUntil) > now
-      })
-      .map((item) => item.dateISO || displayDateToISO(item.date))
-      .filter(Boolean)
-
     const legacyBlocked = (settings?.blockedDays || []).map(
       (day) => '2026-10-' + String(day).padStart(2, '0'),
     )
 
     res.json({
-      reservedDates,
+      reservedDates: locks.map((lock) => lock._id),
       blockedDates: [...new Set([...(settings?.blockedDates || []), ...legacyBlocked])],
     })
   } catch (error) {
@@ -542,11 +660,13 @@ app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res
     for (const key of allowed) {
       if (req.body?.[key] !== undefined) update[key] = req.body[key]
     }
+
     const settings = await Settings.findOneAndUpdate(
       { key: 'main' },
       { $set: update, $setOnInsert: { key: 'main' } },
       { upsert: true, new: true },
     ).lean()
+
     res.json(settings)
   } catch (error) {
     next(error)
@@ -556,12 +676,18 @@ app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res
 app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
   try {
     const payload = req.body || {}
+
     if (!isValidId(payload.id, 'CTR') || !isValidId(payload.reservationId, 'ESP')) {
       return res.status(400).json({ error: 'Identificação do contrato inválida.' })
     }
 
     if (!isValidPeriod(payload.period)) {
       return res.status(400).json({ error: 'Período da reserva inválido.' })
+    }
+
+    const reservationDateISO = textValue(payload.reservationDateISO, 10)
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(reservationDateISO)) {
+      return res.status(400).json({ error: 'Data da reserva inválida.' })
     }
 
     const customer = {
@@ -586,17 +712,18 @@ app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
     }
 
     const existing = await Contract.findOne({ id: payload.id }).lean()
-    if (existing) {
-      return res.status(200).json(existing)
-    }
+    if (existing) return res.status(200).json(existing)
+
+    const settings = await currentSettings()
+    const price = priceForDate(reservationDateISO, payload.period, settings)
 
     const contractRecord = {
       id: payload.id,
       reservationId: payload.reservationId,
-      reservationDate: textValue(payload.reservationDate, 20),
-      reservationDateISO: textValue(payload.reservationDateISO, 10),
+      reservationDate: displayDate(reservationDateISO),
+      reservationDateISO,
       period: payload.period,
-      price: Number(payload.price || 0),
+      price,
       customer,
       signedAt,
       signature,
@@ -614,18 +741,28 @@ app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
 })
 
 app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
+  let lockCreated = false
+  let contractDateISO = null
+  let reservationId = null
+
   try {
     const { reservation, contractId } = req.body || {}
-    if (!reservation?.id || !reservation?.dateISO || !reservation?.period || !contractId) {
+    reservationId = textValue(reservation?.id, 60)
+
+    if (!isValidId(reservationId, 'ESP') || !isValidId(contractId, 'CTR')) {
       return res.status(400).json({ error: 'Dados da cobrança incompletos.' })
     }
 
-    const contract = await Contract.findOne({ id: contractId, reservationId: reservation.id }).lean()
+    const contract = await Contract.findOne({
+      id: contractId,
+      reservationId,
+    }).lean()
+
     if (!contract) {
       return res.status(400).json({ error: 'Contrato assinado não encontrado para esta reserva.' })
     }
 
-    const contractDateISO = contract.reservationDateISO || displayDateToISO(contract.reservationDate)
+    contractDateISO = contract.reservationDateISO || displayDateToISO(contract.reservationDate)
     if (!contractDateISO || !isValidPeriod(contract.period)) {
       return res.status(400).json({ error: 'O contrato não possui uma data ou período válido.' })
     }
@@ -633,31 +770,13 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
     const settings = await currentSettings()
     const serverPrice = priceForDate(contractDateISO, contract.period, settings)
 
-    const now = new Date()
-    const conflict = await Reservation.findOne({
-      dateISO: contractDateISO,
-      id: { $ne: reservation.id },
-      $or: [
-        { paymentStatus: { $in: ['confirmed-asaas', 'paid', 'approved-simulated'] } },
-        {
-          paymentStatus: 'pending-asaas',
-          $or: [
-            { holdUntil: { $gt: now } },
-            { holdUntil: null },
-          ],
-        },
-      ],
-    }).lean()
+    const lockResult = await acquireDateLock(contractDateISO, reservationId)
+    lockCreated = lockResult.created
 
-    if (conflict) {
-      return res.status(409).json({ error: 'Esta data já possui uma reserva ou pagamento em andamento.' })
-    }
-
-    const existing = await Reservation.findOne({ id: reservation.id }).lean()
+    const existing = await Reservation.findOne({ id: reservationId }).lean()
     if (
       existing?.asaasPaymentId &&
-      ['pending-asaas', 'confirmed-asaas'].includes(existing.paymentStatus) &&
-      (existing.paymentStatus !== 'pending-asaas' || !existing.holdUntil || new Date(existing.holdUntil) > now)
+      ['pending-asaas', 'confirmed-asaas'].includes(existing.paymentStatus)
     ) {
       const qr = await asaasRequest('/payments/' + existing.asaasPaymentId + '/pixQrCode')
       return res.json({
@@ -670,14 +789,18 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
       })
     }
 
-    const customer = await getOrCreateAsaasCustomer(contract.customer, reservation.id)
+    const customer = await getOrCreateAsaasCustomer(contract.customer, reservationId)
     const dueDate = new Date().toISOString().slice(0, 10)
 
     const reconciled = await asaasRequest(
-      '/payments?externalReference=' + encodeURIComponent(reservation.id) + '&limit=1'
+      '/payments?externalReference=' + encodeURIComponent(reservationId) + '&limit=10'
     )
 
-    const payment = reconciled?.data?.[0] || await asaasRequest('/payments', {
+    const reusablePayment = reconciled?.data?.find((item) =>
+      ['PENDING', 'CONFIRMED'].includes(item.status)
+    )
+
+    const payment = reusablePayment || await asaasRequest('/payments', {
       method: 'POST',
       body: {
         customer: customer.id,
@@ -685,17 +808,20 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
         value: serverPrice,
         dueDate,
         description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
-        externalReference: reservation.id,
+        externalReference: reservationId,
       },
     })
 
     const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
+    const holdUntil = new Date(Date.now() + 15 * 60 * 1000)
+
+    const paymentStatus = payment.status === 'CONFIRMED' ? 'confirmed-asaas' : 'pending-asaas'
 
     const savedReservation = await Reservation.findOneAndUpdate(
-      { id: reservation.id },
+      { id: reservationId },
       {
         $set: {
-          id: reservation.id,
+          id: reservationId,
           day: Number(contractDateISO.slice(-2)),
           date: contract.reservationDate || displayDate(contractDateISO),
           dateISO: contractDateISO,
@@ -703,27 +829,36 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
           customer: contract.customer,
           price: serverPrice,
           contractId,
-          paymentStatus: 'pending-asaas',
+          paymentStatus,
           asaasCustomerId: customer.id,
           asaasPaymentId: payment.id,
           asaasStatus: payment.status,
           pixExpirationDate: pix.expirationDate,
-          holdUntil: new Date(Date.now() + 15 * 60 * 1000),
+          holdUntil: paymentStatus === 'pending-asaas' ? holdUntil : null,
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
     ).lean()
 
-    await Contract.findOneAndUpdate(
+    await Contract.updateOne(
       { id: contractId },
       {
         $set: {
           price: serverPrice,
-          paymentStatus: 'pending-asaas',
+          paymentStatus,
           status: 'signed-awaiting-payment',
         },
       },
-      { new: true },
+    )
+
+    await DateLock.updateOne(
+      { _id: contractDateISO, reservationId },
+      {
+        $set: {
+          status: paymentStatus === 'confirmed-asaas' ? 'confirmed' : 'pending',
+          expiresAt: paymentStatus === 'confirmed-asaas' ? null : holdUntil,
+        },
+      },
     )
 
     res.status(201).json({
@@ -735,6 +870,9 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
       pix,
     })
   } catch (error) {
+    if (lockCreated && contractDateISO && reservationId) {
+      await releasePendingDateLock(contractDateISO, reservationId).catch(() => {})
+    }
     next(error)
   }
 })
@@ -743,6 +881,7 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
   try {
     const reservation = await Reservation.findOne({ id: req.params.reservationId }).lean()
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
+
     if (reservation.paymentStatus === 'paid') {
       const contract = await Contract.findOne({ id: reservation.contractId }).lean()
       return res.json({
@@ -753,8 +892,17 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
       })
     }
 
+    if (reservation.paymentStatus === 'manual-review') {
+      return res.json({
+        paid: false,
+        manualReview: true,
+        reservation,
+        asaasStatus: reservation.asaasStatus,
+      })
+    }
+
     if (!reservation.asaasPaymentId) {
-      return res.status(400).json({ error: 'Esta reserva ainda não possui cobrança Asaas.' })
+      return res.status(400).json({ error: 'Esta reserva ainda não possui cobrança.' })
     }
 
     if (
@@ -764,12 +912,14 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
     ) {
       try {
         await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
-      } catch (error) {
-        console.warn('Não foi possível excluir cobrança expirada:', error.message)
+      } catch {
+        // A cobrança pode já ter mudado de status; a consulta abaixo resolverá no próximo ciclo.
       }
 
+      await releasePendingDateLock(reservation.dateISO, reservation.id)
+
       const expired = await Reservation.findOneAndUpdate(
-        { id: reservation.id },
+        { id: reservation.id, paymentStatus: 'pending-asaas' },
         { $set: { paymentStatus: 'expired', asaasStatus: 'EXPIRED_LOCAL_HOLD' } },
         { new: true },
       ).lean()
@@ -786,13 +936,29 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
 
     if (payment.status === 'RECEIVED') {
       const result = await markPaymentReceived(reservation, payment, 'STATUS_CHECK')
-      return res.json({ paid: true, ...result, asaasStatus: payment.status })
+      return res.json({
+        paid: !result?.manualReview,
+        manualReview: Boolean(result?.manualReview),
+        ...result,
+        asaasStatus: payment.status,
+      })
     }
 
     if (payment.status === 'CONFIRMED') {
+      await DateLock.updateOne(
+        { _id: reservation.dateISO, reservationId: reservation.id },
+        { $set: { status: 'confirmed', expiresAt: null } },
+      )
+
       const updated = await Reservation.findOneAndUpdate(
         { id: reservation.id },
-        { $set: { paymentStatus: 'confirmed-asaas', asaasStatus: payment.status } },
+        {
+          $set: {
+            paymentStatus: 'confirmed-asaas',
+            asaasStatus: payment.status,
+            holdUntil: null,
+          },
+        },
         { new: true },
       ).lean()
 
@@ -821,13 +987,10 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
 })
 
 app.post('/api/webhooks/asaas', async (req, res, next) => {
-  try {
-    if (!ASAAS_WEBHOOK_TOKEN) {
-      return res.status(503).json({ error: 'ASAAS_WEBHOOK_TOKEN não configurado.' })
-    }
+  const eventId = req.body?.id
 
-    const incomingToken = req.get('asaas-access-token')
-    if (!secureEqual(incomingToken, ASAAS_WEBHOOK_TOKEN)) {
+  try {
+    if (!secureEqual(req.get('asaas-access-token'), ASAAS_WEBHOOK_TOKEN)) {
       return res.status(401).json({ error: 'Webhook não autorizado.' })
     }
 
@@ -842,7 +1005,15 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
     if (existingEvent) {
       await WebhookEvent.updateOne(
         { id },
-        { $set: { status: 'processing', lastError: null }, $inc: { attempts: 1 } },
+        {
+          $set: {
+            status: 'processing',
+            lastError: null,
+            event,
+            paymentId: payment?.id,
+          },
+          $inc: { attempts: 1 },
+        },
       )
     } else {
       await WebhookEvent.create({
@@ -864,19 +1035,40 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
       if (event === 'PAYMENT_RECEIVED' || payment?.status === 'RECEIVED') {
         await markPaymentReceived(reservation, payment, event)
       } else if (event === 'PAYMENT_CONFIRMED') {
+        await DateLock.updateOne(
+          { _id: reservation.dateISO, reservationId: reservation.id },
+          { $set: { status: 'confirmed', expiresAt: null } },
+        )
+
         await Reservation.updateOne(
           { id: reservation.id },
-          { $set: { paymentStatus: 'confirmed-asaas', asaasStatus: payment?.status || 'CONFIRMED' } },
+          {
+            $set: {
+              paymentStatus: 'confirmed-asaas',
+              asaasStatus: payment?.status || 'CONFIRMED',
+              holdUntil: null,
+            },
+          },
         )
       } else if (['PAYMENT_REFUNDED', 'PAYMENT_DELETED'].includes(event)) {
+        const status = event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled'
+
         await Reservation.updateOne(
           { id: reservation.id },
-          { $set: { paymentStatus: event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled', asaasStatus: payment?.status || event } },
+          { $set: { paymentStatus: status, asaasStatus: payment?.status || event } },
         )
+
         await Contract.updateOne(
           { id: reservation.contractId },
-          { $set: { paymentStatus: event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled' } },
+          { $set: { paymentStatus: status } },
         )
+
+        if (reservation.dateISO) {
+          await DateLock.deleteOne({
+            _id: reservation.dateISO,
+            reservationId: reservation.id,
+          })
+        }
       } else {
         await Reservation.updateOne(
           { id: reservation.id },
@@ -887,7 +1079,13 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
 
     await WebhookEvent.updateOne(
       { id },
-      { $set: { status: 'processed', processedAt: new Date(), lastError: null } },
+      {
+        $set: {
+          status: 'processed',
+          processedAt: new Date(),
+          lastError: null,
+        },
+      },
     )
 
     res.status(200).json({ ok: true })
@@ -896,13 +1094,18 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
       return res.status(200).json({ ok: true, duplicate: true })
     }
 
-    const eventId = req.body?.id
     if (eventId) {
       await WebhookEvent.updateOne(
         { id: eventId },
-        { $set: { status: 'failed', lastError: String(error?.message || 'Erro no processamento').slice(0, 500) } },
+        {
+          $set: {
+            status: 'failed',
+            lastError: String(error?.message || 'Erro no processamento').slice(0, 500),
+          },
+        },
       ).catch(() => {})
     }
+
     next(error)
   }
 })
@@ -911,22 +1114,31 @@ app.get('/api/contracts/:id/verify', lookupLimiter, async (req, res, next) => {
   try {
     const id = textValue(req.params.id, 60)
     const hash = textValue(req.query.hash, 128).toUpperCase()
-    if (!id || !hash) return res.status(400).json({ error: 'Dados de verificação incompletos.' })
 
-    const contract = await Contract.findOne({ id }, {
-      id: 1,
-      reservationId: 1,
-      reservationDate: 1,
-      period: 1,
-      signedAt: 1,
-      hash: 1,
-      status: 1,
-      paymentStatus: 1,
-      _id: 0,
-    }).lean()
+    if (!id || !hash) {
+      return res.status(400).json({ error: 'Dados de verificação incompletos.' })
+    }
+
+    const contract = await Contract.findOne(
+      { id },
+      {
+        id: 1,
+        reservationId: 1,
+        reservationDate: 1,
+        period: 1,
+        signedAt: 1,
+        hash: 1,
+        status: 1,
+        paymentStatus: 1,
+        _id: 0,
+      },
+    ).lean()
 
     if (!contract || !secureEqual(contract.hash, hash)) {
-      return res.status(404).json({ valid: false, error: 'Contrato não localizado ou hash inválido.' })
+      return res.status(404).json({
+        valid: false,
+        error: 'Contrato não localizado ou hash inválido.',
+      })
     }
 
     res.json({
@@ -978,10 +1190,11 @@ app.get('/api/contracts/:id/qr', lookupLimiter, async (req, res, next) => {
 
 app.get('/api/reservations/:code', lookupLimiter, async (req, res, next) => {
   try {
-    const code = String(req.params.code || '').toUpperCase()
-    const phoneEnd = String(req.query.phoneEnd || '').replace(/\D/g, '')
-    if (phoneEnd.length !== 4) {
-      return res.status(400).json({ error: 'Informe os 4 últimos dígitos do telefone.' })
+    const code = textValue(req.params.code, 60).toUpperCase()
+    const phoneEnd = onlyDigits(req.query.phoneEnd)
+
+    if (!isValidId(code, 'ESP') || phoneEnd.length !== 4) {
+      return res.status(400).json({ error: 'Dados de consulta inválidos.' })
     }
 
     const reservation = await Reservation.findOne({ id: code }).lean()
@@ -1030,7 +1243,12 @@ app.post('/api/visits', publicWriteLimiter, async (req, res, next) => {
       status: 'pending-owner-confirmation',
     }
 
-    if (!visitData.id || visitData.name.length < 3 || !isValidPhone(visitData.phone) || !/^\d{4}-\d{2}-\d{2}$/.test(visitData.requestedDate)) {
+    if (
+      !visitData.id ||
+      visitData.name.length < 3 ||
+      !isValidPhone(visitData.phone) ||
+      !/^\d{4}-\d{2}-\d{2}$/.test(visitData.requestedDate)
+    ) {
       return res.status(400).json({ error: 'Solicitação de visita inválida.' })
     }
 
@@ -1058,8 +1276,22 @@ app.patch('/api/admin/visits/:id', requireAdmin, async (req, res, next) => {
   try {
     const allowed = ['confirmedDate', 'confirmedTime', 'ownerMessage', 'status', 'respondedAt']
     const update = {}
+
     for (const key of allowed) {
       if (req.body?.[key] !== undefined) update[key] = req.body[key]
+    }
+
+    if (update.ownerMessage !== undefined) update.ownerMessage = textValue(update.ownerMessage, 300)
+    if (update.status !== undefined) {
+      const allowedStatus = new Set([
+        'pending-owner-confirmation',
+        'counter-proposed',
+        'confirmed',
+        'rejected',
+      ])
+      if (!allowedStatus.has(update.status)) {
+        return res.status(400).json({ error: 'Status de visita inválido.' })
+      }
     }
 
     const visit = await Visit.findOneAndUpdate(
@@ -1067,6 +1299,7 @@ app.patch('/api/admin/visits/:id', requireAdmin, async (req, res, next) => {
       { $set: update },
       { new: true },
     ).lean()
+
     if (!visit) return res.status(404).json({ error: 'Visita não encontrada.' })
     res.json(visit)
   } catch (error) {
@@ -1080,7 +1313,9 @@ const upload = multer({
   fileFilter: (_req, file, callback) => {
     const allowed = new Set(['image/jpeg', 'image/png', 'image/webp'])
     if (!allowed.has(file.mimetype)) {
-      return callback(new Error('Formato de imagem não permitido. Use JPG, PNG ou WebP.'))
+      const error = new Error('Formato de imagem não permitido. Use JPG, PNG ou WebP.')
+      error.statusCode = 400
+      return callback(error)
     }
     callback(null, true)
   },
@@ -1089,19 +1324,24 @@ const upload = multer({
 app.post('/api/admin/images', requireAdmin, upload.single('image'), async (req, res, next) => {
   try {
     if (!req.file) return res.status(400).json({ error: 'Imagem não enviada.' })
+
     const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'images' })
     const filename = Date.now() + '-' + req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-')
+
     const stream = bucket.openUploadStream(filename, {
       contentType: req.file.mimetype,
       metadata: { originalName: req.file.originalname },
     })
+
     stream.end(req.file.buffer)
+
     stream.on('finish', () => {
       res.status(201).json({
         id: String(stream.id),
         url: '/api/images/' + stream.id,
       })
     })
+
     stream.on('error', next)
   } catch (error) {
     next(error)
@@ -1119,7 +1359,6 @@ app.delete('/api/admin/images/:id', requireAdmin, async (req, res, next) => {
     await bucket.delete(id)
     res.json({ ok: true })
   } catch (error) {
-    if (error?.code === 'ENOENT') return res.status(404).json({ error: 'Imagem não encontrada.' })
     next(error)
   }
 })
@@ -1127,28 +1366,37 @@ app.delete('/api/admin/images/:id', requireAdmin, async (req, res, next) => {
 app.get('/api/images/:id', async (req, res, next) => {
   try {
     if (!ObjectId.isValid(req.params.id)) return res.status(404).end()
+
     const id = new ObjectId(req.params.id)
     const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'images' })
-    const files = await mongoose.connection.db.collection('images.files').find({ _id: id }).toArray()
+    const files = await mongoose.connection.db
+      .collection('images.files')
+      .find({ _id: id })
+      .toArray()
+
     const file = files[0]
     if (!file) return res.status(404).end()
+
     if (file.contentType) res.setHeader('Content-Type', file.contentType)
     res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
+
     bucket.openDownloadStream(id).on('error', next).pipe(res)
   } catch (error) {
     next(error)
   }
 })
 
-app.use('/api', (req, res) => {
+app.use('/api', (_req, res) => {
   res.status(404).json({ error: 'Rota não encontrada.' })
 })
 
 app.use((error, _req, res, _next) => {
   console.error(error)
+
   if (error?.code === 11000) {
     return res.status(409).json({ error: 'Registro duplicado.' })
   }
+
   const status = Number(error?.statusCode) || 500
   res.status(status).json({
     error: status >= 500 ? 'Erro interno do servidor.' : error.message,
@@ -1156,34 +1404,72 @@ app.use((error, _req, res, _next) => {
 })
 
 const distDir = path.join(rootDir, 'dist')
-app.use(express.static(distDir))
+app.use(express.static(distDir, {
+  maxAge: '1h',
+  etag: true,
+}))
+
 app.get('*', (_req, res) => {
   res.sendFile(path.join(distDir, 'index.html'))
 })
+
+async function migrateProductionData() {
+  await Promise.all([
+    Reservation.updateMany(
+      { paymentStatus: 'approved-simulated' },
+      { $set: { paymentStatus: 'paid' } },
+    ),
+    Contract.updateMany(
+      { paymentStatus: 'approved-simulated' },
+      { $set: { paymentStatus: 'paid', status: 'signed-paid' } },
+    ),
+    Contract.updateMany(
+      { status: 'signed-paid-demo' },
+      { $set: { status: 'signed-paid' } },
+    ),
+    Contract.updateMany(
+      { status: 'signed-awaiting-payment-demo' },
+      { $set: { status: 'signed-awaiting-payment' } },
+    ),
+  ])
+
+  const activeReservations = await Reservation.find({
+    paymentStatus: { $in: ['pending-asaas', 'confirmed-asaas', 'paid'] },
+    dateISO: { $exists: true, $ne: null },
+  }).lean()
+
+  for (const reservation of activeReservations) {
+    const existing = await DateLock.findById(reservation.dateISO).lean()
+    if (existing && existing.reservationId !== reservation.id) {
+      console.error('Conflito de data detectado na migração:', reservation.dateISO)
+      continue
+    }
+
+    const status = reservation.paymentStatus === 'paid'
+      ? 'paid'
+      : reservation.paymentStatus === 'confirmed-asaas'
+        ? 'confirmed'
+        : 'pending'
+
+    await DateLock.findOneAndUpdate(
+      { _id: reservation.dateISO },
+      {
+        $set: {
+          reservationId: reservation.id,
+          status,
+          expiresAt: status === 'pending' ? reservation.holdUntil : null,
+        },
+      },
+      { upsert: true },
+    )
+  }
+}
 
 async function start() {
   try {
     validateProductionConfig()
     await mongoose.connect(MONGODB_URI)
-
-    await Promise.all([
-      Reservation.updateMany(
-        { paymentStatus: 'approved-simulated' },
-        { $set: { paymentStatus: 'paid' } },
-      ),
-      Contract.updateMany(
-        { paymentStatus: 'approved-simulated' },
-        { $set: { paymentStatus: 'paid', status: 'signed-paid' } },
-      ),
-      Contract.updateMany(
-        { status: 'signed-paid-demo' },
-        { $set: { status: 'signed-paid' } },
-      ),
-      Contract.updateMany(
-        { status: 'signed-awaiting-payment-demo' },
-        { $set: { status: 'signed-awaiting-payment' } },
-      ),
-    ])
+    await migrateProductionData()
 
     console.log('Banco de dados conectado.')
     app.listen(PORT, '0.0.0.0', () => {
@@ -1191,795 +1477,6 @@ async function start() {
     })
   } catch (error) {
     console.error('Falha ao iniciar o EspaçoOn:', error?.message || error)
-    process.exit(1)
-  }
-}
-
-start()
-).test(String(value || ''))
-}
-
-function secureEqual(a = '', b = '') {
-  const aBuffer = Buffer.from(String(a))
-  const bBuffer = Buffer.from(String(b))
-  if (aBuffer.length !== bBuffer.length) return false
-  return crypto.timingSafeEqual(aBuffer, bBuffer)
-}
-
-function contractHash(contract) {
-  const canonical = [
-    contract.id,
-    contract.reservationId,
-    contract.reservationDateISO || '',
-    contract.reservationDate || '',
-    contract.period,
-    Number(contract.price || 0).toFixed(2),
-    contract.customer?.name || '',
-    onlyDigits(contract.customer?.cpf),
-    onlyDigits(contract.customer?.phone),
-    contract.signedAt instanceof Date ? contract.signedAt.toISOString() : String(contract.signedAt || ''),
-    contract.signature || '',
-  ].join('|')
-
-  return crypto.createHash('sha256').update(canonical).digest('hex').toUpperCase()
-}
-
-function validateProductionConfig() {
-  const errors = []
-  if (!MONGODB_URI) errors.push('MONGODB_URI')
-  if (!ADMIN_PASSWORD || ADMIN_PASSWORD.length < 10) errors.push('ADMIN_PASSWORD (mínimo 10 caracteres)')
-  if (!JWT_SECRET || JWT_SECRET.length < 32) errors.push('JWT_SECRET (mínimo 32 caracteres)')
-  if (!ASAAS_API_KEY || !ASAAS_API_KEY.startsWith('$aact_prod_')) errors.push('ASAAS_API_KEY de produção')
-  if (ASAAS_ENV !== 'production') errors.push('ASAAS_ENV=production')
-  if (!ASAAS_WEBHOOK_TOKEN || ASAAS_WEBHOOK_TOKEN.length < 32) errors.push('ASAAS_WEBHOOK_TOKEN (mínimo 32 caracteres)')
-
-  if (errors.length) {
-    throw new Error('Configuração de produção inválida: ' + errors.join(', '))
-  }
-}
-
-function displayDate(value) {
-  const [year, month, day] = String(value || '').split('-')
-  return year && month && day ? day + '/' + month + '/' + year : value
-}
-
-async function asaasRequest(endpoint, options = {}) {
-  if (!ASAAS_API_KEY) {
-    const error = new Error('ASAAS_API_KEY não configurada no Render.')
-    error.statusCode = 503
-    throw error
-  }
-
-  const productionKey = ASAAS_API_KEY.startsWith('$aact_prod_')
-  const sandboxKey = ASAAS_API_KEY.startsWith('$aact_hmlg_')
-  if ((ASAAS_ENV === 'production' && sandboxKey) || (ASAAS_ENV !== 'production' && productionKey)) {
-    const error = new Error(
-      'ASAAS_ENV e ASAAS_API_KEY pertencem a ambientes diferentes. ' +
-      'Use production com chave $aact_prod_ ou sandbox com chave $aact_hmlg_.'
-    )
-    error.statusCode = 503
-    throw error
-  }
-
-  const response = await fetch(ASAAS_BASE_URL + endpoint, {
-    method: options.method || 'GET',
-    headers: {
-      accept: 'application/json',
-      'User-Agent': 'EspacoOn/1.0 (Node.js; ' + ASAAS_ENV + ')',
-      access_token: ASAAS_API_KEY,
-      ...(options.body ? { 'Content-Type': 'application/json' } : {}),
-    },
-    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
-  })
-
-  const data = await response.json().catch(() => null)
-  if (!response.ok) {
-    const description = data?.errors?.map((item) => item.description).join(' ') ||
-      data?.message ||
-      'Erro na comunicação com o Asaas.'
-    const error = new Error(description)
-    error.statusCode = response.status
-    error.asaas = data
-    throw error
-  }
-
-  return data
-}
-
-async function getOrCreateAsaasCustomer(customer, reservationId) {
-  const cpfCnpj = onlyDigits(customer?.cpf)
-  const mobilePhone = onlyDigits(customer?.phone)
-
-  if (!cpfCnpj) {
-    const error = new Error('CPF é obrigatório para gerar a cobrança Pix.')
-    error.statusCode = 400
-    throw error
-  }
-
-  if (!isValidCpf(cpfCnpj)) {
-    const error = new Error('CPF inválido. Confira o número informado antes de gerar o Pix.')
-    error.statusCode = 400
-    throw error
-  }
-
-  const search = await asaasRequest('/customers?cpfCnpj=' + encodeURIComponent(cpfCnpj) + '&limit=1')
-  if (search?.data?.length) return search.data[0]
-
-  return asaasRequest('/customers', {
-    method: 'POST',
-    body: {
-      name: customer?.name,
-      cpfCnpj,
-      mobilePhone,
-      externalReference: reservationId,
-      notificationDisabled: true,
-    },
-  })
-}
-
-async function currentSettings() {
-  return (await Settings.findOne({ key: 'main' }).lean()) || DEFAULT_SETTINGS
-}
-
-function priceForDate(dateISO, period, settings) {
-  const [year, month, day] = String(dateISO || '').split('-').map(Number)
-  const date = new Date(year, month - 1, day, 12)
-  if (Number.isNaN(date.getTime())) {
-    const error = new Error('Data da reserva inválida.')
-    error.statusCode = 400
-    throw error
-  }
-
-  const special = (settings.specialDates || []).find((item) =>
-    item.date === dateISO ||
-    (
-      item.date == null &&
-      Number(item.day) === day &&
-      month === 10 &&
-      year === 2026
-    )
-  )
-
-  if (special) {
-    return Number(period === '12h' ? special.price12 : special.price24)
-  }
-
-  const weekday = date.getDay()
-  if (weekday === 0) return Number(period === '12h' ? settings.prices.sunday12 : settings.prices.sunday24)
-  if (weekday === 5 || weekday === 6) return Number(period === '12h' ? settings.prices.weekend12 : settings.prices.weekend24)
-  return Number(period === '12h' ? settings.prices.weekday12 : settings.prices.weekday24)
-}
-
-async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RECEIVED') {
-  if (!reservation) return null
-  const paidAt = payment?.paymentDate || payment?.clientPaymentDate || new Date()
-
-  const savedReservation = await Reservation.findOneAndUpdate(
-    { id: reservation.id },
-    {
-      $set: {
-        paymentStatus: 'paid',
-        asaasStatus: payment?.status || 'RECEIVED',
-        paidAt,
-      },
-    },
-    { new: true },
-  ).lean()
-
-  const savedContract = await Contract.findOneAndUpdate(
-    { id: reservation.contractId },
-    {
-      $set: {
-        paymentStatus: 'paid',
-        status: 'signed-paid',
-        paidAt,
-      },
-    },
-    { new: true },
-  ).lean()
-
-  console.log('Asaas:', eventName, reservation.id, payment?.id)
-  return { reservation: savedReservation, contract: savedContract }
-}
-
-
-function signAdminToken() {
-  return jwt.sign({ role: 'admin' }, JWT_SECRET, { expiresIn: '12h' })
-}
-
-function requireAdmin(req, res, next) {
-  try {
-    const token = req.cookies.espacoon_admin
-    if (!token) return res.status(401).json({ error: 'Não autenticado.' })
-    const payload = jwt.verify(token, JWT_SECRET)
-    if (payload.role !== 'admin') return res.status(403).json({ error: 'Acesso negado.' })
-    next()
-  } catch {
-    return res.status(401).json({ error: 'Sessão inválida ou expirada.' })
-  }
-}
-
-app.get('/api/health', (_req, res) => {
-  res.json({
-    ok: true,
-    database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
-    asaas: {
-      configured: Boolean(ASAAS_API_KEY),
-      environment: ASAAS_ENV,
-      keyType: ASAAS_API_KEY?.startsWith('$aact_prod_')
-        ? 'production'
-        : ASAAS_API_KEY?.startsWith('$aact_hmlg_')
-          ? 'sandbox'
-          : ASAAS_API_KEY
-            ? 'unknown'
-            : 'missing',
-      webhookTokenConfigured: Boolean(ASAAS_WEBHOOK_TOKEN),
-    },
-  })
-})
-
-app.post('/api/admin/login', (req, res) => {
-  const password = String(req.body?.password || '')
-  if (!ADMIN_PASSWORD) {
-    return res.status(503).json({ error: 'ADMIN_PASSWORD não configurada no Render.' })
-  }
-  if (password !== ADMIN_PASSWORD) {
-    return res.status(401).json({ error: 'Senha incorreta.' })
-  }
-
-  res.cookie('espacoon_admin', signAdminToken(), {
-    httpOnly: true,
-    sameSite: 'lax',
-    secure: process.env.NODE_ENV === 'production',
-    maxAge: 12 * 60 * 60 * 1000,
-  })
-  res.json({ ok: true })
-})
-
-app.get('/api/admin/session', requireAdmin, (_req, res) => {
-  res.json({ authenticated: true })
-})
-
-app.post('/api/admin/logout', (_req, res) => {
-  res.clearCookie('espacoon_admin')
-  res.json({ ok: true })
-})
-
-app.get('/api/settings', async (_req, res, next) => {
-  try {
-    const settings = await Settings.findOne({ key: 'main' }).lean()
-    res.json(settings || DEFAULT_SETTINGS)
-  } catch (error) {
-    next(error)
-  }
-})
-
-function displayDateToISO(value) {
-  const match = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
-  if (!match) return null
-  return match[3] + '-' + match[2] + '-' + match[1]
-}
-
-app.get('/api/availability', async (_req, res, next) => {
-  try {
-    const [reservations, settings] = await Promise.all([
-      Reservation.find(
-        { paymentStatus: { $in: ['pending-asaas', 'confirmed-asaas', 'paid', 'approved-simulated'] } },
-        { day: 1, date: 1, dateISO: 1, paymentStatus: 1, holdUntil: 1, asaasPaymentId: 1, _id: 0 },
-      ).lean(),
-      Settings.findOne(
-        { key: 'main' },
-        { blockedDays: 1, blockedDates: 1, _id: 0 },
-      ).lean(),
-    ])
-
-    const now = new Date()
-    const expiredPending = reservations.filter(
-      (item) =>
-        item.paymentStatus === 'pending-asaas' &&
-        item.holdUntil &&
-        new Date(item.holdUntil) <= now,
-    )
-
-    for (const item of expiredPending) {
-      if (item.asaasPaymentId) {
-        try {
-          await asaasRequest('/payments/' + item.asaasPaymentId, { method: 'DELETE' })
-        } catch (error) {
-          console.warn('Não foi possível excluir cobrança Asaas expirada:', item.asaasPaymentId, error.message)
-        }
-      }
-
-      await Reservation.updateOne(
-        { id: item.id },
-        {
-          $set: {
-            paymentStatus: 'expired',
-            asaasStatus: 'EXPIRED_LOCAL_HOLD',
-          },
-        },
-      )
-    }
-
-    const reservedDates = reservations
-      .filter((item) => {
-        if (item.paymentStatus !== 'pending-asaas') return true
-        return !item.holdUntil || new Date(item.holdUntil) > now
-      })
-      .map((item) => item.dateISO || displayDateToISO(item.date))
-      .filter(Boolean)
-
-    const legacyBlocked = (settings?.blockedDays || []).map(
-      (day) => '2026-10-' + String(day).padStart(2, '0'),
-    )
-
-    res.json({
-      reservedDates,
-      blockedDates: [...new Set([...(settings?.blockedDates || []), ...legacyBlocked])],
-    })
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.put('/api/admin/settings', requireAdmin, async (req, res, next) => {
-  try {
-    const allowed = ['prices', 'blockedDays', 'blockedDates', 'specialDates', 'rentalHours', 'gallery', 'amenities']
-    const update = {}
-    for (const key of allowed) {
-      if (req.body?.[key] !== undefined) update[key] = req.body[key]
-    }
-    const settings = await Settings.findOneAndUpdate(
-      { key: 'main' },
-      { $set: update, $setOnInsert: { key: 'main' } },
-      { upsert: true, new: true },
-    ).lean()
-    res.json(settings)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/contracts', async (req, res, next) => {
-  try {
-    const payload = req.body
-    if (!payload?.id || !payload?.reservationId) {
-      return res.status(400).json({ error: 'Contrato inválido.' })
-    }
-    const contract = await Contract.findOneAndUpdate(
-      { id: payload.id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
-    res.status(201).json(contract)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/reservations', async (req, res, next) => {
-  try {
-    const payload = req.body
-    if (!payload?.id || !payload?.customer?.phone || !payload?.date) {
-      return res.status(400).json({ error: 'Reserva inválida.' })
-    }
-
-    const reservation = await Reservation.findOneAndUpdate(
-      { id: payload.id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
-
-    res.status(201).json(reservation)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/payments/asaas/pix', async (req, res, next) => {
-  try {
-    const { reservation, contractId } = req.body || {}
-    if (!reservation?.id || !reservation?.dateISO || !reservation?.period || !contractId) {
-      return res.status(400).json({ error: 'Dados da cobrança incompletos.' })
-    }
-
-    const contract = await Contract.findOne({ id: contractId, reservationId: reservation.id }).lean()
-    if (!contract) {
-      return res.status(400).json({ error: 'Contrato assinado não encontrado para esta reserva.' })
-    }
-
-    const settings = await currentSettings()
-    const serverPrice = priceForDate(reservation.dateISO, reservation.period, settings)
-
-    const now = new Date()
-    const conflict = await Reservation.findOne({
-      dateISO: reservation.dateISO,
-      id: { $ne: reservation.id },
-      $or: [
-        { paymentStatus: { $in: ['confirmed-asaas', 'paid', 'approved-simulated'] } },
-        {
-          paymentStatus: 'pending-asaas',
-          $or: [
-            { holdUntil: { $gt: now } },
-            { holdUntil: null },
-          ],
-        },
-      ],
-    }).lean()
-
-    if (conflict) {
-      return res.status(409).json({ error: 'Esta data já possui uma reserva ou pagamento em andamento.' })
-    }
-
-    const existing = await Reservation.findOne({ id: reservation.id }).lean()
-    if (
-      existing?.asaasPaymentId &&
-      ['pending-asaas', 'confirmed-asaas'].includes(existing.paymentStatus) &&
-      (existing.paymentStatus !== 'pending-asaas' || !existing.holdUntil || new Date(existing.holdUntil) > now)
-    ) {
-      const qr = await asaasRequest('/payments/' + existing.asaasPaymentId + '/pixQrCode')
-      return res.json({
-        reservation: existing,
-        payment: {
-          id: existing.asaasPaymentId,
-          status: existing.asaasStatus,
-        },
-        pix: qr,
-      })
-    }
-
-    const customer = await getOrCreateAsaasCustomer(reservation.customer, reservation.id)
-    const dueDate = new Date().toISOString().slice(0, 10)
-
-    const reconciled = await asaasRequest(
-      '/payments?externalReference=' + encodeURIComponent(reservation.id) + '&limit=1'
-    )
-
-    const payment = reconciled?.data?.[0] || await asaasRequest('/payments', {
-      method: 'POST',
-      body: {
-        customer: customer.id,
-        billingType: 'PIX',
-        value: serverPrice,
-        dueDate,
-        description: 'Reserva EspaçoOn - ' + displayDate(reservation.dateISO) + ' - ' + reservation.period,
-        externalReference: reservation.id,
-      },
-    })
-
-    const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
-
-    const savedReservation = await Reservation.findOneAndUpdate(
-      { id: reservation.id },
-      {
-        $set: {
-          ...reservation,
-          price: serverPrice,
-          contractId,
-          paymentStatus: 'pending-asaas',
-          asaasCustomerId: customer.id,
-          asaasPaymentId: payment.id,
-          asaasStatus: payment.status,
-          pixExpirationDate: pix.expirationDate,
-          holdUntil: new Date(Date.now() + 15 * 60 * 1000),
-        },
-      },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
-
-    await Contract.findOneAndUpdate(
-      { id: contractId },
-      {
-        $set: {
-          price: serverPrice,
-          paymentStatus: 'pending-asaas',
-          status: 'signed-awaiting-payment',
-        },
-      },
-      { new: true },
-    )
-
-    res.status(201).json({
-      reservation: savedReservation,
-      payment: {
-        id: payment.id,
-        status: payment.status,
-      },
-      pix,
-    })
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/payments/asaas/:reservationId/status', async (req, res, next) => {
-  try {
-    const reservation = await Reservation.findOne({ id: req.params.reservationId }).lean()
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
-    if (!reservation.asaasPaymentId) {
-      return res.status(400).json({ error: 'Esta reserva ainda não possui cobrança Asaas.' })
-    }
-
-    if (
-      reservation.paymentStatus === 'pending-asaas' &&
-      reservation.holdUntil &&
-      new Date(reservation.holdUntil) <= new Date()
-    ) {
-      try {
-        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
-      } catch (error) {
-        console.warn('Não foi possível excluir cobrança expirada:', error.message)
-      }
-
-      const expired = await Reservation.findOneAndUpdate(
-        { id: reservation.id },
-        { $set: { paymentStatus: 'expired', asaasStatus: 'EXPIRED_LOCAL_HOLD' } },
-        { new: true },
-      ).lean()
-
-      return res.json({
-        paid: false,
-        expired: true,
-        reservation: expired,
-        asaasStatus: 'EXPIRED_LOCAL_HOLD',
-      })
-    }
-
-    const payment = await asaasRequest('/payments/' + reservation.asaasPaymentId)
-
-    if (payment.status === 'RECEIVED') {
-      const result = await markPaymentReceived(reservation, payment, 'STATUS_CHECK')
-      return res.json({ paid: true, ...result, asaasStatus: payment.status })
-    }
-
-    if (payment.status === 'CONFIRMED') {
-      const updated = await Reservation.findOneAndUpdate(
-        { id: reservation.id },
-        { $set: { paymentStatus: 'confirmed-asaas', asaasStatus: payment.status } },
-        { new: true },
-      ).lean()
-
-      return res.json({
-        paid: false,
-        confirmed: true,
-        reservation: updated,
-        asaasStatus: payment.status,
-      })
-    }
-
-    const updated = await Reservation.findOneAndUpdate(
-      { id: reservation.id },
-      { $set: { asaasStatus: payment.status } },
-      { new: true },
-    ).lean()
-
-    res.json({
-      paid: false,
-      reservation: updated,
-      asaasStatus: payment.status,
-    })
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/webhooks/asaas', async (req, res, next) => {
-  try {
-    if (!ASAAS_WEBHOOK_TOKEN) {
-      return res.status(503).json({ error: 'ASAAS_WEBHOOK_TOKEN não configurado.' })
-    }
-
-    const incomingToken = req.get('asaas-access-token')
-    if (incomingToken !== ASAAS_WEBHOOK_TOKEN) {
-      return res.status(401).json({ error: 'Webhook não autorizado.' })
-    }
-
-    const { id, event, payment } = req.body || {}
-    if (!id || !event) return res.status(400).json({ error: 'Evento inválido.' })
-
-    const duplicate = await WebhookEvent.findOne({ id }).lean()
-    if (duplicate) return res.status(200).json({ ok: true, duplicate: true })
-
-    const reservation = payment?.externalReference
-      ? await Reservation.findOne({ id: payment.externalReference }).lean()
-      : payment?.id
-        ? await Reservation.findOne({ asaasPaymentId: payment.id }).lean()
-        : null
-
-    if (reservation) {
-      if (event === 'PAYMENT_RECEIVED' || payment?.status === 'RECEIVED') {
-        await markPaymentReceived(reservation, payment, event)
-      } else if (event === 'PAYMENT_CONFIRMED') {
-        await Reservation.updateOne(
-          { id: reservation.id },
-          { $set: { paymentStatus: 'confirmed-asaas', asaasStatus: payment?.status || 'CONFIRMED' } },
-        )
-      } else if (['PAYMENT_REFUNDED', 'PAYMENT_DELETED'].includes(event)) {
-        await Reservation.updateOne(
-          { id: reservation.id },
-          { $set: { paymentStatus: event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled', asaasStatus: payment?.status || event } },
-        )
-        await Contract.updateOne(
-          { id: reservation.contractId },
-          { $set: { paymentStatus: event === 'PAYMENT_REFUNDED' ? 'refunded' : 'cancelled' } },
-        )
-      } else {
-        await Reservation.updateOne(
-          { id: reservation.id },
-          { $set: { asaasStatus: payment?.status || event } },
-        )
-      }
-    }
-
-    await WebhookEvent.create({
-      id,
-      event,
-      paymentId: payment?.id,
-    })
-
-    res.status(200).json({ ok: true })
-  } catch (error) {
-    if (error?.code === 11000) return res.status(200).json({ ok: true, duplicate: true })
-    next(error)
-  }
-})
-
-app.get('/api/reservations/:code', async (req, res, next) => {
-  try {
-    const code = String(req.params.code || '').toUpperCase()
-    const phoneEnd = String(req.query.phoneEnd || '').replace(/\D/g, '')
-    if (phoneEnd.length !== 4) {
-      return res.status(400).json({ error: 'Informe os 4 últimos dígitos do telefone.' })
-    }
-
-    const reservation = await Reservation.findOne({ id: code }).lean()
-    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
-
-    const phone = normalizePhone(reservation.customer?.phone)
-    if (phone.slice(-4) !== phoneEnd) {
-      return res.status(403).json({ error: 'Telefone não confere.' })
-    }
-
-    const contract = reservation.contractId
-      ? await Contract.findOne({ id: reservation.contractId }).lean()
-      : await Contract.findOne({ reservationId: reservation.id }).lean()
-
-    res.json({ reservation, contract: contract || null })
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/admin/reservations', requireAdmin, async (_req, res, next) => {
-  try {
-    res.json(await Reservation.find().sort({ createdAt: -1 }).lean())
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/admin/contracts', requireAdmin, async (_req, res, next) => {
-  try {
-    res.json(await Contract.find().sort({ signedAt: -1 }).lean())
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.post('/api/visits', async (req, res, next) => {
-  try {
-    const payload = req.body
-    if (!payload?.id || !payload?.name || !payload?.phone) {
-      return res.status(400).json({ error: 'Solicitação de visita inválida.' })
-    }
-
-    const visit = await Visit.findOneAndUpdate(
-      { id: payload.id },
-      { $set: payload },
-      { upsert: true, new: true, setDefaultsOnInsert: true },
-    ).lean()
-
-    res.status(201).json(visit)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/admin/visits', requireAdmin, async (_req, res, next) => {
-  try {
-    res.json(await Visit.find().sort({ createdAt: -1 }).lean())
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.patch('/api/admin/visits/:id', requireAdmin, async (req, res, next) => {
-  try {
-    const visit = await Visit.findOneAndUpdate(
-      { id: req.params.id },
-      { $set: req.body },
-      { new: true },
-    ).lean()
-    if (!visit) return res.status(404).json({ error: 'Visita não encontrada.' })
-    res.json(visit)
-  } catch (error) {
-    next(error)
-  }
-})
-
-const upload = multer({
-  storage: multer.memoryStorage(),
-  limits: { fileSize: 5 * 1024 * 1024 },
-})
-
-app.post('/api/admin/images', requireAdmin, upload.single('image'), async (req, res, next) => {
-  try {
-    if (!req.file) return res.status(400).json({ error: 'Imagem não enviada.' })
-    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'images' })
-    const filename = Date.now() + '-' + req.file.originalname.replace(/[^a-zA-Z0-9._-]/g, '-')
-    const stream = bucket.openUploadStream(filename, {
-      contentType: req.file.mimetype,
-      metadata: { originalName: req.file.originalname },
-    })
-    stream.end(req.file.buffer)
-    stream.on('finish', () => {
-      res.status(201).json({
-        id: String(stream.id),
-        url: '/api/images/' + stream.id,
-      })
-    })
-    stream.on('error', next)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.get('/api/images/:id', async (req, res, next) => {
-  try {
-    if (!ObjectId.isValid(req.params.id)) return res.status(404).end()
-    const id = new ObjectId(req.params.id)
-    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'images' })
-    const files = await mongoose.connection.db.collection('images.files').find({ _id: id }).toArray()
-    const file = files[0]
-    if (!file) return res.status(404).end()
-    if (file.contentType) res.setHeader('Content-Type', file.contentType)
-    res.setHeader('Cache-Control', 'public, max-age=31536000, immutable')
-    bucket.openDownloadStream(id).on('error', next).pipe(res)
-  } catch (error) {
-    next(error)
-  }
-})
-
-app.use('/api', (req, res) => {
-  res.status(404).json({ error: 'Rota não encontrada.' })
-})
-
-app.use((error, _req, res, _next) => {
-  console.error(error)
-  if (error?.code === 11000) {
-    return res.status(409).json({ error: 'Registro duplicado.' })
-  }
-  const status = Number(error?.statusCode) || 500
-  res.status(status).json({
-    error: status >= 500 ? (error?.message || 'Erro interno do servidor.') : error.message,
-  })
-})
-
-const distDir = path.join(rootDir, 'dist')
-app.use(express.static(distDir))
-app.get('*', (_req, res) => {
-  res.sendFile(path.join(distDir, 'index.html'))
-})
-
-async function start() {
-  try {
-    await mongoose.connect(MONGODB_URI)
-    console.log('MongoDB conectado.')
-    app.listen(PORT, '0.0.0.0', () => {
-      console.log('EspaçoOn online na porta ' + PORT)
-    })
-  } catch (error) {
-    console.error('Falha ao conectar ao MongoDB:', error)
     process.exit(1)
   }
 }

@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
 import VisitScheduler from './components/VisitScheduler'
 import AdminPanel from './admin/AdminPanel'
+import AdminLogin from './admin/AdminLogin'
 import { getPriceForDay, loadSettings } from './data/settings'
 import {
   ArrowRight,
@@ -99,6 +100,7 @@ function App() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(() => window.location.pathname === '/admin')
+  const [adminAuthenticated, setAdminAuthenticated] = useState(() => sessionStorage.getItem('espacoon_admin_session') === 'authenticated')
   const [siteSettings, setSiteSettings] = useState(loadSettings)
   const [reservedDays, setReservedDays] = useState(() => {
     if (typeof window === 'undefined') return new Set()
@@ -136,10 +138,24 @@ function App() {
   }
 
   if (adminOpen) {
+    if (!adminAuthenticated) {
+      return (
+        <AdminLogin
+          onAuthenticated={() => setAdminAuthenticated(true)}
+          onBack={() => {
+            window.history.pushState({}, '', '/')
+            setAdminOpen(false)
+          }}
+        />
+      )
+    }
+
     return (
       <AdminPanel
         onClose={() => {
           setSiteSettings(loadSettings())
+          sessionStorage.removeItem('espacoon_admin_session')
+          setAdminAuthenticated(false)
           window.history.pushState({}, '', '/')
           setAdminOpen(false)
         }}
@@ -467,15 +483,6 @@ function App() {
           <span>Espaço<span>On</span></span>
         </a>
         <p>Locação de espaço de lazer • Sistema em desenvolvimento</p>
-        <button
-          className="footer-admin-link"
-          onClick={() => {
-            window.history.pushState({}, '', '/admin')
-            setAdminOpen(true)
-          }}
-        >
-          Painel administrativo
-        </button>
         <span>© 2026 EspaçoOn</span>
       </footer>
     </div>

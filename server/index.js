@@ -1611,6 +1611,47 @@ app.get('/api/admin/reservations', requireAdmin, async (_req, res, next) => {
   }
 })
 
+app.delete('/api/admin/reservations/:id', requireAdmin, async (req, res, next) => {
+  try {
+    const id = textValue(req.params.id, 60)
+    const reservation = await Reservation.findOne({ id }).lean()
+
+    if (!reservation) {
+      return res.status(404).json({ error: 'Reserva não encontrada.' })
+    }
+
+    if (!['pending-asaas', 'expired', 'cancelled'].includes(reservation.paymentStatus)) {
+      return res.status(409).json({
+        error: 'Somente reservas pendentes, expiradas ou canceladas podem ser excluídas por esta opção.',
+      })
+    }
+
+    if (reservation.paymentStatus === 'pending-asaas' && reservation.asaasPaymentId) {
+      try {
+        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
+      } catch (error) {
+        const cancelError = new Error(
+          'Não foi possível cancelar a cobrança Pix pendente no Asaas. A reserva não foi excluída.'
+        )
+        cancelError.statusCode = 409
+        throw cancelError
+      }
+    }
+
+    await Promise.all([
+      Reservation.deleteOne({ id }),
+      reservation.contractId
+        ? Contract.deleteOne({ id: reservation.contractId })
+        : Contract.deleteMany({ reservationId: id }),
+      DateLock.deleteOne({ reservationId: id }),
+    ])
+
+    res.json({ ok: true, id })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.get('/api/admin/contracts', requireAdmin, async (_req, res, next) => {
   try {
     res.json(await Contract.find().sort({ signedAt: -1 }).lean())

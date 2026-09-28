@@ -139,6 +139,7 @@ const contractSchema = new mongoose.Schema(
     paymentStatus: { type: String, default: 'awaiting-payment' },
     paidAt: Date,
     cancellationPolicyText: String,
+    establishmentName: String,
     cancellation: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true },
@@ -454,6 +455,10 @@ function contractHash(contract) {
     contract.signedAt instanceof Date ? contract.signedAt.toISOString() : String(contract.signedAt || ''),
     contract.signature || '',
   ]
+
+  if (contract.establishmentName) {
+    canonicalParts.push(contract.establishmentName)
+  }
 
   if (contract.cancellationPolicyText) {
     canonicalParts.push(contract.cancellationPolicyText)
@@ -1240,6 +1245,7 @@ app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
       customer,
       signedAt,
       signature,
+      establishmentName: textValue(settings.establishment?.name || 'EspaçoOn', 120),
       cancellationPolicyText,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',

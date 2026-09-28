@@ -204,6 +204,14 @@ function App() {
             <button onClick={() => scrollTo('galeria')}>Galeria</button>
             <button onClick={() => scrollTo('precos')}>Preços</button>
             <button onClick={() => scrollTo('agenda')}>Disponibilidade</button>
+            <button
+              onClick={() => {
+                setLookupOpen(true)
+                setMobileOpen(false)
+              }}
+            >
+              Consultar reserva
+            </button>
           </div>
         )}
       </header>

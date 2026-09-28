@@ -9,6 +9,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react'
+import { api } from '../data/api'
 import './contract.css'
 
 function simpleHash(text) {
@@ -33,6 +34,8 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [hasSignature, setHasSignature] = useState(false)
   const [signedContract, setSignedContract] = useState(null)
   const [verifyOpen, setVerifyOpen] = useState(false)
+  const [saving, setSaving] = useState(false)
+  const [saveError, setSaveError] = useState('')
 
   const contractId = useMemo(
     () => 'CTR-' + reservation.id.replace('ESP-', ''),
@@ -126,8 +129,11 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
     setHasSignature(false)
   }
 
-  const signContract = () => {
-    if (!accepted || !hasSignature) return
+  const signContract = async () => {
+    if (!accepted || !hasSignature || saving) return
+    setSaving(true)
+    setSaveError('')
+
     const signedAt = new Date().toISOString()
     const signature = canvasRef.current.toDataURL('image/png')
     const finalHash = simpleHash(baseHash + '|' + signedAt + '|' + signature.slice(-128))
@@ -143,12 +149,17 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       signature,
       hash: finalHash,
       status: 'signed-awaiting-payment-demo',
+      paymentStatus: 'awaiting-payment',
     }
 
-    const stored = JSON.parse(localStorage.getItem('espacoon_contracts') || '[]')
-    const filtered = stored.filter((item) => item.reservationId !== reservation.id)
-    localStorage.setItem('espacoon_contracts', JSON.stringify([...filtered, contractRecord]))
-    setSignedContract(contractRecord)
+    try {
+      const saved = await api.createContract(contractRecord)
+      setSignedContract(saved)
+    } catch (error) {
+      setSaveError(error.message || 'Não foi possível salvar o contrato.')
+    } finally {
+      setSaving(false)
+    }
   }
 
   const verificationText = signedContract
@@ -264,13 +275,14 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 </span>
               </label>
 
+              {saveError && <p className="contract-save-error">{saveError}</p>}
               <button
                 className="sign-contract-button"
-                disabled={!accepted || !hasSignature}
+                disabled={!accepted || !hasSignature || saving}
                 onClick={signContract}
               >
                 <ShieldCheck size={18} />
-                Assinar e finalizar contrato
+                {saving ? 'Salvando contrato...' : 'Assinar e finalizar contrato'}
               </button>
             </div>
           </>

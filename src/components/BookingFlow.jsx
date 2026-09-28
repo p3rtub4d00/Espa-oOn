@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import ContractFlow from './ContractFlow'
 import { getPriceForDay, loadSettings } from '../data/settings'
+import { api } from '../data/api'
 import { sharePaymentDocuments } from '../utils/documents'
 import {
   ArrowLeft,
@@ -57,6 +58,7 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
   const [contractOpen, setContractOpen] = useState(false)
   const [signedContract, setSignedContract] = useState(null)
   const [deliveryStatus, setDeliveryStatus] = useState('idle')
+  const [paidReservation, setPaidReservation] = useState(null)
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -133,53 +135,31 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
   const confirmPayment = async () => {
     if (!signedContract || deliveryStatus === 'sharing') return
 
-    const paidAt = new Date().toISOString()
-    const reservation = {
-      ...draftReservation,
-      paymentStatus: 'approved-simulated',
-      contractId: signedContract.id,
-      paidAt,
-    }
-
-    const paidContract = {
-      ...signedContract,
-      status: 'signed-paid-demo',
-      paymentStatus: 'approved-simulated',
-      paidAt,
-    }
-
-    const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
-    const withoutDuplicate = stored.filter((item) => item.id !== reservation.id)
-    localStorage.setItem('espacoon_reservations', JSON.stringify([...withoutDuplicate, reservation]))
-
-    const contracts = JSON.parse(localStorage.getItem('espacoon_contracts') || '[]')
-    const updatedContracts = contracts.map((item) =>
-      item.id === signedContract.id ? paidContract : item,
-    )
-    localStorage.setItem('espacoon_contracts', JSON.stringify(updatedContracts))
-
-    setSignedContract(paidContract)
-    onReserved?.(day)
-    setStep(5)
     setDeliveryStatus('sharing')
-
     try {
-      const result = await sharePaymentDocuments(reservation, paidContract)
-      setDeliveryStatus(result.method)
-    } catch {
+      const result = await api.completePayment(draftReservation, signedContract)
+      const reservation = result.reservation
+      const paidContract = result.contract
+
+      setPaidReservation(reservation)
+      setSignedContract(paidContract)
+      onReserved?.(day)
+      setStep(5)
+
+      const delivery = await sharePaymentDocuments(reservation, paidContract)
+      setDeliveryStatus(delivery.method)
+    } catch (error) {
       setDeliveryStatus('error')
+      console.error(error)
     }
   }
 
   const resendDocuments = async () => {
-    if (!signedContract) return
-    const reservations = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
-    const reservation = reservations.find((item) => item.id === reservationId)
-    if (!reservation) return
+    if (!signedContract || !paidReservation) return
 
     setDeliveryStatus('sharing')
     try {
-      const result = await sharePaymentDocuments(reservation, signedContract)
+      const result = await sharePaymentDocuments(paidReservation, signedContract)
       setDeliveryStatus(result.method)
     } catch {
       setDeliveryStatus('error')

@@ -29,25 +29,15 @@ export const DEFAULT_SETTINGS = {
 }
 
 export function loadSettings() {
-  try {
-    const stored = JSON.parse(localStorage.getItem('espacoon_settings') || '{}')
-    return {
-      ...DEFAULT_SETTINGS,
-      ...stored,
-      prices: { ...DEFAULT_SETTINGS.prices, ...(stored.prices || {}) },
-      rentalHours: { ...DEFAULT_SETTINGS.rentalHours, ...(stored.rentalHours || {}) },
-      blockedDays: Array.isArray(stored.blockedDays) ? stored.blockedDays : [],
-      specialDates: Array.isArray(stored.specialDates) ? stored.specialDates : [],
-      gallery: Array.isArray(stored.gallery) ? stored.gallery : DEFAULT_SETTINGS.gallery,
-      amenities: Array.isArray(stored.amenities) ? stored.amenities : DEFAULT_SETTINGS.amenities,
-    }
-  } catch {
-    return DEFAULT_SETTINGS
+  return {
+    ...DEFAULT_SETTINGS,
+    prices: { ...DEFAULT_SETTINGS.prices },
+    rentalHours: { ...DEFAULT_SETTINGS.rentalHours },
+    blockedDays: [],
+    specialDates: [],
+    gallery: [...DEFAULT_SETTINGS.gallery],
+    amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
   }
-}
-
-export function saveSettings(settings) {
-  localStorage.setItem('espacoon_settings', JSON.stringify(settings))
 }
 
 export function getPriceForDay(day, period, settings = loadSettings()) {

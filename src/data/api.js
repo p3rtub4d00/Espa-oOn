@@ -96,6 +96,11 @@ export const api = {
       method: 'POST',
       body: JSON.stringify({ endpoint }),
     }),
+  testPushBackground: (endpoint) =>
+    request('/api/admin/push/test-background', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    }),
 
   updateVisit: (id, changes) =>
     request('/api/admin/visits/' + encodeURIComponent(id), {

@@ -30,9 +30,9 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [verifyResult, setVerifyResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
-  const [cancellationPolicyText, setCancellationPolicyText] = useState(
-    DEFAULT_SETTINGS.cancellationPolicy.text,
-  )
+  const [cancellationPolicyText, setCancellationPolicyText] = useState('')
+  const [policyLoading, setPolicyLoading] = useState(true)
+  const [policyLoadError, setPolicyLoadError] = useState('')
   const [establishmentName, setEstablishmentName] = useState('EspaçoOn')
 
   const contractId = useMemo(
@@ -44,14 +44,26 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
     let active = true
     api.getSettings()
       .then((settings) => {
-        if (active && settings?.cancellationPolicy?.text) {
-          setCancellationPolicyText(settings.cancellationPolicy.text)
+        if (!active) return
+
+        const policyText = String(settings?.cancellationPolicy?.text || '').trim()
+        if (policyText.length < 20) {
+          throw new Error('A política de cancelamento ainda não foi configurada corretamente.')
         }
-        if (active && settings?.establishment?.name) {
+
+        setCancellationPolicyText(policyText)
+        if (settings?.establishment?.name) {
           setEstablishmentName(settings.establishment.name)
         }
       })
-      .catch(() => {})
+      .catch((error) => {
+        if (active) {
+          setPolicyLoadError(error.message || 'Não foi possível carregar a política de cancelamento.')
+        }
+      })
+      .finally(() => {
+        if (active) setPolicyLoading(false)
+      })
 
     return () => {
       active = false
@@ -131,7 +143,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   }
 
   const signContract = async () => {
-    if (!accepted || !hasSignature || saving) return
+    if (!accepted || !hasSignature || saving || policyLoading || policyLoadError || !cancellationPolicyText) return
     setSaving(true)
     setSaveError('')
 
@@ -232,9 +244,19 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                   <strong>4. Pagamento.</strong> O valor indicado neste documento será cobrado por Pix
                   por meio do Asaas e a reserva somente será confirmada após a confirmação do recebimento.
                 </p>
-                <p>
-                  <strong>5. Cancelamento e reembolso.</strong> {cancellationPolicyText}
-                </p>
+                <div className="contract-cancellation-policy">
+                  <div>
+                    <ShieldCheck size={18} />
+                    <strong>5. Política de cancelamento e reembolso</strong>
+                  </div>
+                  {policyLoading ? (
+                    <p>Carregando política vigente...</p>
+                  ) : policyLoadError ? (
+                    <p className="contract-policy-error">{policyLoadError}</p>
+                  ) : (
+                    <p>{cancellationPolicyText}</p>
+                  )}
+                </div>
                 <p>
                   <strong>6. Assinatura eletrônica.</strong> O sistema registra a manifestação de aceite,
                   a assinatura desenhada, a data e hora, o identificador do documento e um hash SHA-256
@@ -280,10 +302,12 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <input
                   type="checkbox"
                   checked={accepted}
+                  disabled={policyLoading || Boolean(policyLoadError) || !cancellationPolicyText}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
                 <span>
-                  Li o documento acima, concordo com seus termos e autorizo o registro da minha assinatura eletrônica.
+                  Li o documento acima, inclusive a política de cancelamento e reembolso, concordo com seus termos
+                  e autorizo o registro da minha assinatura eletrônica.
                 </span>
               </label>
 

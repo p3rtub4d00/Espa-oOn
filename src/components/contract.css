@@ -586,3 +586,38 @@
   color: #176db5;
   background: #e8f4ff;
 }
+
+
+.contract-cancellation-policy {
+  margin: 14px 0;
+  padding: 14px;
+  border: 1px solid #bcdcf2;
+  border-radius: 12px;
+  background: #f3f9fd;
+}
+
+.contract-cancellation-policy > div {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  color: #175f91;
+}
+
+.contract-cancellation-policy > div svg {
+  flex: 0 0 auto;
+}
+
+.contract-cancellation-policy > p {
+  margin: 8px 0 0;
+  color: #3c5666;
+  line-height: 1.65;
+}
+
+.contract-cancellation-policy .contract-policy-error {
+  color: #a34740;
+  font-weight: 700;
+}
+
+.contract-accept input:disabled + span {
+  opacity: .55;
+}

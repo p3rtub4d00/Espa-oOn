@@ -2230,3 +2230,50 @@
     justify-content: center;
   }
 }
+
+
+.reservations-head,
+.admin-table .table-row {
+  grid-template-columns: 1.5fr .8fr .6fr .7fr .8fr .8fr;
+}
+
+.reservation-row-actions {
+  display: flex;
+  justify-content: flex-start;
+}
+
+.delete-pending-reservation {
+  min-height: 34px;
+  padding: 0 10px;
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  border: 1px solid #efcbc6;
+  border-radius: 9px;
+  color: #a3433b;
+  background: #fff4f2;
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.delete-pending-reservation:hover {
+  background: #ffe9e6;
+}
+
+.delete-pending-reservation:disabled {
+  opacity: .55;
+  cursor: wait;
+}
+
+.reservation-protected {
+  color: #97a6ad;
+  font-size: 8px;
+  font-weight: 700;
+}
+
+@media (max-width: 680px) {
+  .reservations-head,
+  .admin-table .table-row {
+    min-width: 760px;
+  }
+}

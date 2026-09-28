@@ -101,6 +101,7 @@ function App() {
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
+  const [lightboxIndex, setLightboxIndex] = useState(null)
   const [adminOpen, setAdminOpen] = useState(() => window.location.pathname === '/admin')
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [adminSessionChecked, setAdminSessionChecked] = useState(false)
@@ -235,6 +236,17 @@ function App() {
   const nextSlide = () => setSlide((current) => (current + 1) % heroSlides.length)
   const prevSlide = () =>
     setSlide((current) => (current - 1 + heroSlides.length) % heroSlides.length)
+
+  const openLightbox = (index) => setLightboxIndex(index)
+  const closeLightbox = () => setLightboxIndex(null)
+  const nextLightbox = () =>
+    setLightboxIndex((current) =>
+      current == null ? 0 : (current + 1) % publicGallery.length
+    )
+  const prevLightbox = () =>
+    setLightboxIndex((current) =>
+      current == null ? 0 : (current - 1 + publicGallery.length) % publicGallery.length
+    )
 
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
@@ -451,7 +463,12 @@ function App() {
 
             <div className="gallery-grid">
               {publicGallery.map((src, index) => (
-                <button className={index === 0 ? 'gallery-main' : ''} key={src}>
+                <button
+                  className={index === 0 ? 'gallery-main' : ''}
+                  key={src}
+                  onClick={() => openLightbox(index)}
+                  aria-label={`Abrir foto ${index + 1} em tela cheia`}
+                >
                   <img src={src} alt={`Área do espaço ${index + 1}`} />
                 </button>
               ))}
@@ -631,6 +648,58 @@ function App() {
             setReservedDates((current) => new Set([...current, dateISO]))
           }}
         />
+      )}
+
+      {lightboxIndex != null && publicGallery[lightboxIndex] && (
+        <div
+          className="gallery-lightbox"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Foto ampliada da galeria"
+          onClick={closeLightbox}
+        >
+          <button
+            className="gallery-lightbox-close"
+            onClick={closeLightbox}
+            aria-label="Fechar foto"
+          >
+            <X />
+          </button>
+
+          {publicGallery.length > 1 && (
+            <button
+              className="gallery-lightbox-nav gallery-lightbox-prev"
+              onClick={(event) => {
+                event.stopPropagation()
+                prevLightbox()
+              }}
+              aria-label="Foto anterior"
+            >
+              <ChevronLeft />
+            </button>
+          )}
+
+          <div className="gallery-lightbox-content" onClick={(event) => event.stopPropagation()}>
+            <img
+              src={publicGallery[lightboxIndex]}
+              alt={`Foto ampliada do espaço ${lightboxIndex + 1}`}
+            />
+            <span>{lightboxIndex + 1} de {publicGallery.length}</span>
+          </div>
+
+          {publicGallery.length > 1 && (
+            <button
+              className="gallery-lightbox-nav gallery-lightbox-next"
+              onClick={(event) => {
+                event.stopPropagation()
+                nextLightbox()
+              }}
+              aria-label="Próxima foto"
+            >
+              <ChevronRight />
+            </button>
+          )}
+        </div>
       )}
 
       <footer>

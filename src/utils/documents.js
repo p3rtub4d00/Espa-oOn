@@ -19,7 +19,7 @@ export function createReceiptPdf(reservation, contract) {
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
-  doc.text('EspaçoOn', 20, 22)
+  doc.text(contract?.establishmentName || 'EspaçoOn', 20, 22)
 
   doc.setFontSize(14)
   doc.text('Comprovante de pagamento', 20, 34)
@@ -51,7 +51,7 @@ export function createReceiptPdf(reservation, contract) {
   doc.setTextColor(90)
   addWrappedText(
     doc,
-    'Este comprovante foi gerado pelo EspaçoOn a partir do status de pagamento registrado na integração com o Asaas.',
+    'Este comprovante foi gerado pelo ' + (contract?.establishmentName || 'EspaçoOn') + ' a partir do status de pagamento registrado na integração com o Asaas.',
     20,
     y,
     170,
@@ -65,7 +65,7 @@ export function createContractPdf(contract) {
   const doc = new jsPDF()
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
-  doc.text('EspaçoOn', 20, 20)
+  doc.text(contract.establishmentName || 'EspaçoOn', 20, 20)
   doc.setFontSize(14)
   doc.text('Contrato de locação do espaço de lazer', 20, 31)
 
@@ -96,7 +96,7 @@ export function createContractPdf(contract) {
 
   y += 4
   const clauses = [
-    ['1. Objeto.', 'O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma EspaçoOn, na data e período informados acima.'],
+    ['1. Objeto.', 'O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma ' + (contract.establishmentName || 'EspaçoOn') + ', na data e período informados acima.'],
     ['2. Uso do espaço.', 'O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.'],
     ['3. Responsabilidade.', 'O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.'],
     ['4. Pagamento.', 'O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.'],
@@ -154,14 +154,14 @@ export function buildPaymentMessage(reservation, contract) {
   return [
     'Olá, ' + (reservation.customer?.name || 'cliente') + '!',
     '',
-    'Seu pagamento no EspaçoOn foi confirmado.',
+    'Seu pagamento no ' + (contract?.establishmentName || 'EspaçoOn') + ' foi confirmado.',
     'Reserva: ' + reservation.id,
     'Data: ' + reservation.date,
     'Período: ' + reservation.period,
     'Valor: ' + money(reservation.price),
     'Contrato: ' + (contract?.id || reservation.contractId || '-'),
     '',
-    'Guarde o código da reserva para consultar seus dados posteriormente no EspaçoOn.',
+    'Guarde o código da reserva para consultar seus dados posteriormente no ' + (contract?.establishmentName || 'EspaçoOn') + '.',
   ].join('\n')
 }
 

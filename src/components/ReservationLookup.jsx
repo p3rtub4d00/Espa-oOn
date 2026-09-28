@@ -42,11 +42,17 @@ export default function ReservationLookup({ onClose }) {
 
   const paymentLabel = useMemo(() => {
     if (!reservation) return ''
-    return ['paid', 'approved-simulated'].includes(reservation.paymentStatus)
+    return reservation.paymentStatus === 'paid'
       ? 'Pagamento confirmado'
       : reservation.paymentStatus === 'confirmed-asaas'
         ? 'Confirmado, aguardando liquidação'
-        : 'Aguardando pagamento'
+        : reservation.paymentStatus === 'manual-review'
+          ? 'Pagamento em conferência'
+          : reservation.paymentStatus === 'refunded'
+            ? 'Pagamento estornado'
+            : reservation.paymentStatus === 'cancelled'
+              ? 'Reserva cancelada'
+              : 'Aguardando pagamento'
   }, [reservation])
 
   const search = async (event) => {
@@ -162,7 +168,7 @@ export default function ReservationLookup({ onClose }) {
               <ShieldCheck />
               <span>
                 <strong>Consulta protegida</strong>
-                Nesta fase de testes, os dados ficam disponíveis somente no navegador onde a reserva foi feita.
+                A consulta usa o código da reserva e os últimos dígitos do telefone informado no cadastro.
               </span>
             </div>
           </div>
@@ -226,16 +232,14 @@ export default function ReservationLookup({ onClose }) {
                   <strong>{contract.id}</strong>
                   <small>Hash {contract.hash || '-'}</small>
                 </div>
-                <i className={['paid', 'approved-simulated'].includes(contract.paymentStatus) ? 'paid' : 'pending'}>
-                  {['paid', 'approved-simulated'].includes(contract.paymentStatus)
-                    ? 'Assinado e pago'
-                    : 'Assinado'}
+                <i className={contract.paymentStatus === 'paid' ? 'paid' : 'pending'}>
+                  {contract.paymentStatus === 'paid' ? 'Assinado e pago' : 'Assinado'}
                 </i>
               </div>
             )}
 
             <div className="lookup-actions">
-              {['paid', 'approved-simulated'].includes(reservation.paymentStatus) && (
+              {reservation.paymentStatus === 'paid' && (
                 <button onClick={downloadReceipt}>
                   <Download size={17} />
                   Baixar comprovante

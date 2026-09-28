@@ -6,9 +6,8 @@ import {
   FileCheck2,
   FileText,
   KeyRound,
-  Phone,
-  Search,
   ShieldCheck,
+  Search,
   X,
 } from 'lucide-react'
 import { createContractPdf, createReceiptPdf, downloadPdf } from '../utils/documents'
@@ -34,7 +33,7 @@ function maskPhone(phone = '') {
 
 export default function ReservationLookup({ onClose }) {
   const [code, setCode] = useState('')
-  const [phoneEnd, setPhoneEnd] = useState('')
+  const [cpf, setCpf] = useState('')
   const [error, setError] = useState('')
   const [reservation, setReservation] = useState(null)
   const [contract, setContract] = useState(null)
@@ -67,14 +66,14 @@ export default function ReservationLookup({ onClose }) {
       return
     }
 
-    if (digits(phoneEnd).length !== 4) {
-      setError('Informe os 4 últimos dígitos do telefone.')
+    if (digits(cpf).length !== 11) {
+      setError('Informe o CPF usado na reserva.')
       return
     }
 
     setLoading(true)
     try {
-      const result = await api.lookupReservation(normalizedCode, digits(phoneEnd))
+      const result = await api.lookupReservation(normalizedCode, digits(cpf))
       setReservation(result.reservation)
       setContract(result.contract || null)
     } catch (error) {
@@ -101,7 +100,7 @@ export default function ReservationLookup({ onClose }) {
     setContract(null)
     setError('')
     setCode('')
-    setPhoneEnd('')
+    setCpf('')
   }
 
   return (
@@ -123,8 +122,7 @@ export default function ReservationLookup({ onClose }) {
               <div className="lookup-icon"><Search /></div>
               <h2>Consulte os dados da sua reserva.</h2>
               <p>
-                Informe o código recebido no momento da reserva e os 4 últimos dígitos do telefone
-                usado no cadastro.
+                Informe o código recebido no momento da reserva e o CPF utilizado no cadastro.
               </p>
             </div>
 
@@ -143,15 +141,23 @@ export default function ReservationLookup({ onClose }) {
               </label>
 
               <label>
-                <span>4 últimos dígitos do telefone</span>
+                <span>CPF da reserva</span>
                 <div>
-                  <Phone size={18} />
+                  <ShieldCheck size={18} />
                   <input
                     inputMode="numeric"
-                    maxLength={4}
-                    value={phoneEnd}
-                    onChange={(e) => setPhoneEnd(digits(e.target.value).slice(0, 4))}
-                    placeholder="1234"
+                    maxLength={14}
+                    value={cpf}
+                    onChange={(e) => {
+                      const value = digits(e.target.value).slice(0, 11)
+                      setCpf(
+                        value
+                          .replace(/(\d{3})(\d)/, '$1.$2')
+                          .replace(/(\d{3})(\d)/, '$1.$2')
+                          .replace(/(\d{3})(\d{1,2})$/, '$1-$2')
+                      )
+                    }}
+                    placeholder="000.000.000-00"
                   />
                 </div>
               </label>
@@ -168,7 +174,7 @@ export default function ReservationLookup({ onClose }) {
               <ShieldCheck />
               <span>
                 <strong>Consulta protegida</strong>
-                A consulta usa o código da reserva e os últimos dígitos do telefone informado no cadastro.
+                A consulta é protegida pelo código da reserva e pelo CPF informado no cadastro.
               </span>
             </div>
           </div>

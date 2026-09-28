@@ -187,6 +187,10 @@ const settingsSchema = new mongoose.Schema(
       notifyPaidReservation: { type: Boolean, default: true },
       notifyNewVisit: { type: Boolean, default: true },
     },
+    notifications: {
+      notifyPaidReservation: { type: Boolean, default: true },
+      notifyNewVisit: { type: Boolean, default: true },
+    },
   },
   { timestamps: true },
 )
@@ -266,6 +270,10 @@ const DEFAULT_SETTINGS = {
   whatsapp: {
     ownerName: '',
     ownerPhone: '',
+    notifyPaidReservation: true,
+    notifyNewVisit: true,
+  },
+  notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
   },
@@ -820,7 +828,7 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
 
   if (!savedReservation.pushPaidNotifiedAt) {
     const settings = await currentSettings()
-    if (settings.whatsapp?.notifyPaidReservation !== false) {
+    if (settings.notifications?.notifyPaidReservation !== false) {
       const title = 'Reserva paga'
       const body =
         (savedReservation.customer?.name || 'Cliente') +
@@ -1985,7 +1993,7 @@ app.post('/api/visits', publicWriteLimiter, async (req, res, next) => {
     if (!existingVisit && !visit.pushVisitNotifiedAt) {
       const settings = await currentSettings()
 
-      if (settings.whatsapp?.notifyNewVisit !== false) {
+      if (settings.notifications?.notifyNewVisit !== false) {
         const formattedDate = displayDate(visit.requestedDate)
         const body =
           (visit.name || 'Cliente') +

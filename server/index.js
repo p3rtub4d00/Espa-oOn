@@ -112,6 +112,8 @@ const reservationSchema = new mongoose.Schema(
     holdUntil: Date,
     paidAt: Date,
     pushPaidNotifiedAt: Date,
+    pushDayBeforeReminderAt: Date,
+    pushSameDayReminderAt: Date,
     reservationStatus: { type: String, default: 'active', index: true },
     cancellation: mongoose.Schema.Types.Mixed,
   },
@@ -189,6 +191,10 @@ const settingsSchema = new mongoose.Schema(
     notifications: {
       notifyPaidReservation: { type: Boolean, default: true },
       notifyNewVisit: { type: Boolean, default: true },
+      notifyReservationDayBefore: { type: Boolean, default: true },
+      notifyReservationSameDay: { type: Boolean, default: true },
+      reservationDayBeforeTime: { type: String, default: '18:00' },
+      reservationSameDayTime: { type: String, default: '07:00' },
     },
     cancellationPolicy: {
       text: String,
@@ -288,6 +294,10 @@ const DEFAULT_SETTINGS = {
   notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
+    notifyReservationDayBefore: true,
+    notifyReservationSameDay: true,
+    reservationDayBeforeTime: '18:00',
+    reservationSameDayTime: '07:00',
   },
   cancellationPolicy: {
     text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
@@ -380,6 +390,138 @@ async function sendPushNotification(payload, endpoint = null) {
   }
 
   return { sent, failed }
+}
+
+function portoVelhoNowParts(date = new Date()) {
+  const formatter = new Intl.DateTimeFormat('en-CA', {
+    timeZone: 'America/Porto_Velho',
+    year: 'numeric',
+    month: '2-digit',
+    day: '2-digit',
+    hour: '2-digit',
+    minute: '2-digit',
+    hourCycle: 'h23',
+  })
+
+  const parts = Object.fromEntries(
+    formatter.formatToParts(date)
+      .filter((part) => part.type !== 'literal')
+      .map((part) => [part.type, part.value]),
+  )
+
+  return {
+    dateISO: parts.year + '-' + parts.month + '-' + parts.day,
+    time: parts.hour + ':' + parts.minute,
+  }
+}
+
+function addDaysISO(dateISO, days) {
+  const date = new Date(String(dateISO) + 'T12:00:00Z')
+  date.setUTCDate(date.getUTCDate() + days)
+  return date.toISOString().slice(0, 10)
+}
+
+let reminderRunActive = false
+
+async function processReservationReminders() {
+  if (reminderRunActive || mongoose.connection.readyState !== 1) return
+  reminderRunActive = true
+
+  try {
+    const settings = await currentSettings()
+    const notifications = {
+      ...DEFAULT_SETTINGS.notifications,
+      ...(settings.notifications || {}),
+    }
+
+    const now = portoVelhoNowParts()
+    const tomorrowISO = addDaysISO(now.dateISO, 1)
+
+    if (
+      notifications.notifyReservationDayBefore !== false &&
+      now.time >= notifications.reservationDayBeforeTime
+    ) {
+      const reservations = await Reservation.find({
+        paymentStatus: 'paid',
+        reservationStatus: { $ne: 'cancelled' },
+        dateISO: tomorrowISO,
+        pushDayBeforeReminderAt: null,
+      }).lean()
+
+      for (const reservation of reservations) {
+        const result = await sendPushNotification({
+          title: 'Reserva amanhã',
+          body:
+            (reservation.customer?.name || 'Cliente') +
+            ' • ' +
+            displayDate(reservation.dateISO) +
+            ' • ' +
+            (reservation.period || ''),
+          url: '/admin',
+          tag: 'reservation-day-before-' + reservation.id,
+        })
+
+        if (result.sent > 0) {
+          await Reservation.updateOne(
+            { id: reservation.id, pushDayBeforeReminderAt: null },
+            { $set: { pushDayBeforeReminderAt: new Date() } },
+          )
+        }
+      }
+    }
+
+    if (
+      notifications.notifyReservationSameDay !== false &&
+      now.time >= notifications.reservationSameDayTime
+    ) {
+      const reservations = await Reservation.find({
+        paymentStatus: 'paid',
+        reservationStatus: { $ne: 'cancelled' },
+        dateISO: now.dateISO,
+        pushSameDayReminderAt: null,
+      }).lean()
+
+      for (const reservation of reservations) {
+        const result = await sendPushNotification({
+          title: 'Reserva hoje',
+          body:
+            (reservation.customer?.name || 'Cliente') +
+            ' • ' +
+            (reservation.period || '') +
+            (settings.rentalHours?.[reservation.period]
+              ? ' • ' + settings.rentalHours[reservation.period]
+              : ''),
+          url: '/admin',
+          tag: 'reservation-same-day-' + reservation.id,
+        })
+
+        if (result.sent > 0) {
+          await Reservation.updateOne(
+            { id: reservation.id, pushSameDayReminderAt: null },
+            { $set: { pushSameDayReminderAt: new Date() } },
+          )
+        }
+      }
+    }
+  } catch (error) {
+    console.warn('Falha ao processar lembretes de reservas:', error?.message || error)
+  } finally {
+    reminderRunActive = false
+  }
+}
+
+let reservationReminderTimer = null
+
+function startReservationReminderScheduler() {
+  if (reservationReminderTimer) return
+
+  setTimeout(() => {
+    processReservationReminders().catch(() => {})
+  }, 15000)
+
+  reservationReminderTimer = setInterval(() => {
+    processReservationReminders().catch(() => {})
+  }, 15 * 60 * 1000)
 }
 
 function onlyDigits(value = '') {
@@ -704,6 +846,38 @@ function sanitizeSettingsUpdate(body = {}) {
       const error = new Error('A estrutura contém um item sem nome.')
       error.statusCode = 400
       throw error
+    }
+  }
+
+  if (body.notifications !== undefined) {
+    const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/
+    const reservationDayBeforeTime = textValue(
+      body.notifications?.reservationDayBeforeTime || '18:00',
+      5,
+    )
+    const reservationSameDayTime = textValue(
+      body.notifications?.reservationSameDayTime || '07:00',
+      5,
+    )
+
+    if (
+      !timePattern.test(reservationDayBeforeTime) ||
+      !timePattern.test(reservationSameDayTime)
+    ) {
+      const error = new Error('Horário de lembrete inválido.')
+      error.statusCode = 400
+      throw error
+    }
+
+    update.notifications = {
+      notifyPaidReservation: body.notifications?.notifyPaidReservation !== false,
+      notifyNewVisit: body.notifications?.notifyNewVisit !== false,
+      notifyReservationDayBefore:
+        body.notifications?.notifyReservationDayBefore !== false,
+      notifyReservationSameDay:
+        body.notifications?.notifyReservationSameDay !== false,
+      reservationDayBeforeTime,
+      reservationSameDayTime,
     }
   }
 
@@ -2583,6 +2757,7 @@ async function start() {
     console.log('Banco de dados conectado.')
     app.listen(PORT, '0.0.0.0', () => {
       console.log('EspaçoOn em produção na porta ' + PORT)
+      startReservationReminderScheduler()
     })
   } catch (error) {
     console.error('Falha ao iniciar o EspaçoOn:', error?.message || error)
@@ -2593,6 +2768,7 @@ async function start() {
 async function shutdown(signal) {
   console.log(signal + ' recebido. Encerrando conexões...')
   try {
+    if (reservationReminderTimer) clearInterval(reservationReminderTimer)
     await mongoose.connection.close()
   } finally {
     process.exit(0)

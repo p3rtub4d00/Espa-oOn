@@ -322,6 +322,18 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    asaas: {
+      configured: Boolean(ASAAS_API_KEY),
+      environment: ASAAS_ENV,
+      keyType: ASAAS_API_KEY?.startsWith('$aact_prod_')
+        ? 'production'
+        : ASAAS_API_KEY?.startsWith('$aact_hmlg_')
+          ? 'sandbox'
+          : ASAAS_API_KEY
+            ? 'unknown'
+            : 'missing',
+      webhookTokenConfigured: Boolean(ASAAS_WEBHOOK_TOKEN),
+    },
   })
 })
 
@@ -615,12 +627,6 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
     const duplicate = await WebhookEvent.findOne({ id }).lean()
     if (duplicate) return res.status(200).json({ ok: true, duplicate: true })
 
-    await WebhookEvent.create({
-      id,
-      event,
-      paymentId: payment?.id,
-    })
-
     const reservation = payment?.externalReference
       ? await Reservation.findOne({ id: payment.externalReference }).lean()
       : payment?.id
@@ -651,6 +657,12 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
         )
       }
     }
+
+    await WebhookEvent.create({
+      id,
+      event,
+      paymentId: payment?.id,
+    })
 
     res.status(200).json({ ok: true })
   } catch (error) {

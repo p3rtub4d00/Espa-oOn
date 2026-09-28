@@ -613,3 +613,58 @@
     grid-template-columns: 1fr 1fr;
   }
 }
+
+
+/* EspaçoOn booking — aquatic blue theme */
+.booking-backdrop {
+  background: rgba(7, 29, 46, .78);
+}
+
+.booking-modal,
+.booking-progress span,
+.booking-progress small {
+  background: #f8fbfe;
+}
+
+.booking-top {
+  background: #0f3554;
+}
+
+.booking-kicker {
+  color: #9ed9ff;
+}
+
+.booking-progress > div.active {
+  color: #176db5;
+}
+
+.booking-progress > div.active span {
+  border-color: #1f8efa;
+  background: #1f8efa;
+}
+
+.period-card.selected {
+  border-color: #1f8efa;
+  background: #edf7ff;
+}
+
+.booking-primary {
+  color: white;
+  background: #1f8efa;
+}
+
+.booking-primary:hover {
+  background: #167bdc;
+}
+
+.booking-security,
+.next-contract,
+.simulation-note {
+  border-color: #cce5f8;
+  background: #f0f8ff;
+}
+
+.summary-price,
+.paid-status {
+  color: #176db5;
+}

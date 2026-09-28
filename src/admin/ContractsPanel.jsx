@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   Eye,
   FileCheck2,
@@ -7,6 +7,7 @@ import {
   ShieldCheck,
   X,
 } from 'lucide-react'
+import { api } from '../data/api'
 
 function money(value) {
   return new Intl.NumberFormat('pt-BR', {
@@ -22,8 +23,28 @@ function maskCpf(cpf = '') {
 }
 
 export default function ContractsPanel() {
-  const contracts = JSON.parse(localStorage.getItem('espacoon_contracts') || '[]')
+  const [contracts, setContracts] = useState([])
   const [selected, setSelected] = useState(null)
+  const [loading, setLoading] = useState(true)
+  const [error, setError] = useState('')
+
+  useEffect(() => {
+    let active = true
+    api.adminContracts()
+      .then((data) => {
+        if (active) setContracts(data)
+      })
+      .catch((err) => {
+        if (active) setError(err.message || 'Não foi possível carregar os contratos.')
+      })
+      .finally(() => {
+        if (active) setLoading(false)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   const qrUrl = useMemo(() => {
     if (!selected) return ''
@@ -42,7 +63,10 @@ export default function ContractsPanel() {
           <FileCheck2 />
         </div>
 
-        {contracts.length ? (
+        {error && <div className="admin-empty large">{error}</div>}
+      {loading ? (
+        <div className="admin-empty large">Carregando contratos...</div>
+      ) : contracts.length ? (
           <div className="admin-table contracts-table">
             <div className="table-head">
               <span>Cliente</span>
@@ -72,7 +96,7 @@ export default function ContractsPanel() {
           </div>
         ) : (
           <div className="admin-empty large">
-            Nenhum contrato foi assinado neste navegador ainda.
+            Nenhum contrato foi assinado ainda.
           </div>
         )}
       </section>

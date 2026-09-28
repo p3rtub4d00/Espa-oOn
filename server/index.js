@@ -640,13 +640,9 @@ app.get('/api/availability', async (_req, res, next) => {
       ).lean(),
     ])
 
-    const legacyBlocked = (settings?.blockedDays || []).map(
-      (day) => '2026-10-' + String(day).padStart(2, '0'),
-    )
-
     res.json({
       reservedDates: locks.map((lock) => lock._id),
-      blockedDates: [...new Set([...(settings?.blockedDates || []), ...legacyBlocked])],
+      blockedDates: settings?.blockedDates || [],
     })
   } catch (error) {
     next(error)
@@ -1431,6 +1427,57 @@ async function migrateProductionData() {
       { $set: { status: 'signed-awaiting-payment' } },
     ),
   ])
+
+  const settings = await Settings.findOne({ key: 'main' }).lean()
+  if (settings) {
+    const migratedBlockedDates = new Set(settings.blockedDates || [])
+    for (const day of settings.blockedDays || []) {
+      migratedBlockedDates.add('2026-10-' + String(day).padStart(2, '0'))
+    }
+
+    const migratedSpecialDates = (settings.specialDates || []).map((item) => {
+      if (item.date || item.day == null) return item
+      return {
+        ...item,
+        date: '2026-10-' + String(item.day).padStart(2, '0'),
+      }
+    })
+
+    await Settings.updateOne(
+      { key: 'main' },
+      {
+        $set: {
+          blockedDates: [...migratedBlockedDates],
+          blockedDays: [],
+          specialDates: migratedSpecialDates,
+        },
+      },
+    )
+  }
+
+  const contracts = await Contract.find({
+    signature: { $exists: true, $ne: '' },
+  }).lean()
+
+  for (const contract of contracts) {
+    const reservationDateISO =
+      contract.reservationDateISO || displayDateToISO(contract.reservationDate)
+
+    const normalized = {
+      ...contract,
+      reservationDateISO: reservationDateISO || '',
+    }
+
+    await Contract.updateOne(
+      { id: contract.id },
+      {
+        $set: {
+          reservationDateISO: reservationDateISO || contract.reservationDateISO,
+          hash: contractHash(normalized),
+        },
+      },
+    )
+  }
 
   const activeReservations = await Reservation.find({
     paymentStatus: { $in: ['pending-asaas', 'confirmed-asaas', 'paid'] },

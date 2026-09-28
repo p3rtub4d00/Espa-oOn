@@ -12,6 +12,7 @@ import {
   X,
 } from 'lucide-react'
 import { createContractPdf, createReceiptPdf, downloadPdf } from '../utils/documents'
+import { api } from '../data/api'
 import './reservationLookup.css'
 
 function money(value) {
@@ -37,6 +38,7 @@ export default function ReservationLookup({ onClose }) {
   const [error, setError] = useState('')
   const [reservation, setReservation] = useState(null)
   const [contract, setContract] = useState(null)
+  const [loading, setLoading] = useState(false)
 
   const paymentLabel = useMemo(() => {
     if (!reservation) return ''
@@ -45,7 +47,7 @@ export default function ReservationLookup({ onClose }) {
       : 'Aguardando pagamento'
   }, [reservation])
 
-  const search = (event) => {
+  const search = async (event) => {
     event.preventDefault()
     setError('')
     setReservation(null)
@@ -62,27 +64,16 @@ export default function ReservationLookup({ onClose }) {
       return
     }
 
-    const reservations = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
-    const found = reservations.find((item) => String(item.id).toUpperCase() === normalizedCode)
-
-    if (!found) {
-      setError('Reserva não encontrada neste navegador.')
-      return
+    setLoading(true)
+    try {
+      const result = await api.lookupReservation(normalizedCode, digits(phoneEnd))
+      setReservation(result.reservation)
+      setContract(result.contract || null)
+    } catch (error) {
+      setError(error.message || 'Reserva não encontrada.')
+    } finally {
+      setLoading(false)
     }
-
-    const registeredPhone = digits(found.customer?.phone)
-    if (registeredPhone.slice(-4) !== digits(phoneEnd)) {
-      setError('Os últimos dígitos do telefone não conferem.')
-      return
-    }
-
-    const contracts = JSON.parse(localStorage.getItem('espacoon_contracts') || '[]')
-    const relatedContract = contracts.find(
-      (item) => item.reservationId === found.id || item.id === found.contractId,
-    )
-
-    setReservation(found)
-    setContract(relatedContract || null)
   }
 
   const downloadReceipt = () => {
@@ -159,9 +150,9 @@ export default function ReservationLookup({ onClose }) {
 
               {error && <p className="lookup-error">{error}</p>}
 
-              <button className="lookup-submit">
+              <button className="lookup-submit" disabled={loading}>
                 <Search size={17} />
-                Consultar reserva
+                {loading ? 'Consultando...' : 'Consultar reserva'}
               </button>
             </form>
 

@@ -1,4 +1,4 @@
-import { useMemo, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import {
   ArrowLeft,
   CalendarDays,
@@ -15,7 +15,8 @@ import {
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
-import { loadSettings, saveSettings } from '../data/settings'
+import { loadSettings } from '../data/settings'
+import { api } from '../data/api'
 import './admin.css'
 
 const menu = [
@@ -31,19 +32,6 @@ const menu = [
 
 function money(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
-}
-
-function getReservations() {
-  const local = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
-  const examples = [
-    { id: 'ESP-2026-03-1042', day: 3, date: '03/10/2026', period: '24h', price: 950, customer: { name: 'Reserva demonstrativa', phone: '(69) 99999-1001' }, paymentStatus: 'approved-simulated' },
-    { id: 'ESP-2026-10-1058', day: 10, date: '10/10/2026', period: '12h', price: 700, customer: { name: 'Cliente exemplo', phone: '(69) 99999-1002' }, paymentStatus: 'approved-simulated' },
-  ]
-  return [...local, ...examples]
-}
-
-function getVisits() {
-  return JSON.parse(localStorage.getItem('espacoon_visits') || '[]')
 }
 
 function normalizeWhatsAppNumber(phone = '') {
@@ -76,11 +64,49 @@ function openWhatsAppConfirmation(visit, date, time) {
 
 export default function AdminPanel({ onClose }) {
   const [active, setActive] = useState('overview')
-  const [reservations] = useState(getReservations)
-  const [visits, setVisits] = useState(getVisits)
+  const [reservations, setReservations] = useState([])
+  const [visits, setVisits] = useState([])
   const [settings, setSettings] = useState(loadSettings)
+  const [loading, setLoading] = useState(true)
+  const [adminError, setAdminError] = useState('')
+
+  useEffect(() => {
+    let activeRequest = true
+
+    Promise.all([
+      api.adminReservations(),
+      api.adminVisits(),
+      api.getSettings(),
+    ])
+      .then(([reservationData, visitData, settingsData]) => {
+        if (!activeRequest) return
+        setReservations(reservationData)
+        setVisits(visitData)
+        setSettings(settingsData)
+      })
+      .catch((error) => {
+        if (activeRequest) setAdminError(error.message || 'Não foi possível carregar o painel.')
+      })
+      .finally(() => {
+        if (activeRequest) setLoading(false)
+      })
+
+    return () => {
+      activeRequest = false
+    }
+  }, [])
   const prices = settings.prices
   const blockedDays = new Set(settings.blockedDays || [])
+
+  const persistSettings = async (next) => {
+    setSettings(next)
+    try {
+      const saved = await api.saveSettings(next)
+      setSettings(saved)
+    } catch (error) {
+      setAdminError(error.message || 'Não foi possível salvar as configurações.')
+    }
+  }
 
   const revenue = useMemo(
     () => reservations.reduce((sum, item) => sum + Number(item.price || 0), 0),
@@ -119,9 +145,12 @@ export default function AdminPanel({ onClose }) {
           </div>
           <div className="admin-user">
             <div>AD</div>
-            <span><strong>Administrador</strong><small>Modo demonstração</small></span>
+            <span><strong>Administrador</strong><small>Sistema online</small></span>
           </div>
         </header>
+
+        {adminError && <div className="admin-demo-note">{adminError}</div>}
+        {loading && <div className="admin-demo-note">Carregando dados online...</div>}
 
         {active === 'overview' && (
           <>
@@ -130,7 +159,7 @@ export default function AdminPanel({ onClose }) {
                 <div><WalletCards /></div>
                 <span>Reservas</span>
                 <strong>{reservations.length}</strong>
-                <small>registradas neste navegador</small>
+                <small>salvas no sistema</small>
               </article>
               <article>
                 <div><CircleDollarSign /></div>
@@ -142,7 +171,7 @@ export default function AdminPanel({ onClose }) {
                 <div><CalendarCheck2 /></div>
                 <span>Visitas</span>
                 <strong>{visits.length}</strong>
-                <small>agendamentos locais</small>
+                <small>solicitações online</small>
               </article>
               <article>
                 <div><Users /></div>
@@ -215,8 +244,7 @@ export default function AdminPanel({ onClose }) {
                     ? settings.blockedDays.filter((item) => Number(item) !== day)
                     : [...settings.blockedDays, day]
                   const next = { ...settings, blockedDays: nextDays }
-                  setSettings(next)
-                  saveSettings(next)
+                  persistSettings(next)
                 }
                 return (
                   <button
@@ -275,10 +303,17 @@ export default function AdminPanel({ onClose }) {
                 {visits.map((v) => {
                   const requestedDate = v.requestedDate || v.date
                   const requestedTime = v.requestedTime || v.time
-                  const updateVisit = (nextVisit) => {
+                  const updateVisit = async (nextVisit) => {
                     const next = visits.map((item) => item.id === v.id ? nextVisit : item)
                     setVisits(next)
-                    localStorage.setItem('espacoon_visits', JSON.stringify(next))
+                    try {
+                      const saved = await api.updateVisit(v.id, nextVisit)
+                      setVisits((current) => current.map((item) => item.id === v.id ? saved : item))
+                      return saved
+                    } catch (error) {
+                      setAdminError(error.message || 'Não foi possível atualizar a visita.')
+                      return nextVisit
+                    }
                   }
 
                   return (
@@ -448,8 +483,7 @@ export default function AdminPanel({ onClose }) {
                           ...settings,
                           prices: { ...settings.prices, [key]: Number(e.target.value) },
                         }
-                        setSettings(next)
-                        saveSettings(next)
+                        persistSettings(next)
                       }}
                     />
                   </div>

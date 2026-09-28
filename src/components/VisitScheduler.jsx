@@ -15,12 +15,26 @@ function formatPhone(value) {
   return digits.replace(/(\d{2})(\d)/, '($1) $2').replace(/(\d{5})(\d)/, '$1-$2')
 }
 
+function toInputDate(date) {
+  const year = date.getFullYear()
+  const month = String(date.getMonth() + 1).padStart(2, '0')
+  const day = String(date.getDate()).padStart(2, '0')
+  return year + '-' + month + '-' + day
+}
+
 export default function VisitScheduler({ onClose }) {
+  const today = useMemo(() => toInputDate(new Date()), [])
+  const defaultDate = useMemo(() => {
+    const date = new Date()
+    date.setDate(date.getDate() + 1)
+    return toInputDate(date)
+  }, [])
+
   const [done, setDone] = useState(false)
   const [form, setForm] = useState({
     name: '',
     phone: '',
-    date: '2026-09-30',
+    date: defaultDate,
     time: '',
   })
   const [errors, setErrors] = useState({})
@@ -123,7 +137,7 @@ export default function VisitScheduler({ onClose }) {
                   <CalendarDays size={17} />
                   <input
                     type="date"
-                    min="2026-09-27"
+                    min={today}
                     value={form.date}
                     onChange={(e) => update('date', e.target.value)}
                   />

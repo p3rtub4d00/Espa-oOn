@@ -29,6 +29,10 @@ export const DEFAULT_SETTINGS = {
   notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
+    notifyReservationDayBefore: true,
+    notifyReservationSameDay: true,
+    reservationDayBeforeTime: '18:00',
+    reservationSameDayTime: '07:00',
   },
   cancellationPolicy: {
     text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',

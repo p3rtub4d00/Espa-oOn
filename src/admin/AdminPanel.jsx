@@ -117,6 +117,7 @@ export default function AdminPanel({ onClose }) {
   const [resetConfirmation, setResetConfirmation] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
+  const [deletingReservationId, setDeletingReservationId] = useState('')
 
   useEffect(() => {
     let activeRequest = true
@@ -437,7 +438,7 @@ export default function AdminPanel({ onClose }) {
               <div><span>Gestão de reservas</span><strong>{reservations.length} registros</strong></div>
             </div>
             <div className="admin-table">
-              <div className="table-head"><span>Cliente</span><span>Data</span><span>Período</span><span>Valor</span><span>Status</span></div>
+              <div className="table-head reservations-head"><span>Cliente</span><span>Data</span><span>Período</span><span>Valor</span><span>Status</span><span>Ações</span></div>
               {reservations.map((r) => (
                 <div className="table-row" key={r.id}>
                   <span><strong>{r.customer?.name || 'Cliente'}</strong><small>{r.customer?.phone || r.id}</small></span>
@@ -448,6 +449,36 @@ export default function AdminPanel({ onClose }) {
                     <i className={r.paymentStatus === 'paid' ? 'status-ok' : 'visit-status pending'}>
                       {paymentStatusLabel(r.paymentStatus)}
                     </i>
+                  </span>
+                  <span className="reservation-row-actions">
+                    {['pending-asaas', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
+                      <button
+                        className="delete-pending-reservation"
+                        disabled={deletingReservationId === r.id}
+                        onClick={async () => {
+                          const confirmed = window.confirm(
+                            'Excluir esta reserva pendente? A cobrança Pix será cancelada e a data será liberada.'
+                          )
+                          if (!confirmed) return
+
+                          setDeletingReservationId(r.id)
+                          setAdminError('')
+                          try {
+                            await api.deletePendingReservation(r.id)
+                            setReservations((current) => current.filter((item) => item.id !== r.id))
+                          } catch (error) {
+                            setAdminError(error.message || 'Não foi possível excluir a reserva.')
+                          } finally {
+                            setDeletingReservationId('')
+                          }
+                        }}
+                      >
+                        <Trash2 size={14} />
+                        {deletingReservationId === r.id ? 'Excluindo...' : 'Excluir'}
+                      </button>
+                    ) : (
+                      <small className="reservation-protected">Protegida</small>
+                    )}
                   </span>
                 </div>
               ))}

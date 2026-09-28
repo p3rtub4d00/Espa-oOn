@@ -1,6 +1,7 @@
 import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
 import VisitScheduler from './components/VisitScheduler'
+import ReservationLookup from './components/ReservationLookup'
 import AdminPanel from './admin/AdminPanel'
 import AdminLogin from './admin/AdminLogin'
 import { getPriceForDay, loadSettings } from './data/settings'
@@ -99,6 +100,7 @@ function App() {
   const [selectedDay, setSelectedDay] = useState(null)
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
+  const [lookupOpen, setLookupOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(() => window.location.pathname === '/admin')
   const [adminAuthenticated, setAdminAuthenticated] = useState(() => sessionStorage.getItem('espacoon_admin_session') === 'authenticated')
   const [siteSettings, setSiteSettings] = useState(loadSettings)
@@ -178,10 +180,15 @@ function App() {
           <button onClick={() => scrollTo('agenda')}>Disponibilidade</button>
         </nav>
 
-        <button className="header-cta" onClick={() => scrollTo('agenda')}>
-          Ver datas
-          <ArrowRight size={17} />
-        </button>
+        <div className="header-actions">
+          <button className="header-lookup" onClick={() => setLookupOpen(true)}>
+            Consultar reserva
+          </button>
+          <button className="header-cta" onClick={() => scrollTo('agenda')}>
+            Ver datas
+            <ArrowRight size={17} />
+          </button>
+        </div>
 
         <button
           className="mobile-menu-btn"
@@ -464,6 +471,10 @@ function App() {
 
       {visitOpen && (
         <VisitScheduler onClose={() => setVisitOpen(false)} />
+      )}
+
+      {lookupOpen && (
+        <ReservationLookup onClose={() => setLookupOpen(false)} />
       )}
 
       {bookingOpen && selectedDay && (

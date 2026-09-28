@@ -46,6 +46,10 @@ export default function ContentManager({ mode, settings, setSettings }) {
   const addImageUrl = async () => {
     const url = imageUrl.trim()
     if (!url) return
+    if (!/^https:\/\//i.test(url)) {
+      setMessage('Informe uma URL segura iniciando com https://.')
+      return
+    }
     const next = { ...settings, gallery: [...settings.gallery, url] }
     try {
       await persist(next)
@@ -56,8 +60,8 @@ export default function ContentManager({ mode, settings, setSettings }) {
 
   const addLocalImage = async (file) => {
     if (!file) return
-    if (!file.type.startsWith('image/')) {
-      setMessage('Escolha um arquivo de imagem.')
+    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
+      setMessage('Use uma imagem JPG, PNG ou WebP.')
       return
     }
     if (file.size > 5 * 1024 * 1024) {
@@ -77,12 +81,20 @@ export default function ContentManager({ mode, settings, setSettings }) {
   }
 
   const removeImage = async (index) => {
+    const src = settings.gallery[index]
     const next = {
       ...settings,
       gallery: settings.gallery.filter((_, itemIndex) => itemIndex !== index),
     }
+
     try {
       await persist(next)
+
+      const match = String(src || '').match(/^\/api\/images\/([a-f0-9]{24})$/i)
+      if (match) {
+        await api.deleteImage(match[1]).catch(() => {})
+      }
+
       setMessage('Foto removida da galeria.')
     } catch {}
   }
@@ -152,7 +164,7 @@ export default function ContentManager({ mode, settings, setSettings }) {
             <input
               ref={fileRef}
               type="file"
-              accept="image/*"
+              accept="image/jpeg,image/png,image/webp"
               hidden
               onChange={(e) => {
                 addLocalImage(e.target.files?.[0])

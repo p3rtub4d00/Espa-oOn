@@ -360,7 +360,7 @@ app.get('/api/availability', async (_req, res, next) => {
   try {
     const [reservations, settings] = await Promise.all([
       Reservation.find(
-        { paymentStatus: 'approved-simulated' },
+        { paymentStatus: { $in: ['pending-asaas', 'confirmed-asaas', 'paid', 'approved-simulated'] } },
         { day: 1, date: 1, dateISO: 1, _id: 0 },
       ).lean(),
       Settings.findOne(
@@ -779,7 +779,10 @@ app.use((error, _req, res, _next) => {
   if (error?.code === 11000) {
     return res.status(409).json({ error: 'Registro duplicado.' })
   }
-  res.status(500).json({ error: 'Erro interno do servidor.' })
+  const status = Number(error?.statusCode) || 500
+  res.status(status).json({
+    error: status >= 500 ? (error?.message || 'Erro interno do servidor.') : error.message,
+  })
 })
 
 const distDir = path.join(rootDir, 'dist')

@@ -5,6 +5,7 @@ import ReservationLookup from './components/ReservationLookup'
 import AdminPanel from './admin/AdminPanel'
 import AdminLogin from './admin/AdminLogin'
 import { getPriceForDay, loadSettings } from './data/settings'
+import { api } from './data/api'
 import {
   ArrowRight,
   CalendarDays,
@@ -102,13 +103,10 @@ function App() {
   const [visitOpen, setVisitOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
   const [adminOpen, setAdminOpen] = useState(() => window.location.pathname === '/admin')
-  const [adminAuthenticated, setAdminAuthenticated] = useState(() => sessionStorage.getItem('espacoon_admin_session') === 'authenticated')
+  const [adminAuthenticated, setAdminAuthenticated] = useState(false)
+  const [adminSessionChecked, setAdminSessionChecked] = useState(false)
   const [siteSettings, setSiteSettings] = useState(loadSettings)
-  const [reservedDays, setReservedDays] = useState(() => {
-    if (typeof window === 'undefined') return new Set()
-    const stored = JSON.parse(localStorage.getItem('espacoon_reservations') || '[]')
-    return new Set(stored.map((item) => item.day))
-  })
+  const [reservedDays, setReservedDays] = useState(new Set())
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -116,6 +114,45 @@ function App() {
     }, 6500)
     return () => clearInterval(id)
   }, [])
+
+  useEffect(() => {
+    let active = true
+
+    Promise.all([api.getSettings(), api.getAvailability()])
+      .then(([settingsData, availability]) => {
+        if (!active) return
+        setSiteSettings(settingsData)
+        setReservedDays(new Set(availability.reservedDays || []))
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    if (!adminOpen) {
+      setAdminSessionChecked(false)
+      return
+    }
+
+    let active = true
+    api.adminSession()
+      .then(() => {
+        if (active) setAdminAuthenticated(true)
+      })
+      .catch(() => {
+        if (active) setAdminAuthenticated(false)
+      })
+      .finally(() => {
+        if (active) setAdminSessionChecked(true)
+      })
+
+    return () => {
+      active = false
+    }
+  }, [adminOpen])
 
   const monthDays = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), [])
 
@@ -140,10 +177,17 @@ function App() {
   }
 
   if (adminOpen) {
+    if (!adminSessionChecked) {
+      return <div className="admin-session-loading">Carregando painel...</div>
+    }
+
     if (!adminAuthenticated) {
       return (
         <AdminLogin
-          onAuthenticated={() => setAdminAuthenticated(true)}
+          onAuthenticated={() => {
+            setAdminAuthenticated(true)
+            setAdminSessionChecked(true)
+          }}
           onBack={() => {
             window.history.pushState({}, '', '/')
             setAdminOpen(false)
@@ -154,9 +198,14 @@ function App() {
 
     return (
       <AdminPanel
-        onClose={() => {
-          setSiteSettings(loadSettings())
-          sessionStorage.removeItem('espacoon_admin_session')
+        onClose={async () => {
+          try {
+            await api.adminLogout()
+          } catch {}
+          try {
+            const refreshed = await api.getSettings()
+            setSiteSettings(refreshed)
+          } catch {}
           setAdminAuthenticated(false)
           window.history.pushState({}, '', '/')
           setAdminOpen(false)

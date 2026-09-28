@@ -29,6 +29,7 @@ const reservationSchema = new mongoose.Schema(
     id: { type: String, required: true, unique: true, index: true },
     day: Number,
     date: String,
+    dateISO: { type: String, index: true },
     period: String,
     price: Number,
     customer: {
@@ -88,6 +89,7 @@ const settingsSchema = new mongoose.Schema(
     key: { type: String, default: 'main', unique: true },
     prices: mongoose.Schema.Types.Mixed,
     blockedDays: [Number],
+    blockedDates: [String],
     specialDates: [mongoose.Schema.Types.Mixed],
     rentalHours: mongoose.Schema.Types.Mixed,
     gallery: [String],
@@ -112,6 +114,7 @@ const DEFAULT_SETTINGS = {
     sunday24: 850,
   },
   blockedDays: [],
+  blockedDates: [],
   specialDates: [],
   rentalHours: {
     '12h': '08:00 às 20:00',
@@ -194,15 +197,36 @@ app.get('/api/settings', async (_req, res, next) => {
   }
 })
 
+function displayDateToISO(value) {
+  const match = String(value || '').match(/^(\d{2})\/(\d{2})\/(\d{4})$/)
+  if (!match) return null
+  return match[3] + '-' + match[2] + '-' + match[1]
+}
+
 app.get('/api/availability', async (_req, res, next) => {
   try {
     const [reservations, settings] = await Promise.all([
-      Reservation.find({ paymentStatus: 'approved-simulated' }, { day: 1, date: 1, _id: 0 }).lean(),
-      Settings.findOne({ key: 'main' }, { blockedDays: 1, _id: 0 }).lean(),
+      Reservation.find(
+        { paymentStatus: 'approved-simulated' },
+        { day: 1, date: 1, dateISO: 1, _id: 0 },
+      ).lean(),
+      Settings.findOne(
+        { key: 'main' },
+        { blockedDays: 1, blockedDates: 1, _id: 0 },
+      ).lean(),
     ])
+
+    const reservedDates = reservations
+      .map((item) => item.dateISO || displayDateToISO(item.date))
+      .filter(Boolean)
+
+    const legacyBlocked = (settings?.blockedDays || []).map(
+      (day) => '2026-10-' + String(day).padStart(2, '0'),
+    )
+
     res.json({
-      reservedDays: reservations.map((item) => Number(item.day)).filter(Boolean),
-      blockedDays: settings?.blockedDays || [],
+      reservedDates,
+      blockedDates: [...new Set([...(settings?.blockedDates || []), ...legacyBlocked])],
     })
   } catch (error) {
     next(error)
@@ -211,7 +235,7 @@ app.get('/api/availability', async (_req, res, next) => {
 
 app.put('/api/admin/settings', requireAdmin, async (req, res, next) => {
   try {
-    const allowed = ['prices', 'blockedDays', 'specialDates', 'rentalHours', 'gallery', 'amenities']
+    const allowed = ['prices', 'blockedDays', 'blockedDates', 'specialDates', 'rentalHours', 'gallery', 'amenities']
     const update = {}
     for (const key of allowed) {
       if (req.body?.[key] !== undefined) update[key] = req.body[key]

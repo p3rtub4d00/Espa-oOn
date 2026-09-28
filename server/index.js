@@ -74,6 +74,14 @@ const paymentLimiter = rateLimit({
   message: { error: 'Muitas tentativas de pagamento. Aguarde alguns minutos e tente novamente.' },
 })
 
+const paymentStatusLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 120,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Muitas verificações de pagamento. Aguarde alguns instantes.' },
+})
+
 const lookupLimiter = rateLimit({
   windowMs: 15 * 60 * 1000,
   limit: 20,
@@ -113,6 +121,7 @@ const contractSchema = new mongoose.Schema(
     id: { type: String, required: true, unique: true, index: true },
     reservationId: { type: String, required: true, index: true },
     reservationDate: String,
+    reservationDateISO: String,
     period: String,
     price: Number,
     customer: {
@@ -730,7 +739,7 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
   }
 })
 
-app.get('/api/payments/asaas/:reservationId/status', paymentLimiter, async (req, res, next) => {
+app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async (req, res, next) => {
   try {
     const reservation = await Reservation.findOne({ id: req.params.reservationId }).lean()
     if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
@@ -883,6 +892,10 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
 
     res.status(200).json({ ok: true })
   } catch (error) {
+    if (error?.code === 11000) {
+      return res.status(200).json({ ok: true, duplicate: true })
+    }
+
     const eventId = req.body?.id
     if (eventId) {
       await WebhookEvent.updateOne(
@@ -890,6 +903,75 @@ app.post('/api/webhooks/asaas', async (req, res, next) => {
         { $set: { status: 'failed', lastError: String(error?.message || 'Erro no processamento').slice(0, 500) } },
       ).catch(() => {})
     }
+    next(error)
+  }
+})
+
+app.get('/api/contracts/:id/verify', lookupLimiter, async (req, res, next) => {
+  try {
+    const id = textValue(req.params.id, 60)
+    const hash = textValue(req.query.hash, 128).toUpperCase()
+    if (!id || !hash) return res.status(400).json({ error: 'Dados de verificação incompletos.' })
+
+    const contract = await Contract.findOne({ id }, {
+      id: 1,
+      reservationId: 1,
+      reservationDate: 1,
+      period: 1,
+      signedAt: 1,
+      hash: 1,
+      status: 1,
+      paymentStatus: 1,
+      _id: 0,
+    }).lean()
+
+    if (!contract || !secureEqual(contract.hash, hash)) {
+      return res.status(404).json({ valid: false, error: 'Contrato não localizado ou hash inválido.' })
+    }
+
+    res.json({
+      valid: true,
+      contract: {
+        id: contract.id,
+        reservationId: contract.reservationId,
+        reservationDate: contract.reservationDate,
+        period: contract.period,
+        signedAt: contract.signedAt,
+        status: contract.status,
+        paymentStatus: contract.paymentStatus,
+      },
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/contracts/:id/qr', lookupLimiter, async (req, res, next) => {
+  try {
+    const id = textValue(req.params.id, 60)
+    const hash = textValue(req.query.hash, 128).toUpperCase()
+    const contract = await Contract.findOne({ id }, { hash: 1, _id: 0 }).lean()
+
+    if (!contract || !hash || !secureEqual(contract.hash, hash)) {
+      return res.status(404).end()
+    }
+
+    const verificationUrl =
+      req.protocol + '://' + req.get('host') +
+      '/api/contracts/' + encodeURIComponent(id) +
+      '/verify?hash=' + encodeURIComponent(hash)
+
+    const png = await QRCode.toBuffer(verificationUrl, {
+      type: 'png',
+      width: 220,
+      margin: 1,
+      errorCorrectionLevel: 'M',
+    })
+
+    res.setHeader('Content-Type', 'image/png')
+    res.setHeader('Cache-Control', 'private, max-age=3600')
+    res.send(png)
+  } catch (error) {
     next(error)
   }
 })
@@ -995,6 +1077,13 @@ app.patch('/api/admin/visits/:id', requireAdmin, async (req, res, next) => {
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: 5 * 1024 * 1024 },
+  fileFilter: (_req, file, callback) => {
+    const allowed = new Set(['image/jpeg', 'image/png', 'image/webp'])
+    if (!allowed.has(file.mimetype)) {
+      return callback(new Error('Formato de imagem não permitido. Use JPG, PNG ou WebP.'))
+    }
+    callback(null, true)
+  },
 })
 
 app.post('/api/admin/images', requireAdmin, upload.single('image'), async (req, res, next) => {
@@ -1015,6 +1104,22 @@ app.post('/api/admin/images', requireAdmin, upload.single('image'), async (req, 
     })
     stream.on('error', next)
   } catch (error) {
+    next(error)
+  }
+})
+
+app.delete('/api/admin/images/:id', requireAdmin, async (req, res, next) => {
+  try {
+    if (!ObjectId.isValid(req.params.id)) {
+      return res.status(400).json({ error: 'Imagem inválida.' })
+    }
+
+    const id = new ObjectId(req.params.id)
+    const bucket = new GridFSBucket(mongoose.connection.db, { bucketName: 'images' })
+    await bucket.delete(id)
+    res.json({ ok: true })
+  } catch (error) {
+    if (error?.code === 'ENOENT') return res.status(404).json({ error: 'Imagem não encontrada.' })
     next(error)
   }
 })
@@ -1058,13 +1163,34 @@ app.get('*', (_req, res) => {
 
 async function start() {
   try {
+    validateProductionConfig()
     await mongoose.connect(MONGODB_URI)
-    console.log('MongoDB conectado.')
+
+    await Promise.all([
+      Reservation.updateMany(
+        { paymentStatus: 'approved-simulated' },
+        { $set: { paymentStatus: 'paid' } },
+      ),
+      Contract.updateMany(
+        { paymentStatus: 'approved-simulated' },
+        { $set: { paymentStatus: 'paid', status: 'signed-paid' } },
+      ),
+      Contract.updateMany(
+        { status: 'signed-paid-demo' },
+        { $set: { status: 'signed-paid' } },
+      ),
+      Contract.updateMany(
+        { status: 'signed-awaiting-payment-demo' },
+        { $set: { status: 'signed-awaiting-payment' } },
+      ),
+    ])
+
+    console.log('Banco de dados conectado.')
     app.listen(PORT, '0.0.0.0', () => {
-      console.log('EspaçoOn online na porta ' + PORT)
+      console.log('EspaçoOn em produção na porta ' + PORT)
     })
   } catch (error) {
-    console.error('Falha ao conectar ao MongoDB:', error)
+    console.error('Falha ao iniciar o EspaçoOn:', error?.message || error)
     process.exit(1)
   }
 }

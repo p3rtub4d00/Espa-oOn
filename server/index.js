@@ -3,6 +3,9 @@ import mongoose from 'mongoose'
 import cookieParser from 'cookie-parser'
 import jwt from 'jsonwebtoken'
 import multer from 'multer'
+import helmet from 'helmet'
+import { rateLimit } from 'express-rate-limit'
+import crypto from 'crypto'
 import { GridFSBucket, ObjectId } from 'mongodb'
 import path from 'path'
 import { fileURLToPath } from 'url'
@@ -15,20 +18,68 @@ const app = express()
 const PORT = process.env.PORT || 10000
 const MONGODB_URI = process.env.MONGODB_URI
 const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
-const JWT_SECRET = process.env.JWT_SECRET || 'change-me-in-render'
+const JWT_SECRET = process.env.JWT_SECRET
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY
-const ASAAS_ENV = String(process.env.ASAAS_ENV || 'sandbox').toLowerCase()
+const ASAAS_ENV = String(process.env.ASAAS_ENV || 'production').toLowerCase()
 const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN
 const ASAAS_BASE_URL = ASAAS_ENV === 'production'
   ? 'https://api.asaas.com/v3'
   : 'https://api-sandbox.asaas.com/v3'
 
-if (!MONGODB_URI) {
-  console.warn('MONGODB_URI is not configured.')
-}
+app.set('trust proxy', 1)
 
-app.use(express.json({ limit: '12mb' }))
+app.use(helmet({
+  contentSecurityPolicy: {
+    directives: {
+      defaultSrc: ["'self'"],
+      scriptSrc: ["'self'"],
+      styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
+      fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
+      imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
+      connectSrc: ["'self'"],
+      objectSrc: ["'none'"],
+      frameAncestors: ["'none'"],
+      baseUri: ["'self'"],
+      formAction: ["'self'"],
+    },
+  },
+  crossOriginResourcePolicy: { policy: 'cross-origin' },
+}))
+
+app.use(express.json({ limit: '4mb' }))
 app.use(cookieParser())
+
+const loginLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 8,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de acesso. Aguarde alguns minutos e tente novamente.' },
+})
+
+const publicWriteLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 30,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Muitas solicitações. Aguarde alguns minutos e tente novamente.' },
+})
+
+const paymentLimiter = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  limit: 12,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Muitas tentativas de pagamento. Aguarde alguns minutos e tente novamente.' },
+})
+
+const lookupLimiter = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  limit: 20,
+  standardHeaders: 'draft-7',
+  legacyHeaders: false,
+  message: { error: 'Muitas consultas. Aguarde alguns minutos e tente novamente.' },
+})
 
 const reservationSchema = new mongoose.Schema(
   {
@@ -72,7 +123,7 @@ const contractSchema = new mongoose.Schema(
     signedAt: Date,
     signature: String,
     hash: String,
-    status: { type: String, default: 'signed-awaiting-payment-demo' },
+    status: { type: String, default: 'signed-awaiting-payment' },
     paymentStatus: { type: String, default: 'awaiting-payment' },
     paidAt: Date,
   },
@@ -100,7 +151,11 @@ const webhookEventSchema = new mongoose.Schema(
     id: { type: String, required: true, unique: true, index: true },
     event: String,
     paymentId: String,
+    status: { type: String, default: 'processing', index: true },
+    attempts: { type: Number, default: 1 },
+    lastError: String,
     receivedAt: { type: Date, default: Date.now },
+    processedAt: Date,
   },
   { timestamps: true },
 )

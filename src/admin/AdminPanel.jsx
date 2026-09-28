@@ -41,6 +41,27 @@ function money(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
 
+function maskCpf(value = '') {
+  const digits = String(value).replace(/\D/g, '')
+  if (digits.length !== 11) return '-'
+  return '***.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-**'
+}
+
+function paymentStatusLabel(status) {
+  if (status === 'paid') return 'Pago'
+  if (status === 'confirmed-asaas') return 'Confirmado • processando'
+  if (status === 'pending-asaas') return 'Aguardando Pix'
+  if (status === 'manual-review') return 'Conferência manual'
+  if (status === 'refunded') return 'Estornado'
+  if (status === 'cancelled') return 'Cancelado'
+  if (status === 'expired') return 'Expirado'
+  return 'Pendente'
+}
+
+function isActiveReservation(reservation) {
+  return ['paid', 'confirmed-asaas', 'pending-asaas', 'manual-review'].includes(reservation?.paymentStatus)
+}
+
 function normalizeWhatsAppNumber(phone = '') {
   const digits = phone.replace(/\D/g, '')
   if (!digits) return ''
@@ -154,10 +175,23 @@ export default function AdminPanel({ onClose }) {
 
   const revenue = useMemo(
     () => reservations
-      .filter((item) => ['paid', 'approved-simulated'].includes(item.paymentStatus))
+      .filter((item) => item.paymentStatus === 'paid')
       .reduce((sum, item) => sum + Number(item.price || 0), 0),
     [reservations],
   )
+
+  const upcomingReservations = useMemo(() => {
+    const today = new Date()
+    const todayISO = [
+      today.getFullYear(),
+      String(today.getMonth() + 1).padStart(2, '0'),
+      String(today.getDate()).padStart(2, '0'),
+    ].join('-')
+
+    return reservations
+      .filter((item) => isActiveReservation(item) && reservationISO(item) >= todayISO)
+      .sort((a, b) => reservationISO(a).localeCompare(reservationISO(b)))
+  }, [reservations])
 
   return (
     <div className="admin-shell">
@@ -230,15 +264,22 @@ export default function AdminPanel({ onClose }) {
             <section className="admin-grid">
               <div className="admin-card">
                 <div className="admin-card-title">
-                  <div><span>Próximas reservas</span><strong>Outubro 2026</strong></div>
+                  <div><span>Próximas reservas</span><strong>{upcomingReservations.length} agendamentos</strong></div>
                   <button onClick={() => setActive('reservations')}>Ver todas</button>
                 </div>
                 <div className="admin-list">
-                  {reservations.slice(0, 5).map((reservation) => (
+                  {upcomingReservations.slice(0, 5).map((reservation) => (
                     <div key={reservation.id}>
                       <span className="date-box">
-                        <b>{String(reservation.day).padStart(2, '0')}</b>
-                        <small>OUT</small>
+                        <b>{String((reservationISO(reservation).split('-')[2] || reservation.day || '')).padStart(2, '0')}</b>
+                        <small>
+                          {reservationISO(reservation)
+                            ? new Intl.DateTimeFormat('pt-BR', { month: 'short' })
+                                .format(new Date(reservationISO(reservation) + 'T12:00:00'))
+                                .replace('.', '')
+                                .toUpperCase()
+                            : ''}
+                        </small>
                       </span>
                       <span className="list-main">
                         <strong>{reservation.customer?.name || 'Cliente'}</strong>
@@ -307,7 +348,7 @@ export default function AdminPanel({ onClose }) {
               {Array.from({ length: adminFirstWeekday }).map((_, i) => <span key={'e'+i} />)}
               {adminMonthDays.map((day) => {
                 const iso = toISODate(calendarMonth.getFullYear(), calendarMonth.getMonth(), day)
-                const reservation = reservations.find((r) => reservationISO(r) === iso)
+                const reservation = reservations.find((r) => reservationISO(r) === iso && isActiveReservation(r))
                 const legacyBlocked = calendarMonth.getFullYear() === 2026
                   && calendarMonth.getMonth() === 9
                   && (settings.blockedDays || []).includes(day)
@@ -369,14 +410,8 @@ export default function AdminPanel({ onClose }) {
                   <span>{r.period}</span>
                   <span>{money(r.price)}</span>
                   <span>
-                    <i className={['paid', 'approved-simulated'].includes(r.paymentStatus) ? 'status-ok' : 'visit-status pending'}>
-                      {['paid', 'approved-simulated'].includes(r.paymentStatus)
-                        ? 'Pago'
-                        : r.paymentStatus === 'confirmed-asaas'
-                          ? 'Confirmado • processando'
-                          : r.paymentStatus === 'pending-asaas'
-                            ? 'Aguardando Pix'
-                            : 'Pendente'}
+                    <i className={r.paymentStatus === 'paid' ? 'status-ok' : 'visit-status pending'}>
+                      {paymentStatusLabel(r.paymentStatus)}
                     </i>
                   </span>
                 </div>
@@ -554,7 +589,7 @@ export default function AdminPanel({ onClose }) {
                 })}
               </div>
             ) : (
-              <div className="admin-empty large">Ainda não existem solicitações de visita neste navegador.</div>
+              <div className="admin-empty large">Ainda não existem solicitações de visita.</div>
             )}
           </section>
         )}
@@ -562,7 +597,7 @@ export default function AdminPanel({ onClose }) {
         {active === 'prices' && (
           <section className="admin-card large">
             <div className="admin-card-title">
-              <div><span>Tabela de preços</span><strong>Valores de demonstração</strong></div>
+              <div><span>Tabela de preços</span><strong>Valores publicados no site</strong></div>
               <Settings2 />
             </div>
             <div className="price-settings">
@@ -594,7 +629,7 @@ export default function AdminPanel({ onClose }) {
               ))}
             </div>
             <div className="admin-demo-note">
-              Os valores são salvos neste navegador e passam a ser usados no site público quando você voltar ao site.
+              As alterações são salvas no servidor e passam a ser utilizadas nas novas reservas do site.
             </div>
           </section>
         )}
@@ -625,13 +660,7 @@ export default function AdminPanel({ onClose }) {
                 <div>
                   <span>Status</span>
                   <strong>
-                    {['paid', 'approved-simulated'].includes(selectedReservation.paymentStatus)
-                      ? 'Pagamento confirmado'
-                      : selectedReservation.paymentStatus === 'confirmed-asaas'
-                        ? 'Confirmado • aguardando liquidação'
-                        : selectedReservation.paymentStatus === 'pending-asaas'
-                          ? 'Aguardando Pix'
-                          : 'Pendente'}
+                    {paymentStatusLabel(selectedReservation.paymentStatus)}
                   </strong>
                 </div>
               </div>
@@ -647,7 +676,7 @@ export default function AdminPanel({ onClose }) {
                 </div>
                 <div>
                   <span>CPF</span>
-                  <strong>{selectedReservation.customer?.cpf || '-'}</strong>
+                  <strong>{maskCpf(selectedReservation.customer?.cpf)}</strong>
                 </div>
                 <div>
                   <span>Período</span>

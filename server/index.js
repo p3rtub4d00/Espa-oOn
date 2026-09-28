@@ -435,12 +435,22 @@ async function acquireDateLock(dateISO, reservationId) {
 
     const expired = existing.status === 'pending' && existing.expiresAt && new Date(existing.expiresAt) <= now
     if (expired) {
-      await DateLock.deleteOne({
-        _id: dateISO,
-        reservationId: existing.reservationId,
-        status: 'pending',
-        expiresAt: { $lte: now },
-      })
+      const previousReservation = await Reservation.findOne({ id: existing.reservationId }).lean()
+      if (previousReservation) {
+        const resolution = await resolveExpiredPayment(previousReservation)
+        if (!resolution.expired) {
+          const error = new Error('Esta data ainda está vinculada a um pagamento em processamento.')
+          error.statusCode = 409
+          throw error
+        }
+      } else {
+        await DateLock.deleteOne({
+          _id: dateISO,
+          reservationId: existing.reservationId,
+          status: 'pending',
+          expiresAt: { $lte: now },
+        })
+      }
     } else {
       const error = new Error('Esta data já possui uma reserva ou pagamento em andamento.')
       error.statusCode = 409
@@ -548,6 +558,98 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
   return { reservation: savedReservation, contract: savedContract }
 }
 
+async function resolveExpiredPayment(reservation) {
+  if (!reservation?.dateISO) return { expired: false }
+
+  const expire = async () => {
+    const expiredReservation = await Reservation.findOneAndUpdate(
+      { id: reservation.id, paymentStatus: 'pending-asaas' },
+      {
+        $set: {
+          paymentStatus: 'expired',
+          asaasStatus: 'EXPIRED_LOCAL_HOLD',
+          holdUntil: null,
+        },
+      },
+      { new: true },
+    ).lean()
+
+    await Contract.updateOne(
+      { id: reservation.contractId, paymentStatus: { $ne: 'paid' } },
+      { $set: { paymentStatus: 'expired' } },
+    )
+
+    await DateLock.deleteOne({
+      _id: reservation.dateISO,
+      reservationId: reservation.id,
+      status: 'pending',
+    })
+
+    return { expired: true, reservation: expiredReservation }
+  }
+
+  if (!reservation.asaasPaymentId) return expire()
+
+  try {
+    await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
+    return expire()
+  } catch {
+    try {
+      const payment = await asaasRequest('/payments/' + reservation.asaasPaymentId)
+
+      if (payment.status === 'RECEIVED') {
+        const result = await markPaymentReceived(reservation, payment, 'EXPIRATION_CHECK')
+        return {
+          expired: false,
+          paid: !result?.manualReview,
+          manualReview: Boolean(result?.manualReview),
+          ...result,
+        }
+      }
+
+      if (payment.status === 'CONFIRMED') {
+        await DateLock.updateOne(
+          { _id: reservation.dateISO, reservationId: reservation.id },
+          { $set: { status: 'confirmed', expiresAt: null } },
+        )
+
+        const updated = await Reservation.findOneAndUpdate(
+          { id: reservation.id },
+          {
+            $set: {
+              paymentStatus: 'confirmed-asaas',
+              asaasStatus: 'CONFIRMED',
+              holdUntil: null,
+            },
+          },
+          { new: true },
+        ).lean()
+
+        await Contract.updateOne(
+          { id: reservation.contractId },
+          { $set: { paymentStatus: 'confirmed-asaas' } },
+        )
+
+        return { expired: false, confirmed: true, reservation: updated }
+      }
+    } catch {
+      // Mantém a data protegida por mais alguns minutos em caso de indisponibilidade temporária do provedor.
+    }
+
+    const extendedUntil = new Date(Date.now() + 5 * 60 * 1000)
+    await DateLock.updateOne(
+      { _id: reservation.dateISO, reservationId: reservation.id, status: 'pending' },
+      { $set: { expiresAt: extendedUntil } },
+    )
+    await Reservation.updateOne(
+      { id: reservation.id, paymentStatus: 'pending-asaas' },
+      { $set: { holdUntil: extendedUntil } },
+    )
+
+    return { expired: false, retry: true }
+  }
+}
+
 async function cleanupExpiredLocks() {
   const now = new Date()
   const locks = await DateLock.find({
@@ -557,25 +659,15 @@ async function cleanupExpiredLocks() {
 
   for (const lock of locks) {
     const reservation = await Reservation.findOne({ id: lock.reservationId }).lean()
-
-    if (reservation?.asaasPaymentId) {
-      try {
-        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
-      } catch (error) {
-        console.warn('Não foi possível cancelar cobrança expirada:', reservation.asaasPaymentId)
-      }
+    if (reservation) {
+      await resolveExpiredPayment(reservation)
+    } else {
+      await DateLock.deleteOne({
+        _id: lock._id,
+        reservationId: lock.reservationId,
+        status: 'pending',
+      })
     }
-
-    await Reservation.updateOne(
-      { id: lock.reservationId, paymentStatus: 'pending-asaas' },
-      { $set: { paymentStatus: 'expired', asaasStatus: 'EXPIRED_LOCAL_HOLD' } },
-    )
-
-    await DateLock.deleteOne({
-      _id: lock._id,
-      reservationId: lock.reservationId,
-      status: 'pending',
-    })
   }
 }
 
@@ -774,6 +866,16 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
       existing?.asaasPaymentId &&
       ['pending-asaas', 'confirmed-asaas'].includes(existing.paymentStatus)
     ) {
+      await DateLock.updateOne(
+        { _id: contractDateISO, reservationId },
+        {
+          $set: {
+            status: existing.paymentStatus === 'confirmed-asaas' ? 'confirmed' : 'pending',
+            expiresAt: existing.paymentStatus === 'confirmed-asaas' ? null : existing.holdUntil,
+          },
+        },
+      )
+
       const qr = await asaasRequest('/payments/' + existing.asaasPaymentId + '/pixQrCode')
       return res.json({
         reservation: existing,
@@ -793,7 +895,7 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
     )
 
     const reusablePayment = reconciled?.data?.find((item) =>
-      ['PENDING', 'CONFIRMED'].includes(item.status)
+      ['RECEIVED', 'CONFIRMED', 'PENDING'].includes(item.status)
     )
 
     const payment = reusablePayment || await asaasRequest('/payments', {
@@ -807,6 +909,37 @@ app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
         externalReference: reservationId,
       },
     })
+
+    if (payment.status === 'RECEIVED') {
+      const preliminaryReservation = await Reservation.findOneAndUpdate(
+        { id: reservationId },
+        {
+          $set: {
+            id: reservationId,
+            day: Number(contractDateISO.slice(-2)),
+            date: contract.reservationDate || displayDate(contractDateISO),
+            dateISO: contractDateISO,
+            period: contract.period,
+            customer: contract.customer,
+            price: serverPrice,
+            contractId,
+            paymentStatus: 'pending-asaas',
+            asaasCustomerId: customer.id,
+            asaasPaymentId: payment.id,
+            asaasStatus: payment.status,
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      ).lean()
+
+      const received = await markPaymentReceived(preliminaryReservation, payment, 'RECONCILIATION')
+      return res.json({
+        paid: !received?.manualReview,
+        manualReview: Boolean(received?.manualReview),
+        ...received,
+        asaasStatus: payment.status,
+      })
+    }
 
     const pix = await asaasRequest('/payments/' + payment.id + '/pixQrCode')
     const holdUntil = new Date(Date.now() + 15 * 60 * 1000)
@@ -906,25 +1039,39 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
       reservation.holdUntil &&
       new Date(reservation.holdUntil) <= new Date()
     ) {
-      try {
-        await asaasRequest('/payments/' + reservation.asaasPaymentId, { method: 'DELETE' })
-      } catch {
-        // A cobrança pode já ter mudado de status; a consulta abaixo resolverá no próximo ciclo.
+      const resolution = await resolveExpiredPayment(reservation)
+
+      if (resolution.paid || resolution.manualReview) {
+        return res.json({
+          paid: Boolean(resolution.paid),
+          manualReview: Boolean(resolution.manualReview),
+          ...resolution,
+          asaasStatus: resolution.reservation?.asaasStatus || reservation.asaasStatus,
+        })
       }
 
-      await releasePendingDateLock(reservation.dateISO, reservation.id)
+      if (resolution.confirmed) {
+        return res.json({
+          paid: false,
+          confirmed: true,
+          reservation: resolution.reservation,
+          asaasStatus: 'CONFIRMED',
+        })
+      }
 
-      const expired = await Reservation.findOneAndUpdate(
-        { id: reservation.id, paymentStatus: 'pending-asaas' },
-        { $set: { paymentStatus: 'expired', asaasStatus: 'EXPIRED_LOCAL_HOLD' } },
-        { new: true },
-      ).lean()
+      if (resolution.expired) {
+        return res.json({
+          paid: false,
+          expired: true,
+          reservation: resolution.reservation,
+          asaasStatus: 'EXPIRED_LOCAL_HOLD',
+        })
+      }
 
       return res.json({
         paid: false,
-        expired: true,
-        reservation: expired,
-        asaasStatus: 'EXPIRED_LOCAL_HOLD',
+        reservation,
+        asaasStatus: reservation.asaasStatus,
       })
     }
 

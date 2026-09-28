@@ -1,6 +1,30 @@
-export default function BrandLogo({ className = '', showAdmin = false }) {
+export default function BrandLogo({
+  className = '',
+  showAdmin = false,
+  name = 'EspaçoOn',
+  logoUrl = '',
+  primaryColor = '#0f3554',
+  secondaryColor = '#1f8efa',
+  accentColor = '#53b9ff',
+}) {
+  const accessibleName = name || 'EspaçoOn'
+
+  if (logoUrl) {
+    return (
+      <span className={`brand-logo brand-logo-custom ${className}`.trim()} aria-label={accessibleName}>
+        <img className="brand-logo-image" src={logoUrl} alt={accessibleName} />
+        {showAdmin && (
+          <span className="brand-logo-custom-admin">
+            <strong>{accessibleName}</strong>
+            <small>Admin</small>
+          </span>
+        )}
+      </span>
+    )
+  }
+
   return (
-    <span className={`brand-logo ${className}`.trim()} aria-label="EspaçoOn">
+    <span className={`brand-logo ${className}`.trim()} aria-label={accessibleName}>
       <svg
         className="brand-logo-mark"
         viewBox="0 0 120 120"
@@ -9,13 +33,13 @@ export default function BrandLogo({ className = '', showAdmin = false }) {
       >
         <defs>
           <linearGradient id="brandDeep" x1="10" y1="10" x2="105" y2="105" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#0B2E6D" />
-            <stop offset=".55" stopColor="#0D50C8" />
-            <stop offset="1" stopColor="#117CF1" />
+            <stop offset="0" stopColor={primaryColor} />
+            <stop offset=".55" stopColor={secondaryColor} />
+            <stop offset="1" stopColor={secondaryColor} />
           </linearGradient>
           <linearGradient id="brandLight" x1="15" y1="55" x2="108" y2="90" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor="#4CCBFF" />
-            <stop offset="1" stopColor="#1188F4" />
+            <stop offset="0" stopColor={accentColor} />
+            <stop offset="1" stopColor={secondaryColor} />
           </linearGradient>
         </defs>
 
@@ -29,19 +53,19 @@ export default function BrandLogo({ className = '', showAdmin = false }) {
         />
         <path
           d="M36 73c14 9 30 12 46 8 9-2 17-6 25-11-7 12-18 21-31 26-14 5-31 4-45-3 10-2 19-8 25-15-7 1-14-1-20-5Z"
-          fill="#49C7FF"
+          fill={accentColor}
           opacity=".92"
         />
 
         <g transform="translate(45 34)">
-          <rect x="0" y="8" width="42" height="33" rx="8" fill="#0A2E68" />
-          <rect x="4" y="13" width="34" height="24" rx="5" fill="#08275B" />
-          <rect x="9" y="0" width="5" height="13" rx="2.5" fill="#0D50C8" />
-          <rect x="28" y="0" width="5" height="13" rx="2.5" fill="#0D50C8" />
+          <rect x="0" y="8" width="42" height="33" rx="8" fill={primaryColor} />
+          <rect x="4" y="13" width="34" height="24" rx="5" fill={primaryColor} />
+          <rect x="9" y="0" width="5" height="13" rx="2.5" fill={secondaryColor} />
+          <rect x="28" y="0" width="5" height="13" rx="2.5" fill={secondaryColor} />
           <path
             d="m13 26 7 7 12-15"
             fill="none"
-            stroke="#1F8EFA"
+            stroke={secondaryColor}
             strokeWidth="5"
             strokeLinecap="round"
             strokeLinejoin="round"
@@ -50,7 +74,7 @@ export default function BrandLogo({ className = '', showAdmin = false }) {
       </svg>
 
       <span className="brand-logo-word">
-        <span>Espaço</span><strong>On</strong>
+        <span>{accessibleName}</span>
         {showAdmin && <small>Admin</small>}
       </span>
     </span>

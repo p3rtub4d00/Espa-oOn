@@ -1800,3 +1800,30 @@
     width: 100%;
   }
 }
+
+
+.admin-calendar button.reserved {
+  cursor: pointer;
+}
+
+.admin-calendar button.reserved:hover {
+  border-color: #7fc3f5;
+  box-shadow: 0 8px 22px rgba(31,142,250,.10);
+}
+
+.calendar-view-hint {
+  display: block;
+  margin-top: 3px;
+  color: #1f8efa;
+  font-size: 7px;
+  font-style: normal;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: .04em;
+}
+
+.reservation-detail-backdrop {
+  position: fixed !important;
+  z-index: 9999 !important;
+  inset: 0;
+}

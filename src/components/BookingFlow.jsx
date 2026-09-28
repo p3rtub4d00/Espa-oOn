@@ -1,6 +1,6 @@
 import { useEffect, useMemo, useState } from 'react'
 import ContractFlow from './ContractFlow'
-import { getPriceForDay, loadSettings } from '../data/settings'
+import { getPriceForDate, loadSettings } from '../data/settings'
 import { api } from '../data/api'
 import { sharePaymentDocuments } from '../utils/documents'
 import {
@@ -51,7 +51,7 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, '$1-$2')
 }
 
-export default function BookingFlow({ day, settings = loadSettings(), onClose, onReserved }) {
+export default function BookingFlow({ dateISO, settings = loadSettings(), onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
   const [copied, setCopied] = useState(false)
@@ -67,11 +67,20 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
   })
   const [errors, setErrors] = useState({})
 
-  const price = getPriceForDay(day, period, settings)
-  const dateLabel = String(day).padStart(2, '0') + '/10/2026'
+  const parsedDate = useMemo(() => {
+    const [year, month, day] = dateISO.split('-').map(Number)
+    return new Date(year, month - 1, day, 12)
+  }, [dateISO])
+
+  const price = getPriceForDate(dateISO, period, settings)
+  const dateLabel = useMemo(() => {
+    const [year, month, day] = dateISO.split('-')
+    return day + '/' + month + '/' + year
+  }, [dateISO])
+
   const reservationId = useMemo(
-    () => 'ESP-2026-' + String(day).padStart(2, '0') + '-' + Math.floor(1000 + Math.random() * 9000),
-    [day],
+    () => 'ESP-' + dateISO.replaceAll('-', '') + '-' + Math.floor(1000 + Math.random() * 9000),
+    [dateISO],
   )
   const pixCode = useMemo(
     () => '00020126580014BR.GOV.BCB.PIX0136ESPACOON-PAGAMENTO-SIMULADO-' + reservationId + '5204000053039865802BR5920ESPACOON DEMONSTRACAO6009PORTOVELHO62070503***6304ABCD',
@@ -80,8 +89,9 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
 
   const draftReservation = {
     id: reservationId,
-    day,
+    day: parsedDate.getDate(),
     date: dateLabel,
+    dateISO,
     period,
     price,
     customer: form,
@@ -143,7 +153,7 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
 
       setPaidReservation(reservation)
       setSignedContract(paidContract)
-      onReserved?.(day)
+      onReserved?.(dateISO)
       setStep(5)
 
       const delivery = await sharePaymentDocuments(reservation, paidContract)
@@ -215,7 +225,7 @@ export default function BookingFlow({ day, settings = loadSettings(), onClose, o
                       <strong>{title}</strong>
                       <small>{description}</small>
                     </span>
-                    <b>{money(getPriceForDay(day, value, settings))}</b>
+                    <b>{money(getPriceForDate(dateISO, value, settings))}</b>
                     <i>{period === value && <Check size={15} />}</i>
                   </button>
                 ))}

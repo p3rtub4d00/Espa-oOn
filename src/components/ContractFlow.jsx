@@ -10,6 +10,7 @@ import {
   X,
 } from 'lucide-react'
 import { api } from '../data/api'
+import { DEFAULT_SETTINGS } from '../data/settings'
 import './contract.css'
 
 function maskCpf(cpf = '') {
@@ -29,11 +30,29 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [verifyResult, setVerifyResult] = useState(null)
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
+  const [cancellationPolicyText, setCancellationPolicyText] = useState(
+    DEFAULT_SETTINGS.cancellationPolicy.text,
+  )
 
   const contractId = useMemo(
     () => 'CTR-' + reservation.id.replace('ESP-', ''),
     [reservation.id],
   )
+
+  useEffect(() => {
+    let active = true
+    api.getSettings()
+      .then((settings) => {
+        if (active && settings?.cancellationPolicy?.text) {
+          setCancellationPolicyText(settings.cancellationPolicy.text)
+        }
+      })
+      .catch(() => {})
+
+    return () => {
+      active = false
+    }
+  }, [])
 
   useEffect(() => {
     const canvas = canvasRef.current
@@ -125,6 +144,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       customer: reservation.customer,
       signedAt,
       signature,
+      cancellationPolicyText,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
     }
@@ -208,7 +228,10 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                   por meio do Asaas e a reserva somente será confirmada após a confirmação do recebimento.
                 </p>
                 <p>
-                  <strong>5. Assinatura eletrônica.</strong> O sistema registra a manifestação de aceite,
+                  <strong>5. Cancelamento e reembolso.</strong> {cancellationPolicyText}
+                </p>
+                <p>
+                  <strong>6. Assinatura eletrônica.</strong> O sistema registra a manifestação de aceite,
                   a assinatura desenhada, a data e hora, o identificador do documento e um hash SHA-256
                   calculado no servidor para verificação de integridade.
                 </p>

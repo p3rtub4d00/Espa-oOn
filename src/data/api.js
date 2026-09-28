@@ -23,6 +23,7 @@ async function request(url, options = {}) {
 
 export const api = {
   getSettings: () => request('/api/settings'),
+  getAdminSettings: () => request('/api/admin/settings'),
   getAvailability: () => request('/api/availability'),
 
   adminSession: () => request('/api/admin/session'),

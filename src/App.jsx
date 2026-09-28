@@ -106,6 +106,8 @@ function App() {
   const [adminSessionChecked, setAdminSessionChecked] = useState(false)
   const [siteSettings, setSiteSettings] = useState(loadSettings)
   const [reservedDates, setReservedDates] = useState(new Set())
+  const [siteReady, setSiteReady] = useState(false)
+  const [siteLoadError, setSiteLoadError] = useState('')
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -122,11 +124,35 @@ function App() {
         if (!active) return
         setSiteSettings(settingsData)
         setReservedDates(new Set(availability.reservedDates || []))
+        setSiteReady(true)
+        setSiteLoadError('')
       })
-      .catch(() => {})
+      .catch(() => {
+        if (!active) return
+        setSiteReady(false)
+        setSiteLoadError('Não foi possível carregar preços e disponibilidade. As reservas estão temporariamente indisponíveis.')
+      })
 
     return () => {
       active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    const refresh = () => {
+      api.getAvailability()
+        .then((availability) => {
+          setReservedDates(new Set(availability.reservedDates || []))
+        })
+        .catch(() => {})
+    }
+
+    const timer = window.setInterval(refresh, 60000)
+    window.addEventListener('focus', refresh)
+
+    return () => {
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refresh)
     }
   }, [])
 
@@ -242,8 +268,14 @@ function App() {
             await api.adminLogout()
           } catch {}
           try {
-            const refreshed = await api.getSettings()
+            const [refreshed, availability] = await Promise.all([
+              api.getSettings(),
+              api.getAvailability(),
+            ])
             setSiteSettings(refreshed)
+            setReservedDates(new Set(availability.reservedDates || []))
+            setSiteReady(true)
+            setSiteLoadError('')
           } catch {}
           setAdminAuthenticated(false)
           window.history.pushState({}, '', '/')
@@ -305,6 +337,13 @@ function App() {
       </header>
 
       <main>
+        {siteLoadError && (
+          <div className="public-system-alert">
+            <span>{siteLoadError}</span>
+            <button onClick={() => window.location.reload()}>Tentar novamente</button>
+          </div>
+        )}
+
         <section className="hero" id="inicio">
           {heroSlides.map((item, index) => (
             <div
@@ -458,11 +497,11 @@ function App() {
 
                 <div className="price-row">
                   <span><Clock3 size={17} /> 12 horas</span>
-                  <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.twelve)}</strong>
+                  <strong>{siteReady ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.twelve) : 'Carregando...'}</strong>
                 </div>
                 <div className="price-row">
                   <span><CalendarDays size={17} /> 24 horas</span>
-                  <strong>{new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.full)}</strong>
+                  <strong>{siteReady ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.full) : 'Carregando...'}</strong>
                 </div>
 
                 <button onClick={() => scrollTo('agenda')}>
@@ -522,7 +561,7 @@ function App() {
                   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12)
                   const past = date < todayOnly
                   const blockedDates = siteSettings.blockedDates || []
-                  const busy = reservedDates.has(iso) || blockedDates.includes(iso) || past
+                  const busy = reservedDates.has(iso) || blockedDates.includes(iso) || past || !siteReady
                   const selected = selectedDate === iso
 
                   return (
@@ -551,7 +590,11 @@ function App() {
                     </button>
                   </>
                 ) : (
-                  <p>Selecione uma data disponível para continuar.</p>
+                  <p>
+                    {!siteReady
+                      ? siteLoadError || 'Carregando disponibilidade...'
+                      : 'Selecione uma data disponível para continuar.'}
+                  </p>
                 )}
               </div>
             </div>
@@ -595,7 +638,7 @@ function App() {
           <span className="brand-mark">E</span>
           <span>Espaço<span>On</span></span>
         </a>
-        <p>Locação de espaço de lazer • Sistema em desenvolvimento</p>
+        <p>Locação de espaço de lazer • Reserva online</p>
         <span>© {new Date().getFullYear()} EspaçoOn</span>
       </footer>
     </div>

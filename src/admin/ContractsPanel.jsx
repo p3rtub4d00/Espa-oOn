@@ -120,8 +120,8 @@ export default function ContractsPanel() {
                   <span>EspaçoOn</span>
                   <h2>Contrato de locação do espaço de lazer</h2>
                 </div>
-                <i className={selected.paymentStatus === 'approved-simulated' || selected.status === 'signed-paid-demo' ? 'paid' : 'pending'}>
-                  {selected.paymentStatus === 'approved-simulated' || selected.status === 'signed-paid-demo'
+                <i className={['paid', 'approved-simulated'].includes(selected.paymentStatus) || ['signed-paid', 'signed-paid-demo'].includes(selected.status) ? 'paid' : 'pending'}>
+                  {['paid', 'approved-simulated'].includes(selected.paymentStatus) || ['signed-paid', 'signed-paid-demo'].includes(selected.status)
                     ? 'Assinado e pago'
                     : 'Assinado • aguardando pagamento'}
                 </i>

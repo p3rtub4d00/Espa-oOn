@@ -1874,3 +1874,57 @@ body {
     right: 12px;
   }
 }
+
+
+/* EspaçoOn brand */
+.brand {
+  min-width: max-content;
+}
+
+.brand-logo {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-logo-mark {
+  width: 46px;
+  height: 46px;
+  flex: 0 0 auto;
+  filter: drop-shadow(0 8px 20px rgba(0, 88, 200, .20));
+}
+
+.brand-logo-word {
+  display: inline-flex;
+  align-items: baseline;
+  line-height: 1;
+  letter-spacing: -.9px;
+  font-family: Manrope, sans-serif;
+  font-size: 22px;
+  font-weight: 850;
+  white-space: nowrap;
+}
+
+.brand-logo-word > span {
+  color: #ffffff;
+}
+
+.brand-logo-word > strong {
+  color: #53b9ff;
+  font-weight: 850;
+}
+
+.brand-logo-word > small {
+  display: none;
+}
+
+@media (max-width: 680px) {
+  .brand-logo-site .brand-logo-mark {
+    width: 40px;
+    height: 40px;
+  }
+
+  .brand-logo-site .brand-logo-word {
+    font-size: 19px;
+  }
+}

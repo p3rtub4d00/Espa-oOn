@@ -347,7 +347,17 @@ export default function AdminPanel({ onClose }) {
                   <span>{r.date}</span>
                   <span>{r.period}</span>
                   <span>{money(r.price)}</span>
-                  <span><i className="status-ok">Confirmada</i></span>
+                  <span>
+                    <i className={['paid', 'approved-simulated'].includes(r.paymentStatus) ? 'status-ok' : 'visit-status pending'}>
+                      {['paid', 'approved-simulated'].includes(r.paymentStatus)
+                        ? 'Pago'
+                        : r.paymentStatus === 'confirmed-asaas'
+                          ? 'Confirmado • processando'
+                          : r.paymentStatus === 'pending-asaas'
+                            ? 'Aguardando Pix'
+                            : 'Pendente'}
+                    </i>
+                  </span>
                 </div>
               ))}
             </div>

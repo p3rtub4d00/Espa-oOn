@@ -80,6 +80,23 @@ export const api = {
       body: JSON.stringify({ password, confirmation }),
     }),
 
+  pushStatus: () => request('/api/admin/push/status'),
+  subscribePush: (subscription) =>
+    request('/api/admin/push/subscribe', {
+      method: 'POST',
+      body: JSON.stringify({ subscription }),
+    }),
+  unsubscribePush: (endpoint) =>
+    request('/api/admin/push/subscribe', {
+      method: 'DELETE',
+      body: JSON.stringify({ endpoint }),
+    }),
+  testPush: (endpoint) =>
+    request('/api/admin/push/test', {
+      method: 'POST',
+      body: JSON.stringify({ endpoint }),
+    }),
+
   updateVisit: (id, changes) =>
     request('/api/admin/visits/' + encodeURIComponent(id), {
       method: 'PATCH',

@@ -3333,3 +3333,347 @@
     width: 100%;
   }
 }
+
+
+/* Dynamic branding */
+.admin-shell,
+.admin-login-shell {
+  --brand-primary: #0f3554;
+  --brand-secondary: #1f8efa;
+  --brand-accent: #53b9ff;
+}
+
+.admin-sidebar {
+  background: var(--brand-primary);
+}
+
+.admin-sidebar nav button.active,
+.admin-sidebar nav button:hover {
+  background: color-mix(in srgb, var(--brand-secondary) 22%, transparent);
+}
+
+.admin-mobile-menu-button,
+.admin-login-submit,
+.push-enable-button,
+.push-test-button,
+.establishment-actions button,
+.cancellation-policy-save,
+.branding-actions > button:first-child {
+  background: var(--brand-secondary);
+}
+
+.admin-user > div,
+.admin-login-icon,
+.amenity-admin-icon {
+  color: var(--brand-secondary);
+}
+
+.brand-logo-admin .brand-logo-word > span {
+  color: #fff;
+}
+
+.brand-logo-admin .brand-logo-word > small,
+.brand-logo-custom-admin small {
+  color: var(--brand-accent);
+}
+
+.brand-logo-image {
+  display: block;
+  width: auto;
+  object-fit: contain;
+}
+
+.brand-logo-admin.brand-logo-custom {
+  display: inline-flex;
+  align-items: center;
+  gap: 10px;
+}
+
+.brand-logo-admin.brand-logo-custom .brand-logo-image {
+  max-width: 145px;
+  height: 46px;
+}
+
+.brand-logo-custom-admin {
+  display: grid;
+  gap: 2px;
+}
+
+.brand-logo-custom-admin strong {
+  color: #fff;
+  font-size: 14px;
+}
+
+.brand-logo-custom-admin small {
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .12em;
+}
+
+/* prevent legacy login square styles from affecting the real logo */
+.admin-login-brand > .brand-logo {
+  width: auto;
+  height: auto;
+  display: inline-flex;
+  place-items: unset;
+  border-radius: 0;
+  color: inherit;
+  background: transparent;
+  font-weight: inherit;
+}
+
+.admin-login-brand {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.admin-login-brand .brand-logo-login {
+  display: inline-flex;
+  align-items: center;
+  gap: 9px;
+}
+
+.brand-logo-login .brand-logo-mark {
+  width: 44px;
+  height: 44px;
+}
+
+.brand-logo-login .brand-logo-word > span {
+  color: #1d2a33;
+  font-size: 18px;
+}
+
+.brand-logo-login.brand-logo-custom .brand-logo-image {
+  max-width: 190px;
+  height: 50px;
+}
+
+.admin-login-brand > small {
+  margin-top: 5px;
+  color: #7b8d9a;
+  font-size: 9px;
+  text-transform: uppercase;
+  letter-spacing: .1em;
+}
+
+/* Branding settings */
+.branding-preview {
+  margin-top: 14px;
+}
+
+.branding-preview > span,
+.branding-preview > small {
+  display: block;
+}
+
+.branding-preview > span {
+  margin-bottom: 7px;
+  color: #536b76;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.branding-preview > small {
+  margin-top: 7px;
+  color: #82949d;
+  font-size: 8px;
+  line-height: 1.5;
+}
+
+.branding-preview-box {
+  min-height: 110px;
+  padding: 20px;
+  display: flex;
+  align-items: center;
+  border-radius: 15px;
+  background: var(--brand-primary);
+}
+
+.brand-logo-preview .brand-logo-mark {
+  width: 58px;
+  height: 58px;
+}
+
+.brand-logo-preview .brand-logo-word > span {
+  color: white;
+  font-size: 24px;
+}
+
+.brand-logo-preview.brand-logo-custom .brand-logo-image {
+  max-width: 240px;
+  max-height: 72px;
+}
+
+.branding-logo-control {
+  margin-top: 18px;
+  padding: 15px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 14px;
+  border: 1px solid rgba(15,53,84,.10);
+  border-radius: 13px;
+  background: #f8fbfe;
+}
+
+.branding-logo-control strong,
+.branding-logo-control span {
+  display: block;
+}
+
+.branding-logo-control strong {
+  color: #294553;
+  font-size: 10px;
+}
+
+.branding-logo-control span {
+  margin-top: 4px;
+  color: #7f9199;
+  font-size: 8px;
+  line-height: 1.45;
+}
+
+.branding-logo-actions {
+  display: flex;
+  gap: 8px;
+  flex: 0 0 auto;
+}
+
+.branding-upload-button,
+.branding-remove-button {
+  min-height: 40px;
+  padding: 0 12px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 7px;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 900;
+  cursor: pointer;
+}
+
+.branding-upload-button {
+  color: white;
+  background: var(--brand-secondary);
+}
+
+.branding-upload-button input {
+  display: none;
+}
+
+.branding-remove-button {
+  border: 1px solid #efcbc6;
+  color: #a3433b;
+  background: #fff4f2;
+}
+
+.branding-colors {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 11px;
+}
+
+.branding-colors label > span {
+  display: block;
+  margin-bottom: 6px;
+  color: #536b76;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.branding-colors label > div {
+  min-height: 44px;
+  padding: 5px 8px;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  border: 1px solid rgba(15,53,84,.12);
+  border-radius: 10px;
+  background: white;
+}
+
+.branding-colors input[type='color'] {
+  width: 34px;
+  height: 30px;
+  padding: 0;
+  border: 0;
+  border-radius: 7px;
+  background: transparent;
+  cursor: pointer;
+}
+
+.branding-hex {
+  min-width: 0;
+  width: 100%;
+  border: 0;
+  outline: 0;
+  color: #294553;
+  background: transparent;
+  font: inherit;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+}
+
+.branding-actions {
+  margin-top: 18px;
+  display: flex;
+  gap: 9px;
+  flex-wrap: wrap;
+}
+
+.branding-actions button {
+  min-height: 42px;
+  padding: 0 14px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  border: 0;
+  border-radius: 10px;
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.branding-actions > button:first-child {
+  color: white;
+}
+
+.branding-actions .secondary {
+  border: 1px solid #c7dbe9;
+  color: #315b79;
+  background: white;
+}
+
+@media (max-width: 680px) {
+  .branding-logo-control {
+    align-items: stretch;
+    flex-direction: column;
+  }
+
+  .branding-logo-actions,
+  .branding-actions {
+    flex-direction: column;
+  }
+
+  .branding-logo-actions > *,
+  .branding-actions button {
+    width: 100%;
+  }
+
+  .branding-colors {
+    grid-template-columns: 1fr;
+  }
+
+  .brand-logo-admin.brand-logo-custom .brand-logo-image {
+    max-width: 120px;
+    height: 40px;
+  }
+
+  .brand-logo-preview.brand-logo-custom .brand-logo-image {
+    max-width: 200px;
+  }
+}

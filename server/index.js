@@ -2088,6 +2088,25 @@ app.patch('/api/admin/visits/:id', requireAdmin, async (req, res, next) => {
       if (!allowedStatus.has(update.status)) {
         return res.status(400).json({ error: 'Status de visita inválido.' })
       }
+
+      if (
+        update.status === 'rejected' &&
+        textValue(update.ownerMessage, 300).length < 3
+      ) {
+        return res.status(400).json({
+          error: 'Informe uma justificativa antes de recusar a visita.',
+        })
+      }
+
+      if (
+        update.status === 'counter-proposed' &&
+        (!/^\d{4}-\d{2}-\d{2}$/.test(String(update.confirmedDate || '')) ||
+          !/^\d{2}:\d{2}$/.test(String(update.confirmedTime || '')))
+      ) {
+        return res.status(400).json({
+          error: 'Informe a nova data e o novo horário antes de sugerir outro horário.',
+        })
+      }
     }
 
     const visit = await Visit.findOneAndUpdate(

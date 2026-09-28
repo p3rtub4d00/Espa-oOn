@@ -4,7 +4,7 @@ import VisitScheduler from './components/VisitScheduler'
 import ReservationLookup from './components/ReservationLookup'
 import AdminPanel from './admin/AdminPanel'
 import AdminLogin from './admin/AdminLogin'
-import { getPriceForDay, loadSettings } from './data/settings'
+import { loadSettings } from './data/settings'
 import { api } from './data/api'
 import {
   ArrowRight,
@@ -96,7 +96,8 @@ const priceCards = [
 function App() {
   const [slide, setSlide] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
-  const [selectedDay, setSelectedDay] = useState(null)
+  const [selectedDate, setSelectedDate] = useState(null)
+  const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
   const [lookupOpen, setLookupOpen] = useState(false)
@@ -104,7 +105,7 @@ function App() {
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [adminSessionChecked, setAdminSessionChecked] = useState(false)
   const [siteSettings, setSiteSettings] = useState(loadSettings)
-  const [reservedDays, setReservedDays] = useState(new Set())
+  const [reservedDates, setReservedDates] = useState(new Set())
 
   useEffect(() => {
     const id = setInterval(() => {
@@ -120,7 +121,7 @@ function App() {
       .then(([settingsData, availability]) => {
         if (!active) return
         setSiteSettings(settingsData)
-        setReservedDays(new Set(availability.reservedDays || []))
+        setReservedDates(new Set(availability.reservedDates || []))
       })
       .catch(() => {})
 
@@ -152,7 +153,47 @@ function App() {
     }
   }, [adminOpen])
 
-  const monthDays = useMemo(() => Array.from({ length: 31 }, (_, i) => i + 1), [])
+  const monthDays = useMemo(() => {
+    const year = calendarMonth.getFullYear()
+    const month = calendarMonth.getMonth()
+    const daysInMonth = new Date(year, month + 1, 0).getDate()
+    return Array.from({ length: daysInMonth }, (_, i) => i + 1)
+  }, [calendarMonth])
+
+  const firstWeekday = useMemo(
+    () => new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), 1).getDay(),
+    [calendarMonth],
+  )
+
+  const monthLabel = useMemo(
+    () => new Intl.DateTimeFormat('pt-BR', { month: 'long', year: 'numeric' })
+      .format(calendarMonth)
+      .replace(/^./, (letter) => letter.toUpperCase()),
+    [calendarMonth],
+  )
+
+  const toISODate = (year, monthIndex, day) =>
+    [year, String(monthIndex + 1).padStart(2, '0'), String(day).padStart(2, '0')].join('-')
+
+  const formatDate = (iso) => {
+    if (!iso) return ''
+    const [year, month, day] = iso.split('-')
+    return day + '/' + month + '/' + year
+  }
+
+  const goToPreviousMonth = () => {
+    const now = new Date()
+    const currentStart = new Date(now.getFullYear(), now.getMonth(), 1)
+    const previous = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() - 1, 1)
+    if (previous < currentStart) return
+    setSelectedDate(null)
+    setCalendarMonth(previous)
+  }
+
+  const goToNextMonth = () => {
+    setSelectedDate(null)
+    setCalendarMonth(new Date(calendarMonth.getFullYear(), calendarMonth.getMonth() + 1, 1))
+  }
 
   const amenityIcon = (type) => {
     if (type === 'pool') return Waves
@@ -456,11 +497,11 @@ function App() {
               <div className="calendar-header">
                 <div>
                   <span>Disponibilidade</span>
-                  <strong>Outubro 2026</strong>
+                  <strong>{monthLabel}</strong>
                 </div>
                 <div className="calendar-nav">
-                  <button><ChevronLeft /></button>
-                  <button><ChevronRight /></button>
+                  <button onClick={goToPreviousMonth} aria-label="Mês anterior"><ChevronLeft /></button>
+                  <button onClick={goToNextMonth} aria-label="Próximo mês"><ChevronRight /></button>
                 </div>
               </div>
 
@@ -471,18 +512,26 @@ function App() {
               </div>
 
               <div className="calendar-days">
-                <span className="calendar-empty" />
-                <span className="calendar-empty" />
-                <span className="calendar-empty" />
-                <span className="calendar-empty" />
+                {Array.from({ length: firstWeekday }).map((_, index) => (
+                  <span className="calendar-empty" key={'empty-' + index} />
+                ))}
                 {monthDays.map((day) => {
-                  const busy = reservedDays.has(day) || siteSettings.blockedDays.includes(day)
-                  const selected = selectedDay === day
+                  const iso = toISODate(calendarMonth.getFullYear(), calendarMonth.getMonth(), day)
+                  const today = new Date()
+                  const date = new Date(calendarMonth.getFullYear(), calendarMonth.getMonth(), day, 12)
+                  const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12)
+                  const past = date < todayOnly
+                  const blockedDates = siteSettings.blockedDates || []
+                  const legacyBlocked = calendarMonth.getFullYear() === 2026 && calendarMonth.getMonth() === 9
+                    && (siteSettings.blockedDays || []).includes(day)
+                  const busy = reservedDates.has(iso) || blockedDates.includes(iso) || legacyBlocked || past
+                  const selected = selectedDate === iso
+
                   return (
                     <button
-                      key={day}
+                      key={iso}
                       disabled={busy}
-                      onClick={() => !busy && setSelectedDay(day)}
+                      onClick={() => !busy && setSelectedDate(iso)}
                       className={`${busy ? 'busy' : ''} ${selected ? 'selected' : ''}`}
                     >
                       {day}
@@ -492,11 +541,11 @@ function App() {
               </div>
 
               <div className="calendar-footer">
-                {selectedDay ? (
+                {selectedDate ? (
                   <>
                     <div>
                       <span>Data selecionada</span>
-                      <strong>{String(selectedDay).padStart(2, '0')}/10/2026</strong>
+                      <strong>{formatDate(selectedDate)}</strong>
                     </div>
                     <button onClick={() => setBookingOpen(true)}>
                       Continuar
@@ -532,13 +581,13 @@ function App() {
         <ReservationLookup onClose={() => setLookupOpen(false)} />
       )}
 
-      {bookingOpen && selectedDay && (
+      {bookingOpen && selectedDate && (
         <BookingFlow
-          day={selectedDay}
+          dateISO={selectedDate}
           settings={siteSettings}
           onClose={() => setBookingOpen(false)}
-          onReserved={(day) => {
-            setReservedDays((current) => new Set([...current, day]))
+          onReserved={(dateISO) => {
+            setReservedDates((current) => new Set([...current, dateISO]))
           }}
         />
       )}

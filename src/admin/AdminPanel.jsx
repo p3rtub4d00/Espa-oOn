@@ -23,6 +23,8 @@ import {
   Trash2,
   ShieldAlert,
   KeyRound,
+  MessageCircle,
+  BellRing,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -40,6 +42,7 @@ const menu = [
   ['gallery', 'Galeria', Images],
   ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
+  ['whatsapp', 'WhatsApp', MessageCircle],
   ['system', 'Dados', ShieldAlert],
 ]
 
@@ -129,7 +132,7 @@ export default function AdminPanel({ onClose }) {
         const [reservationData, visitData, settingsData] = await Promise.all([
           api.adminReservations(),
           api.adminVisits(),
-          api.getSettings(),
+          api.getAdminSettings(),
         ])
 
         if (!alive) return
@@ -801,6 +804,139 @@ export default function AdminPanel({ onClose }) {
             </div>
           </section>
         )}
+        {active === 'whatsapp' && (
+          <section className="admin-card large whatsapp-settings">
+            <div className="admin-card-title whatsapp-settings-title">
+              <div>
+                <span>Notificações do proprietário</span>
+                <strong>Configuração do WhatsApp</strong>
+              </div>
+              <MessageCircle />
+            </div>
+
+            <div className="whatsapp-config-grid">
+              <label>
+                <span>Nome do proprietário</span>
+                <input
+                  value={settings.whatsapp?.ownerName || ''}
+                  onChange={(event) => {
+                    setSettings((current) => ({
+                      ...current,
+                      whatsapp: {
+                        ...(current.whatsapp || {}),
+                        ownerName: event.target.value,
+                      },
+                    }))
+                  }}
+                  onBlur={() => persistSettings(settings)}
+                  placeholder="Ex.: Rafael"
+                />
+              </label>
+
+              <label>
+                <span>WhatsApp que receberá os avisos</span>
+                <input
+                  inputMode="tel"
+                  value={settings.whatsapp?.ownerPhone || ''}
+                  onChange={(event) => {
+                    const digits = event.target.value.replace(/\D/g, '').slice(0, 13)
+                    setSettings((current) => ({
+                      ...current,
+                      whatsapp: {
+                        ...(current.whatsapp || {}),
+                        ownerPhone: digits,
+                      },
+                    }))
+                  }}
+                  onBlur={() => persistSettings(settings)}
+                  placeholder="Ex.: 5569999999999"
+                />
+                <small>Use DDI + DDD + número. Ex.: 5569999999999</small>
+              </label>
+            </div>
+
+            <div className="whatsapp-notification-options">
+              <article>
+                <div>
+                  <BellRing size={18} />
+                  <span>
+                    <strong>Nova reserva paga</strong>
+                    <small>Aviso ao proprietário quando o pagamento da reserva for confirmado.</small>
+                  </span>
+                </div>
+                <button
+                  className={settings.whatsapp?.notifyPaidReservation !== false ? 'enabled' : ''}
+                  onClick={async () => {
+                    const next = {
+                      ...settings,
+                      whatsapp: {
+                        ...(settings.whatsapp || {}),
+                        notifyPaidReservation: settings.whatsapp?.notifyPaidReservation === false,
+                      },
+                    }
+                    await persistSettings(next)
+                  }}
+                >
+                  {settings.whatsapp?.notifyPaidReservation !== false ? 'Ativado' : 'Desativado'}
+                </button>
+              </article>
+
+              <article>
+                <div>
+                  <CalendarCheck2 size={18} />
+                  <span>
+                    <strong>Nova solicitação de visita</strong>
+                    <small>Aviso ao proprietário quando um cliente solicitar uma visita.</small>
+                  </span>
+                </div>
+                <button
+                  className={settings.whatsapp?.notifyNewVisit !== false ? 'enabled' : ''}
+                  onClick={async () => {
+                    const next = {
+                      ...settings,
+                      whatsapp: {
+                        ...(settings.whatsapp || {}),
+                        notifyNewVisit: settings.whatsapp?.notifyNewVisit === false,
+                      },
+                    }
+                    await persistSettings(next)
+                  }}
+                >
+                  {settings.whatsapp?.notifyNewVisit !== false ? 'Ativado' : 'Desativado'}
+                </button>
+              </article>
+            </div>
+
+            <div className="whatsapp-test-box">
+              <div>
+                <strong>Testar número configurado</strong>
+                <span>Abre uma conversa com o número salvo para confirmar se está correto.</span>
+              </div>
+              <button
+                disabled={!settings.whatsapp?.ownerPhone}
+                onClick={() => {
+                  const number = normalizeWhatsAppNumber(settings.whatsapp?.ownerPhone || '')
+                  if (!number) return
+                  const message = 'Teste de configuração do WhatsApp do EspaçoOn.'
+                  window.open(
+                    'https://wa.me/' + number + '?text=' + encodeURIComponent(message),
+                    '_blank',
+                    'noopener,noreferrer',
+                  )
+                }}
+              >
+                <MessageCircle size={17} />
+                Testar WhatsApp
+              </button>
+            </div>
+
+            <div className="admin-demo-note">
+              O número fica salvo no MongoDB e poderá ser alterado pelo proprietário sem novo deploy.
+              O envio automático de mensagens será conectado a uma API oficial do WhatsApp Business.
+            </div>
+          </section>
+        )}
+
         {active === 'system' && (
           <section className="admin-card large danger-zone">
             <div className="danger-zone-header">

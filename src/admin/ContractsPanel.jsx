@@ -143,9 +143,9 @@ export default function ContractsPanel() {
               <div className="admin-contract-text">
                 <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma EspaçoOn, na data e período informados acima.</p>
                 <p><strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.</p>
-                <p><strong>3. Responsabilidade.</strong> Danos causados ao patrimônio durante o período de locação poderão ser atribuídos ao responsável pela reserva conforme as condições do contrato.</p>
-                <p><strong>4. Pagamento.</strong> O valor contratado é o indicado neste documento e o status de pagamento é registrado junto à reserva.</p>
-                <p><strong>5. Assinatura eletrônica.</strong> O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash de verificação.</p>
+                <p><strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.</p>
+                <p><strong>4. Pagamento.</strong> O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.</p>
+                <p><strong>5. Assinatura eletrônica.</strong> O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.</p>
               </div>
 
               <div className="admin-contract-signature">

@@ -19,6 +19,10 @@ import {
   Phone,
   FileText,
   CheckCircle2,
+  BarChart3,
+  Trash2,
+  ShieldAlert,
+  KeyRound,
 } from 'lucide-react'
 import ContractsPanel from './ContractsPanel'
 import ContentManager from './ContentManager'
@@ -30,11 +34,13 @@ const menu = [
   ['overview', 'Visão geral', Gauge],
   ['calendar', 'Agenda', CalendarDays],
   ['reservations', 'Reservas', WalletCards],
+  ['revenue', 'Faturamento', BarChart3],
   ['visits', 'Visitas', CalendarCheck2],
   ['contracts', 'Contratos', FileCheck2],
   ['gallery', 'Galeria', Images],
   ['amenities', 'Estrutura', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
+  ['system', 'Dados', ShieldAlert],
 ]
 
 function money(value) {
@@ -99,6 +105,18 @@ export default function AdminPanel({ onClose }) {
   const [adminError, setAdminError] = useState('')
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [selectedReservation, setSelectedReservation] = useState(null)
+  const [revenueMonth, setRevenueMonth] = useState(() => {
+    const now = new Date()
+    return now.getFullYear() + '-' + String(now.getMonth() + 1).padStart(2, '0')
+  })
+  const [revenueData, setRevenueData] = useState(null)
+  const [revenueLoading, setRevenueLoading] = useState(false)
+  const [revenueError, setRevenueError] = useState('')
+  const [resetOpen, setResetOpen] = useState(false)
+  const [resetPassword, setResetPassword] = useState('')
+  const [resetConfirmation, setResetConfirmation] = useState('')
+  const [resetLoading, setResetLoading] = useState(false)
+  const [resetError, setResetError] = useState('')
 
   useEffect(() => {
     let activeRequest = true
@@ -125,6 +143,29 @@ export default function AdminPanel({ onClose }) {
       activeRequest = false
     }
   }, [])
+  useEffect(() => {
+    if (active !== 'revenue') return
+
+    let alive = true
+    setRevenueLoading(true)
+    setRevenueError('')
+
+    api.adminRevenue(revenueMonth)
+      .then((data) => {
+        if (alive) setRevenueData(data)
+      })
+      .catch((error) => {
+        if (alive) setRevenueError(error.message || 'Não foi possível carregar o faturamento.')
+      })
+      .finally(() => {
+        if (alive) setRevenueLoading(false)
+      })
+
+    return () => {
+      alive = false
+    }
+  }, [active, revenueMonth])
+
   const prices = settings.prices
   const blockedDates = new Set(settings.blockedDates || [])
 
@@ -414,6 +455,84 @@ export default function AdminPanel({ onClose }) {
           </section>
         )}
 
+        {active === 'revenue' && (
+          <section className="admin-card large revenue-panel">
+            <div className="admin-card-title revenue-title">
+              <div>
+                <span>Faturamento recebido</span>
+                <strong>Consulta mensal</strong>
+              </div>
+              <label className="revenue-month-picker">
+                <span>Mês</span>
+                <input
+                  type="month"
+                  value={revenueMonth}
+                  onChange={(event) => setRevenueMonth(event.target.value)}
+                />
+              </label>
+            </div>
+
+            {revenueError && <div className="admin-demo-note">{revenueError}</div>}
+
+            <div className="revenue-stats">
+              <article>
+                <span>Faturamento</span>
+                <strong>{money(revenueData?.total || 0)}</strong>
+                <small>pagamentos recebidos no mês</small>
+              </article>
+              <article>
+                <span>Reservas pagas</span>
+                <strong>{revenueData?.count || 0}</strong>
+                <small>recebimentos confirmados</small>
+              </article>
+              <article>
+                <span>Ticket médio</span>
+                <strong>{money(revenueData?.averageTicket || 0)}</strong>
+                <small>valor médio por reserva</small>
+              </article>
+            </div>
+
+            <div className="revenue-list-head">
+              <div>
+                <span>Movimentação do mês</span>
+                <strong>{revenueLoading ? 'Carregando...' : (revenueData?.count || 0) + ' pagamentos'}</strong>
+              </div>
+            </div>
+
+            {revenueLoading ? (
+              <div className="admin-empty large">Carregando faturamento...</div>
+            ) : revenueData?.reservations?.length ? (
+              <div className="admin-table revenue-table">
+                <div className="table-head">
+                  <span>Cliente</span>
+                  <span>Reserva</span>
+                  <span>Pago em</span>
+                  <span>Data locação</span>
+                  <span>Valor</span>
+                </div>
+                {revenueData.reservations.map((reservation) => (
+                  <div className="table-row" key={reservation.id}>
+                    <span>
+                      <strong>{reservation.customer?.name || 'Cliente'}</strong>
+                      <small>{reservation.customer?.phone || '-'}</small>
+                    </span>
+                    <span>{reservation.id}</span>
+                    <span>
+                      {reservation.paidAt
+                        ? new Date(reservation.paidAt).toLocaleString('pt-BR')
+                        : '-'}
+                    </span>
+                    <span>{reservation.date || '-'}</span>
+                    <span><strong>{money(reservation.price)}</strong></span>
+                  </div>
+                ))}
+              </div>
+            ) : (
+              <div className="admin-empty large">Nenhum pagamento recebido neste mês.</div>
+            )}
+          </section>
+        )}
+
         {active === 'contracts' && <ContractsPanel />}
 
         {active === 'gallery' && (
@@ -630,7 +749,156 @@ export default function AdminPanel({ onClose }) {
             </div>
           </section>
         )}
+        {active === 'system' && (
+          <section className="admin-card large danger-zone">
+            <div className="danger-zone-header">
+              <div className="danger-zone-icon"><ShieldAlert /></div>
+              <div>
+                <span>Zona de segurança</span>
+                <h2>Apagar todos os dados do site</h2>
+                <p>
+                  Remove permanentemente reservas, contratos, visitas, bloqueios, configurações,
+                  galeria, imagens e histórico interno de Webhooks.
+                </p>
+              </div>
+            </div>
+
+            <div className="danger-zone-preserved">
+              <strong>O que não será apagado</strong>
+              <span>
+                Código do GitHub, serviço do Render, senha do administrador, variáveis de ambiente,
+                conta MongoDB e credenciais do Asaas permanecem intactos.
+              </span>
+            </div>
+
+            <div className="danger-zone-warning">
+              <Trash2 />
+              <span>
+                <strong>Esta ação é irreversível.</strong>
+                Reservas pagas e contratos assinados também serão excluídos do EspaçoOn.
+                Faça isso apenas quando realmente quiser zerar o sistema.
+              </span>
+            </div>
+
+            <button className="danger-reset-button" onClick={() => {
+              setResetPassword('')
+              setResetConfirmation('')
+              setResetError('')
+              setResetOpen(true)
+            }}>
+              <Trash2 size={17} />
+              Apagar todos os dados
+            </button>
+          </section>
+        )}
+
       </main>
+
+      {resetOpen && createPortal(
+        <div
+          className="reset-data-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Confirmar exclusão de todos os dados"
+          onClick={() => !resetLoading && setResetOpen(false)}
+        >
+          <div className="reset-data-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="reset-data-top">
+              <div>
+                <span>Confirmação obrigatória</span>
+                <strong>Apagar todos os dados?</strong>
+              </div>
+              <button
+                onClick={() => !resetLoading && setResetOpen(false)}
+                aria-label="Fechar"
+                disabled={resetLoading}
+              >
+                <X />
+              </button>
+            </div>
+
+            <div className="reset-data-body">
+              <div className="reset-data-alert">
+                <ShieldAlert />
+                <p>
+                  Esta operação não pode ser desfeita. Todos os dados operacionais armazenados
+                  pelo EspaçoOn serão removidos.
+                </p>
+              </div>
+
+              <label>
+                <span>Senha do administrador</span>
+                <div>
+                  <KeyRound size={17} />
+                  <input
+                    type="password"
+                    autoComplete="current-password"
+                    value={resetPassword}
+                    onChange={(event) => setResetPassword(event.target.value)}
+                    placeholder="Digite sua senha"
+                    disabled={resetLoading}
+                  />
+                </div>
+              </label>
+
+              <label>
+                <span>Digite exatamente: <b>APAGAR TODOS OS DADOS</b></span>
+                <input
+                  className="reset-confirmation-input"
+                  value={resetConfirmation}
+                  onChange={(event) => setResetConfirmation(event.target.value.toUpperCase())}
+                  placeholder="APAGAR TODOS OS DADOS"
+                  disabled={resetLoading}
+                />
+              </label>
+
+              {resetError && <p className="reset-data-error">{resetError}</p>}
+
+              <div className="reset-data-actions">
+                <button
+                  className="cancel"
+                  onClick={() => setResetOpen(false)}
+                  disabled={resetLoading}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="confirm"
+                  disabled={
+                    resetLoading ||
+                    !resetPassword ||
+                    resetConfirmation !== 'APAGAR TODOS OS DADOS'
+                  }
+                  onClick={async () => {
+                    setResetLoading(true)
+                    setResetError('')
+                    try {
+                      await api.resetSiteData(resetPassword, resetConfirmation)
+                      setReservations([])
+                      setVisits([])
+                      setSettings(loadSettings())
+                      setRevenueData(null)
+                      setResetOpen(false)
+                      setResetPassword('')
+                      setResetConfirmation('')
+                      setActive('overview')
+                      setAdminError('Todos os dados do site foram apagados com sucesso.')
+                    } catch (error) {
+                      setResetError(error.message || 'Não foi possível apagar os dados.')
+                    } finally {
+                      setResetLoading(false)
+                    }
+                  }}
+                >
+                  <Trash2 size={17} />
+                  {resetLoading ? 'Apagando...' : 'Apagar definitivamente'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {selectedReservation && createPortal(
         <div

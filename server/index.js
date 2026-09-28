@@ -23,9 +23,7 @@ const JWT_SECRET = process.env.JWT_SECRET
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY
 const ASAAS_ENV = String(process.env.ASAAS_ENV || 'production').toLowerCase()
 const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN
-const ASAAS_BASE_URL = ASAAS_ENV === 'production'
-  ? 'https://api.asaas.com/v3'
-  : 'https://api-sandbox.asaas.com/v3'
+const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
 
 app.set('trust proxy', 1)
 

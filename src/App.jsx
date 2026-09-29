@@ -789,15 +789,6 @@ function App() {
                   </div>
                 )}
 
-                {siteSettings.establishment?.phone && (
-                  <div>
-                    <Phone />
-                    <span>
-                      <strong>Contato</strong>
-                      {siteSettings.establishment.phone}
-                    </span>
-                  </div>
-                )}
               </div>
 
               <div className="location-actions">
@@ -823,15 +814,6 @@ function App() {
                   </button>
                 )}
 
-                {siteSettings.establishment?.phone && (
-                  <a
-                    className="location-phone"
-                    href={'tel:+' + siteSettings.establishment.phone}
-                  >
-                    <Phone size={17} />
-                    Ligar
-                  </a>
-                )}
               </div>
             </div>
 

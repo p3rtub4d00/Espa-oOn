@@ -2202,3 +2202,54 @@ footer {
     height: 40px;
   }
 }
+
+
+/* Master license: blocked booking calendar */
+.calendar-card.calendar-license-blocked .calendar-days button {
+  cursor: not-allowed;
+}
+
+.calendar-card.calendar-license-blocked .calendar-days button:not(.calendar-empty) {
+  opacity: .38;
+  filter: grayscale(.45);
+}
+
+.calendar-license-message {
+  width: 100%;
+  padding: 12px 14px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid #efc8c4;
+  border-radius: 11px;
+  color: #9f453e;
+  background: #fff4f2;
+}
+
+.calendar-license-message > svg {
+  flex: 0 0 auto;
+}
+
+.calendar-license-message span,
+.calendar-license-message strong {
+  display: block;
+}
+
+.calendar-license-message span {
+  font-size: 9px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .05em;
+}
+
+.calendar-license-message strong {
+  margin-top: 3px;
+  font-size: 10px;
+  line-height: 1.4;
+}
+
+@media (max-width: 680px) {
+  .calendar-license-message {
+    align-items: flex-start;
+  }
+}

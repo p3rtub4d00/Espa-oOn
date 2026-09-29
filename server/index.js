@@ -1399,6 +1399,34 @@ async function cleanupExpiredLocks() {
   }
 }
 
+async function masterBillingRequest(pathname, options = {}) {
+  if (!MASTER_LICENSE_CONFIGURED) {
+    throw Object.assign(new Error('Licenciamento Master ainda não configurado.'), { statusCode: 503 })
+  }
+
+  const response = await fetch(MASTER_API_URL + pathname, {
+    method: options.method || 'GET',
+    headers: {
+      accept: 'application/json',
+      'content-type': 'application/json',
+      'x-club-id': MASTER_CLUB_ID,
+      'x-license-key': MASTER_LICENSE_KEY,
+      'user-agent': 'EspacoOn-License-Agent/1.0',
+    },
+    ...(options.body ? { body: JSON.stringify(options.body) } : {}),
+  })
+
+  const data = await response.json().catch(() => ({}))
+  if (!response.ok) {
+    throw Object.assign(
+      new Error(data?.error || 'Não foi possível consultar a cobrança da assinatura.'),
+      { statusCode: response.status >= 500 ? 502 : response.status },
+    )
+  }
+
+  return data
+}
+
 app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
@@ -1407,9 +1435,9 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-app.get('/api/license', async (_req, res, next) => {
+app.get('/api/license', async (req, res, next) => {
   try {
-    const license = await checkMasterLicense()
+    const license = await checkMasterLicense({ force: req.query?.force === '1' })
     res.json({
       active: license.active,
       configured: license.configured,
@@ -1422,6 +1450,22 @@ app.get('/api/license', async (_req, res, next) => {
         license.active === true &&
         !['past_due', 'suspended', 'cancelled'].includes(license.billingStatus),
     })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.get('/api/license/billing', async (_req, res, next) => {
+  try {
+    res.json(await masterBillingRequest('/api/license/billing'))
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/license/billing/pix', paymentLimiter, async (_req, res, next) => {
+  try {
+    res.json(await masterBillingRequest('/api/license/billing/pix', { method: 'POST' }))
   } catch (error) {
     next(error)
   }

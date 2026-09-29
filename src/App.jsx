@@ -114,12 +114,26 @@ function App() {
   const [reservedDates, setReservedDates] = useState(new Set())
   const [siteReady, setSiteReady] = useState(false)
   const [siteLoadError, setSiteLoadError] = useState('')
-  const [licenseStatus, setLicenseStatus] = useState({ active: true, configured: false })
+  const [licenseStatus, setLicenseStatus] = useState({ active: true, configured: false, bookingAllowed: true })
+  const bookingLicenseBlocked =
+    licenseStatus.configured &&
+    (
+      licenseStatus.bookingAllowed === false ||
+      !licenseStatus.active ||
+      ['past_due', 'suspended', 'cancelled'].includes(licenseStatus.billingStatus)
+    )
   const [installPrompt, setInstallPrompt] = useState(null)
   const [appInstalled, setAppInstalled] = useState(() =>
     window.matchMedia?.('(display-mode: standalone)').matches ||
     window.navigator.standalone === true
   )
+
+  useEffect(() => {
+    if (bookingLicenseBlocked) {
+      setSelectedDate(null)
+      setBookingOpen(false)
+    }
+  }, [bookingLicenseBlocked])
 
   useEffect(() => {
     const root = document.documentElement
@@ -446,10 +460,10 @@ function App() {
       </header>
 
       <main>
-        {licenseStatus.configured && !licenseStatus.active && (
+        {bookingLicenseBlocked && (
           <div className="public-system-alert license-suspended-alert">
             <span>
-              Reservas online temporariamente indisponíveis. Entre em contato com o estabelecimento para mais informações.
+              Agenda de reservas temporariamente indisponível. Entre em contato com o estabelecimento para mais informações.
             </span>
           </div>
         )}
@@ -654,7 +668,7 @@ function App() {
               </button>
             </div>
 
-            <div className="calendar-card">
+            <div className={`calendar-card ${bookingLicenseBlocked ? 'calendar-license-blocked' : ''}`}>
               <div className="calendar-header">
                 <div>
                   <span>Disponibilidade</span>
@@ -683,7 +697,12 @@ function App() {
                   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12)
                   const past = date < todayOnly
                   const blockedDates = siteSettings.blockedDates || []
-                  const busy = reservedDates.has(iso) || blockedDates.includes(iso) || past || !siteReady
+                  const busy =
+                    reservedDates.has(iso) ||
+                    blockedDates.includes(iso) ||
+                    past ||
+                    !siteReady ||
+                    bookingLicenseBlocked
                   const selected = selectedDate === iso
 
                   return (
@@ -700,20 +719,28 @@ function App() {
               </div>
 
               <div className="calendar-footer">
-                {selectedDate ? (
+                {bookingLicenseBlocked ? (
+                  <div className="calendar-license-message">
+                    <ShieldCheck size={18} />
+                    <div>
+                      <span>Agenda temporariamente bloqueada</span>
+                      <strong>Novas reservas estão indisponíveis no momento.</strong>
+                    </div>
+                  </div>
+                ) : selectedDate ? (
                   <>
                     <div>
                       <span>Data selecionada</span>
                       <strong>{formatDate(selectedDate)}</strong>
                     </div>
                     <button
-                      disabled={licenseStatus.configured && !licenseStatus.active}
+                      disabled={bookingLicenseBlocked}
                       onClick={() => {
-                        if (licenseStatus.configured && !licenseStatus.active) return
+                        if (bookingLicenseBlocked) return
                         setBookingOpen(true)
                       }}
                     >
-                      {licenseStatus.configured && !licenseStatus.active ? 'Reservas suspensas' : 'Continuar'}
+                      Continuar
                       <ArrowRight size={17} />
                     </button>
                   </>
@@ -847,7 +874,7 @@ function App() {
         <ReservationLookup onClose={() => setLookupOpen(false)} />
       )}
 
-      {bookingOpen && selectedDate && (!licenseStatus.configured || licenseStatus.active) && (
+      {bookingOpen && selectedDate && !bookingLicenseBlocked && (
         <BookingFlow
           dateISO={selectedDate}
           settings={siteSettings}

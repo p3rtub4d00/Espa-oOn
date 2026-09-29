@@ -3779,3 +3779,41 @@
     width: 100%;
   }
 }
+
+
+/* SaaS billing on blocked club admin login */
+.admin-login-card.admin-billing-card { width: min(520px, calc(100vw - 28px)); }
+.admin-billing-view { display: grid; gap: 14px; }
+.admin-login-icon.billing { color: var(--brand-secondary); background: #eef7ff; }
+.billing-plan-box {
+  padding: 14px; display: grid; grid-template-columns: 1fr 1fr; gap: 12px;
+  border: 1px solid #dce8f0; border-radius: 13px; background: #f8fbfd;
+}
+.billing-plan-box span, .billing-plan-box strong { display: block; }
+.billing-plan-box span { color: #778b98; font-size: 10px; font-weight: 800; text-transform: uppercase; letter-spacing: .05em; }
+.billing-plan-box strong { margin-top: 4px; color: #1e4056; font-size: 17px; }
+.billing-loading, .billing-waiting {
+  min-height: 42px; display: flex; align-items: center; justify-content: center; gap: 9px;
+  color: #66808f; font-size: 11px; font-weight: 750;
+}
+.billing-loading svg { width: 17px; }
+.spin { animation: billing-spin 1s linear infinite; }
+@keyframes billing-spin { to { transform: rotate(360deg); } }
+.billing-qr {
+  padding: 15px; display: grid; justify-items: center; gap: 7px;
+  border: 1px solid #dce8f0; border-radius: 15px; background: #fff;
+}
+.billing-qr img { width: min(230px, 72vw); height: auto; border-radius: 8px; }
+.billing-qr strong { color: #203f53; font-size: 12px; }
+.billing-qr span { color: #778b98; font-size: 9px; text-align: center; }
+.billing-copy-pix, .billing-retry {
+  min-height: 44px; padding: 0 14px; display: inline-flex; align-items: center; justify-content: center; gap: 7px;
+  border: 0; border-radius: 11px; color: #fff; background: var(--brand-secondary); font-size: 10px; font-weight: 850;
+}
+.billing-retry { border: 1px solid #dce8f0; color: #345b73; background: #fff; }
+.billing-waiting { justify-content: flex-start; padding: 0 4px; }
+.billing-waiting > span {
+  width: 8px; height: 8px; border-radius: 50%; background: #e5a11d;
+  box-shadow: 0 0 0 4px rgba(229,161,29,.12);
+}
+@media (max-width: 520px) { .billing-plan-box { grid-template-columns: 1fr; } }

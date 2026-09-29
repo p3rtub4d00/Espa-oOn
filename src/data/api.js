@@ -25,6 +25,7 @@ export const api = {
   getSettings: () => request('/api/settings'),
   getAdminSettings: () => request('/api/admin/settings'),
   getAvailability: () => request('/api/availability'),
+  licenseStatus: () => request('/api/license'),
 
   adminSession: () => request('/api/admin/session'),
   adminLogin: (password) =>

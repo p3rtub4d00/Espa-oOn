@@ -361,6 +361,10 @@ function App() {
           name={brandName}
           branding={brandSettings}
           onAuthenticated={() => {
+            if (window.location.pathname !== '/admin') {
+              window.history.replaceState({}, '', '/admin')
+            }
+            setAdminOpen(true)
             setAdminAuthenticated(true)
             setAdminSessionChecked(true)
           }}

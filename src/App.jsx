@@ -114,6 +114,7 @@ function App() {
   const [reservedDates, setReservedDates] = useState(new Set())
   const [siteReady, setSiteReady] = useState(false)
   const [siteLoadError, setSiteLoadError] = useState('')
+  const [licenseStatus, setLicenseStatus] = useState({ active: true, configured: false })
   const [installPrompt, setInstallPrompt] = useState(null)
   const [appInstalled, setAppInstalled] = useState(() =>
     window.matchMedia?.('(display-mode: standalone)').matches ||
@@ -182,11 +183,12 @@ function App() {
   useEffect(() => {
     let active = true
 
-    Promise.all([api.getSettings(), api.getAvailability()])
-      .then(([settingsData, availability]) => {
+    Promise.all([api.getSettings(), api.getAvailability(), api.licenseStatus()])
+      .then(([settingsData, availability, license]) => {
         if (!active) return
         setSiteSettings(settingsData)
         setReservedDates(new Set(availability.reservedDates || []))
+        setLicenseStatus(license || { active: true, configured: false })
         setSiteReady(true)
         setSiteLoadError('')
       })
@@ -367,12 +369,14 @@ function App() {
             await api.adminLogout()
           } catch {}
           try {
-            const [refreshed, availability] = await Promise.all([
+            const [refreshed, availability, license] = await Promise.all([
               api.getSettings(),
               api.getAvailability(),
+              api.licenseStatus(),
             ])
             setSiteSettings(refreshed)
             setReservedDates(new Set(availability.reservedDates || []))
+            setLicenseStatus(license || { active: true, configured: false })
             setSiteReady(true)
             setSiteLoadError('')
           } catch {}
@@ -442,6 +446,14 @@ function App() {
       </header>
 
       <main>
+        {licenseStatus.configured && !licenseStatus.active && (
+          <div className="public-system-alert license-suspended-alert">
+            <span>
+              Reservas online temporariamente indisponíveis. Entre em contato com o estabelecimento para mais informações.
+            </span>
+          </div>
+        )}
+
         {siteLoadError && (
           <div className="public-system-alert">
             <span>{siteLoadError}</span>
@@ -694,8 +706,14 @@ function App() {
                       <span>Data selecionada</span>
                       <strong>{formatDate(selectedDate)}</strong>
                     </div>
-                    <button onClick={() => setBookingOpen(true)}>
-                      Continuar
+                    <button
+                      disabled={licenseStatus.configured && !licenseStatus.active}
+                      onClick={() => {
+                        if (licenseStatus.configured && !licenseStatus.active) return
+                        setBookingOpen(true)
+                      }}
+                    >
+                      {licenseStatus.configured && !licenseStatus.active ? 'Reservas suspensas' : 'Continuar'}
                       <ArrowRight size={17} />
                     </button>
                   </>
@@ -829,7 +847,7 @@ function App() {
         <ReservationLookup onClose={() => setLookupOpen(false)} />
       )}
 
-      {bookingOpen && selectedDate && (
+      {bookingOpen && selectedDate && (!licenseStatus.configured || licenseStatus.active) && (
         <BookingFlow
           dateISO={selectedDate}
           settings={siteSettings}

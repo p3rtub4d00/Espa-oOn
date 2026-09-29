@@ -632,9 +632,11 @@ async function checkMasterLicense({ force = false } = {}) {
 async function requireActiveLicense(req, res, next) {
   try {
     const license = await checkMasterLicense()
-    if (!license.active) {
+    const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
+
+    if (!license.active || billingBlocked) {
       return res.status(423).json({
-        error: 'Sistema temporariamente suspenso. Regularize a assinatura do EspaçoOn para continuar.',
+        error: 'Mensalidade do EspaçoOn pendente. Regularize a assinatura para continuar.',
         code: 'LICENSE_SUSPENDED',
       })
     }
@@ -1479,9 +1481,10 @@ app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
     }
 
     const license = await checkMasterLicense({ force: true })
-    if (!license.active) {
+    const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
+    if (!license.active || billingBlocked) {
       return res.status(423).json({
-        error: 'Sistema temporariamente suspenso. Regularize a assinatura do EspaçoOn para acessar o painel.',
+        error: 'Mensalidade do EspaçoOn pendente. Regularize a assinatura para acessar o painel.',
         code: 'LICENSE_SUSPENDED',
       })
     }

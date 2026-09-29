@@ -644,6 +644,25 @@ async function requireActiveLicense(req, res, next) {
   }
 }
 
+
+async function requireBookingLicense(req, res, next) {
+  try {
+    const license = await checkMasterLicense()
+    const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
+
+    if (!license.active || billingBlocked) {
+      return res.status(423).json({
+        error: 'Novas reservas estão temporariamente indisponíveis. A assinatura do estabelecimento precisa ser regularizada.',
+        code: 'BOOKING_LICENSE_BLOCKED',
+      })
+    }
+
+    next()
+  } catch (error) {
+    next(error)
+  }
+}
+
 function onlyDigits(value = '') {
   return String(value).replace(/\D/g, '')
 }
@@ -1399,6 +1418,9 @@ app.get('/api/license', async (_req, res, next) => {
       nextDueDate: license.nextDueDate,
       temporaryUnlockUntil: license.temporaryUnlockUntil,
       masterUnavailable: license.unavailable === true,
+      bookingAllowed:
+        license.active === true &&
+        !['past_due', 'suspended', 'cancelled'].includes(license.billingStatus),
     })
   } catch (error) {
     next(error)
@@ -1507,7 +1529,7 @@ app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res
   }
 })
 
-app.post('/api/contracts', requireActiveLicense, publicWriteLimiter, async (req, res, next) => {
+app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req, res, next) => {
   try {
     const payload = req.body || {}
 
@@ -1586,7 +1608,7 @@ app.post('/api/contracts', requireActiveLicense, publicWriteLimiter, async (req,
   }
 })
 
-app.post('/api/payments/asaas/pix', requireActiveLicense, paymentLimiter, async (req, res, next) => {
+app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async (req, res, next) => {
   let lockCreated = false
   let contractDateISO = null
   let reservationId = null

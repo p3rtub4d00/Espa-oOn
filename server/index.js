@@ -538,6 +538,7 @@ let masterLicenseCache = {
   nextDueDate: null,
   temporaryUnlockUntil: null,
   unavailable: false,
+  demoMode: false,
 }
 
 async function checkMasterLicense({ force = false } = {}) {
@@ -548,6 +549,7 @@ async function checkMasterLicense({ force = false } = {}) {
       status: 'standalone',
       billingStatus: 'standalone',
       unavailable: false,
+      demoMode: false,
     }
   }
 
@@ -582,6 +584,7 @@ async function checkMasterLicense({ force = false } = {}) {
         nextDueDate: null,
         temporaryUnlockUntil: null,
         unavailable: false,
+        demoMode: false,
       }
       return masterLicenseCache
     }
@@ -599,6 +602,7 @@ async function checkMasterLicense({ force = false } = {}) {
       nextDueDate: data.nextDueDate || null,
       temporaryUnlockUntil: data.temporaryUnlockUntil || null,
       unavailable: false,
+      demoMode: data.demoMode === true,
     }
 
     return masterLicenseCache
@@ -623,6 +627,7 @@ async function checkMasterLicense({ force = false } = {}) {
       nextDueDate: null,
       temporaryUnlockUntil: null,
       unavailable: true,
+      demoMode: false,
     }
   } finally {
     clearTimeout(timeout)
@@ -632,6 +637,10 @@ async function checkMasterLicense({ force = false } = {}) {
 async function requireActiveLicense(req, res, next) {
   try {
     const license = await checkMasterLicense()
+    if (license.demoMode) return next()
+
+    if (license.demoMode) return next()
+
     const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
 
     if (!license.active || billingBlocked) {
@@ -1443,14 +1452,18 @@ app.get('/api/license', async (req, res, next) => {
     res.json({
       active: license.active,
       configured: license.configured,
+      demoMode: license.demoMode === true,
       status: license.status,
       billingStatus: license.billingStatus,
       nextDueDate: license.nextDueDate,
       temporaryUnlockUntil: license.temporaryUnlockUntil,
       masterUnavailable: license.unavailable === true,
       bookingAllowed:
-        license.active === true &&
-        !['past_due', 'suspended', 'cancelled'].includes(license.billingStatus),
+        license.demoMode === true ||
+        (
+          license.active === true &&
+          !['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
+        ),
     })
   } catch (error) {
     next(error)
@@ -1475,14 +1488,15 @@ app.post('/api/license/billing/pix', paymentLimiter, async (_req, res, next) => 
 
 app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
   try {
+    const license = await checkMasterLicense({ force: true })
     const password = String(req.body?.password || '')
-    if (!secureEqual(password, ADMIN_PASSWORD)) {
+
+    if (!license.demoMode && !secureEqual(password, ADMIN_PASSWORD)) {
       return res.status(401).json({ error: 'Senha incorreta.' })
     }
 
-    const license = await checkMasterLicense({ force: true })
     const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
-    if (!license.active || billingBlocked) {
+    if (!license.demoMode && (!license.active || billingBlocked)) {
       return res.status(423).json({
         error: 'Mensalidade do EspaçoOn pendente. Regularize a assinatura para acessar o painel.',
         code: 'LICENSE_SUSPENDED',
@@ -1713,6 +1727,68 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
           status: existing.asaasStatus,
         },
         pix: qr,
+      })
+    }
+
+    const license = await checkMasterLicense({ force: true })
+
+    if (license.demoMode) {
+      const paidAt = new Date()
+
+      const savedReservation = await Reservation.findOneAndUpdate(
+        { id: reservationId },
+        {
+          $set: {
+            id: reservationId,
+            day: Number(contractDateISO.slice(-2)),
+            date: contract.reservationDate || displayDate(contractDateISO),
+            dateISO: contractDateISO,
+            period: contract.period,
+            customer: contract.customer,
+            price: serverPrice,
+            contractId,
+            paymentStatus: 'paid',
+            asaasCustomerId: null,
+            asaasPaymentId: null,
+            asaasStatus: 'DEMO_SIMULATED',
+            pixExpirationDate: null,
+            holdUntil: null,
+            paidAt,
+            reservationStatus: 'active',
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      ).lean()
+
+      const updatedContract = await Contract.findOneAndUpdate(
+        { id: contractId },
+        {
+          $set: {
+            price: serverPrice,
+            paymentStatus: 'paid',
+            status: 'signed-paid',
+            paidAt,
+          },
+        },
+        { new: true },
+      ).lean()
+
+      await DateLock.updateOne(
+        { _id: contractDateISO, reservationId },
+        {
+          $set: {
+            status: 'confirmed',
+            expiresAt: null,
+          },
+        },
+      )
+
+      return res.json({
+        paid: true,
+        demo: true,
+        asaasStatus: 'DEMO_SIMULATED',
+        reservation: savedReservation,
+        contract: updatedContract,
       })
     }
 

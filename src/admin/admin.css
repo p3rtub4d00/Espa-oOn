@@ -3817,3 +3817,15 @@
   box-shadow: 0 0 0 4px rgba(229,161,29,.12);
 }
 @media (max-width: 520px) { .billing-plan-box { grid-template-columns: 1fr; } }
+
+
+/* Demo admin login */
+.admin-demo-notice {
+  padding: 12px 13px;
+  border: 1px solid #d5c6fa;
+  border-radius: 11px;
+  color: #6847b5;
+  background: #f7f3ff;
+  font-size: 10px;
+  line-height: 1.5;
+}

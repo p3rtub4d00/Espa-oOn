@@ -18,6 +18,7 @@ export default function AdminLogin({
   onBack,
   name = 'EspaçoOn',
   branding = {},
+  demoMode = false,
 }) {
   const [password, setPassword] = useState('')
   const [error, setError] = useState('')
@@ -90,7 +91,7 @@ export default function AdminLogin({
   const submit = async (event) => {
     event.preventDefault()
     setError('')
-    if (!password) {
+    if (!demoMode && !password) {
       setError('Informe a senha.')
       return
     }
@@ -144,30 +145,42 @@ export default function AdminLogin({
           <>
             <div className="admin-login-icon"><LockKeyhole /></div>
             <div className="admin-login-copy">
-              <span>Acesso restrito</span>
-              <h1>Digite sua senha.</h1>
-              <p>Entre no painel administrativo para gerenciar reservas e configurações do espaço.</p>
+              <span>{demoMode ? 'Modo demonstração' : 'Acesso restrito'}</span>
+              <h1>{demoMode ? 'Teste o painel administrativo.' : 'Digite sua senha.'}</h1>
+              <p>
+                {demoMode
+                  ? 'Nesta demonstração o painel está liberado sem senha para você conhecer todos os recursos.'
+                  : 'Entre no painel administrativo para gerenciar reservas e configurações do espaço.'}
+              </p>
             </div>
 
             <form onSubmit={submit}>
-              <label>
-                <span>Senha</span>
-                <div className="admin-login-input">
-                  <KeyRound size={18} />
-                  <input
-                    type="password"
-                    autoComplete="current-password"
-                    value={password}
-                    onChange={(e) => setPassword(e.target.value)}
-                    placeholder="Senha administrativa"
-                    autoFocus
-                  />
+              {!demoMode && (
+                <label>
+                  <span>Senha</span>
+                  <div className="admin-login-input">
+                    <KeyRound size={18} />
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={password}
+                      onChange={(e) => setPassword(e.target.value)}
+                      placeholder="Senha administrativa"
+                      autoFocus
+                    />
+                  </div>
+                </label>
+              )}
+
+              {demoMode && (
+                <div className="admin-demo-notice">
+                  Nenhuma senha é necessária neste ambiente de demonstração.
                 </div>
-              </label>
+              )}
 
               {error && <p className="admin-login-error">{error}</p>}
               <button className="admin-login-submit" disabled={loading}>
-                {loading ? 'Verificando...' : 'Entrar no painel'}
+                {loading ? 'Abrindo...' : (demoMode ? 'Entrar na demonstração' : 'Entrar no painel')}
               </button>
             </form>
           </>

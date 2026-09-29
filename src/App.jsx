@@ -360,6 +360,7 @@ function App() {
         <AdminLogin
           name={brandName}
           branding={brandSettings}
+          demoMode={licenseStatus.demoMode === true}
           onAuthenticated={() => {
             if (window.location.pathname !== '/admin') {
               window.history.replaceState({}, '', '/admin')
@@ -464,6 +465,14 @@ function App() {
       </header>
 
       <main>
+        {licenseStatus.demoMode === true && (
+          <div className="public-system-alert demo-mode-alert">
+            <span>
+              Ambiente de demonstração: nenhum pagamento real será processado.
+            </span>
+          </div>
+        )}
+
         {bookingLicenseBlocked && (
           <div className="public-system-alert license-suspended-alert">
             <span>

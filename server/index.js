@@ -25,6 +25,11 @@ const ASAAS_API_KEY = process.env.ASAAS_API_KEY
 const ASAAS_ENV = String(process.env.ASAAS_ENV || 'production').toLowerCase()
 const ASAAS_WEBHOOK_TOKEN = process.env.ASAAS_WEBHOOK_TOKEN
 const ASAAS_BASE_URL = 'https://api.asaas.com/v3'
+const MASTER_API_URL = String(process.env.MASTER_API_URL || '').replace(/\/$/, '')
+const MASTER_CLUB_ID = String(process.env.MASTER_CLUB_ID || '').trim()
+const MASTER_LICENSE_KEY = String(process.env.MASTER_LICENSE_KEY || '').trim()
+const MASTER_LICENSE_CONFIGURED = Boolean(MASTER_API_URL && MASTER_CLUB_ID && MASTER_LICENSE_KEY)
+const MASTER_LICENSE_CACHE_MS = 5 * 60 * 1000
 
 app.set('trust proxy', 1)
 
@@ -522,6 +527,121 @@ function startReservationReminderScheduler() {
   reservationReminderTimer = setInterval(() => {
     processReservationReminders().catch(() => {})
   }, 15 * 60 * 1000)
+}
+
+let masterLicenseCache = {
+  checkedAt: 0,
+  active: true,
+  configured: MASTER_LICENSE_CONFIGURED,
+  status: MASTER_LICENSE_CONFIGURED ? 'unknown' : 'standalone',
+  billingStatus: MASTER_LICENSE_CONFIGURED ? 'unknown' : 'standalone',
+  nextDueDate: null,
+  temporaryUnlockUntil: null,
+  unavailable: false,
+}
+
+async function checkMasterLicense({ force = false } = {}) {
+  if (!MASTER_LICENSE_CONFIGURED) {
+    return {
+      active: true,
+      configured: false,
+      status: 'standalone',
+      billingStatus: 'standalone',
+      unavailable: false,
+    }
+  }
+
+  const now = Date.now()
+  if (!force && masterLicenseCache.checkedAt && now - masterLicenseCache.checkedAt < MASTER_LICENSE_CACHE_MS) {
+    return masterLicenseCache
+  }
+
+  const controller = new AbortController()
+  const timeout = setTimeout(() => controller.abort(), 12000)
+
+  try {
+    const response = await fetch(MASTER_API_URL + '/api/license/status', {
+      method: 'GET',
+      headers: {
+        'x-club-id': MASTER_CLUB_ID,
+        'x-license-key': MASTER_LICENSE_KEY,
+        'user-agent': 'EspacoOn-License-Agent/1.0',
+      },
+      signal: controller.signal,
+    })
+
+    const data = await response.json().catch(() => ({}))
+
+    if (response.status === 401 || response.status === 403) {
+      masterLicenseCache = {
+        checkedAt: now,
+        active: false,
+        configured: true,
+        status: 'invalid_license',
+        billingStatus: 'unknown',
+        nextDueDate: null,
+        temporaryUnlockUntil: null,
+        unavailable: false,
+      }
+      return masterLicenseCache
+    }
+
+    if (!response.ok) {
+      throw new Error(data?.error || 'Master indisponível.')
+    }
+
+    masterLicenseCache = {
+      checkedAt: now,
+      active: data.active === true,
+      configured: true,
+      status: data.status || 'unknown',
+      billingStatus: data.billingStatus || 'unknown',
+      nextDueDate: data.nextDueDate || null,
+      temporaryUnlockUntil: data.temporaryUnlockUntil || null,
+      unavailable: false,
+    }
+
+    return masterLicenseCache
+  } catch (error) {
+    console.warn('Falha temporária ao consultar licença Master:', error?.message || error)
+
+    // Fail-safe: uma falha de rede nunca suspende um cliente que estava ativo.
+    // Se já havia um bloqueio válido vindo do Master, ele permanece.
+    if (masterLicenseCache.checkedAt) {
+      return {
+        ...masterLicenseCache,
+        unavailable: true,
+      }
+    }
+
+    return {
+      checkedAt: 0,
+      active: true,
+      configured: true,
+      status: 'master_unavailable',
+      billingStatus: 'unknown',
+      nextDueDate: null,
+      temporaryUnlockUntil: null,
+      unavailable: true,
+    }
+  } finally {
+    clearTimeout(timeout)
+  }
+}
+
+async function requireActiveLicense(req, res, next) {
+  try {
+    const license = await checkMasterLicense()
+    if (!license.active) {
+      return res.status(423).json({
+        error: 'Sistema temporariamente suspenso. Regularize a assinatura do EspaçoOn para continuar.',
+        code: 'LICENSE_SUSPENDED',
+      })
+    }
+    next()
+  } catch (error) {
+    next(error)
+  }
 }
 
 function onlyDigits(value = '') {
@@ -1264,16 +1384,43 @@ app.get('/api/health', (_req, res) => {
   res.json({
     ok: true,
     database: mongoose.connection.readyState === 1 ? 'connected' : 'disconnected',
+    masterLicenseConfigured: MASTER_LICENSE_CONFIGURED,
   })
 })
 
-app.post('/api/admin/login', loginLimiter, (req, res) => {
-  const password = String(req.body?.password || '')
-  if (!secureEqual(password, ADMIN_PASSWORD)) {
-    return res.status(401).json({ error: 'Senha incorreta.' })
+app.get('/api/license', async (_req, res, next) => {
+  try {
+    const license = await checkMasterLicense()
+    res.json({
+      active: license.active,
+      configured: license.configured,
+      status: license.status,
+      billingStatus: license.billingStatus,
+      nextDueDate: license.nextDueDate,
+      temporaryUnlockUntil: license.temporaryUnlockUntil,
+      masterUnavailable: license.unavailable === true,
+    })
+  } catch (error) {
+    next(error)
   }
+})
 
-  res.cookie('espacoon_admin', signAdminToken(), {
+app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
+  try {
+    const password = String(req.body?.password || '')
+    if (!secureEqual(password, ADMIN_PASSWORD)) {
+      return res.status(401).json({ error: 'Senha incorreta.' })
+    }
+
+    const license = await checkMasterLicense({ force: true })
+    if (!license.active) {
+      return res.status(423).json({
+        error: 'Sistema temporariamente suspenso. Regularize a assinatura do EspaçoOn para acessar o painel.',
+        code: 'LICENSE_SUSPENDED',
+      })
+    }
+
+    res.cookie('espacoon_admin', signAdminToken(), {
     httpOnly: true,
     sameSite: 'strict',
     secure: true,
@@ -1281,10 +1428,13 @@ app.post('/api/admin/login', loginLimiter, (req, res) => {
     maxAge: 12 * 60 * 60 * 1000,
   })
 
-  res.json({ ok: true })
+    res.json({ ok: true })
+  } catch (error) {
+    next(error)
+  }
 })
 
-app.get('/api/admin/session', requireAdmin, (_req, res) => {
+app.get('/api/admin/session', requireAdmin, requireActiveLicense, (_req, res) => {
   res.json({ authenticated: true })
 })
 
@@ -1297,6 +1447,8 @@ app.post('/api/admin/logout', (_req, res) => {
   })
   res.json({ ok: true })
 })
+
+app.use('/api/admin', requireActiveLicense)
 
 app.get('/api/settings', async (_req, res, next) => {
   try {
@@ -1355,7 +1507,7 @@ app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res
   }
 })
 
-app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
+app.post('/api/contracts', requireActiveLicense, publicWriteLimiter, async (req, res, next) => {
   try {
     const payload = req.body || {}
 
@@ -1434,7 +1586,7 @@ app.post('/api/contracts', publicWriteLimiter, async (req, res, next) => {
   }
 })
 
-app.post('/api/payments/asaas/pix', paymentLimiter, async (req, res, next) => {
+app.post('/api/payments/asaas/pix', requireActiveLicense, paymentLimiter, async (req, res, next) => {
   let lockCreated = false
   let contractDateISO = null
   let reservationId = null

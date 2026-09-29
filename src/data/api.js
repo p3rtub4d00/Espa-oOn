@@ -15,7 +15,11 @@ async function request(url, options = {}) {
   }
 
   if (!response.ok) {
-    throw new Error(data?.error || 'Erro ao comunicar com o servidor.')
+    const error = new Error(data?.error || 'Erro ao comunicar com o servidor.')
+    error.status = response.status
+    error.code = data?.code
+    error.data = data
+    throw error
   }
 
   return data
@@ -25,7 +29,9 @@ export const api = {
   getSettings: () => request('/api/settings'),
   getAdminSettings: () => request('/api/admin/settings'),
   getAvailability: () => request('/api/availability'),
-  licenseStatus: () => request('/api/license'),
+  licenseStatus: (force = false) => request('/api/license' + (force ? '?force=1' : '')),
+  licenseBilling: () => request('/api/license/billing'),
+  createLicensePix: () => request('/api/license/billing/pix', { method: 'POST' }),
 
   adminSession: () => request('/api/admin/session'),
   adminLogin: (password) =>

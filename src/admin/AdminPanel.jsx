@@ -198,6 +198,9 @@ export default function AdminPanel({
   const [cancellationBusy, setCancellationBusy] = useState(false)
   const [cancellationError, setCancellationError] = useState('')
   const [policySaveMessage, setPolicySaveMessage] = useState('')
+  const [settingsSaveMessage, setSettingsSaveMessage] = useState('')
+  const [settingsSaveType, setSettingsSaveType] = useState('success')
+  const [establishmentMissing, setEstablishmentMissing] = useState({})
   const [pushStatus, setPushStatus] = useState(null)
   const [pushSubscription, setPushSubscription] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)
@@ -399,6 +402,14 @@ export default function AdminPanel({
     }
   }
 
+  const showSettingsMessage = (message, type = 'success') => {
+    setSettingsSaveMessage(message)
+    setSettingsSaveType(type)
+    window.setTimeout(() => {
+      setSettingsSaveMessage('')
+    }, 3500)
+  }
+
   const revenue = useMemo(
     () => reservations
       .filter((item) => item.paymentStatus === 'paid')
@@ -558,6 +569,12 @@ export default function AdminPanel({
         </header>
 
         {adminError && <div className="admin-demo-note">{adminError}</div>}
+        {settingsSaveMessage && (
+          <div className={'admin-save-toast ' + settingsSaveType}>
+            <CheckCircle2 size={17} />
+            <span>{settingsSaveMessage}</span>
+          </div>
+        )}
         {loading && <div className="admin-demo-note">Carregando dados online...</div>}
 
         {active === 'overview' && (
@@ -1290,8 +1307,10 @@ export default function AdminPanel({
                         pricesConfigured: true,
                       },
                     })
-                    setAdminError('Tabela de preços salva com sucesso.')
-                  } catch {}
+                    showSettingsMessage('Tabela de preços salva com sucesso.', 'success')
+                  } catch (error) {
+                    showSettingsMessage(error.message || 'Não foi possível salvar a tabela de preços.', 'error')
+                  }
                 }}
               >
                 <CheckCircle2 size={16} />
@@ -1314,50 +1333,62 @@ export default function AdminPanel({
             </div>
 
             <div className="establishment-grid">
-              <label>
+              <label className={establishmentMissing.name ? 'field-missing' : ''}>
                 <span>Nome do espaço</span>
                 <input
                   value={settings.establishment?.name || ''}
-                  onChange={(event) => updateSettingsDraft((current) => ({
-                    ...current,
-                    establishment: {
-                      ...(current.establishment || {}),
-                      name: event.target.value,
-                    },
-                  }))}
+                  onChange={(event) => {
+                    setEstablishmentMissing((current) => ({ ...current, name: false }))
+                    updateSettingsDraft((current) => ({
+                      ...current,
+                      establishment: {
+                        ...(current.establishment || {}),
+                        name: event.target.value,
+                      },
+                    }))
+                  }}
                   placeholder="Ex.: EspaçoOn"
                 />
+                {establishmentMissing.name && <small className="field-error-text">Preencha o nome do espaço.</small>}
               </label>
 
-              <label>
+              <label className={establishmentMissing.ownerName ? 'field-missing' : ''}>
                 <span>Responsável</span>
                 <input
                   value={settings.establishment?.ownerName || ''}
-                  onChange={(event) => updateSettingsDraft((current) => ({
-                    ...current,
-                    establishment: {
-                      ...(current.establishment || {}),
-                      ownerName: event.target.value,
-                    },
-                  }))}
+                  onChange={(event) => {
+                    setEstablishmentMissing((current) => ({ ...current, ownerName: false }))
+                    updateSettingsDraft((current) => ({
+                      ...current,
+                      establishment: {
+                        ...(current.establishment || {}),
+                        ownerName: event.target.value,
+                      },
+                    }))
+                  }}
                   placeholder="Nome do responsável"
                 />
+                {establishmentMissing.ownerName && <small className="field-error-text">Informe o responsável.</small>}
               </label>
 
-              <label>
+              <label className={establishmentMissing.phone ? 'field-missing' : ''}>
                 <span>Telefone / WhatsApp de contato</span>
                 <input
                   inputMode="tel"
                   value={settings.establishment?.phone || ''}
-                  onChange={(event) => updateSettingsDraft((current) => ({
-                    ...current,
-                    establishment: {
-                      ...(current.establishment || {}),
-                      phone: event.target.value.replace(/\D/g, '').slice(0, 13),
-                    },
-                  }))}
+                  onChange={(event) => {
+                    setEstablishmentMissing((current) => ({ ...current, phone: false }))
+                    updateSettingsDraft((current) => ({
+                      ...current,
+                      establishment: {
+                        ...(current.establishment || {}),
+                        phone: event.target.value.replace(/\D/g, '').slice(0, 13),
+                      },
+                    }))
+                  }}
                   placeholder="Ex.: 5569999999999"
                 />
+                {establishmentMissing.phone && <small className="field-error-text">Informe um telefone válido.</small>}
               </label>
 
               <label>
@@ -1379,46 +1410,58 @@ export default function AdminPanel({
                 <span>Endereço completo</span>
                 <input
                   value={settings.establishment?.address || ''}
-                  onChange={(event) => updateSettingsDraft((current) => ({
-                    ...current,
-                    establishment: {
-                      ...(current.establishment || {}),
-                      address: event.target.value,
-                    },
-                  }))}
+                  onChange={(event) => {
+                    setEstablishmentMissing((current) => ({ ...current, address: false }))
+                    updateSettingsDraft((current) => ({
+                      ...current,
+                      establishment: {
+                        ...(current.establishment || {}),
+                        address: event.target.value,
+                      },
+                    }))
+                  }}
                   placeholder="Rua, número, bairro"
                 />
+                {establishmentMissing.address && <small className="field-error-text">Informe o endereço.</small>}
               </label>
 
-              <label>
+              <label className={establishmentMissing.city ? 'field-missing' : ''}>
                 <span>Cidade</span>
                 <input
                   value={settings.establishment?.city || ''}
-                  onChange={(event) => updateSettingsDraft((current) => ({
-                    ...current,
-                    establishment: {
-                      ...(current.establishment || {}),
-                      city: event.target.value,
-                    },
-                  }))}
+                  onChange={(event) => {
+                    setEstablishmentMissing((current) => ({ ...current, city: false }))
+                    updateSettingsDraft((current) => ({
+                      ...current,
+                      establishment: {
+                        ...(current.establishment || {}),
+                        city: event.target.value,
+                      },
+                    }))
+                  }}
                   placeholder="Cidade"
                 />
+                {establishmentMissing.city && <small className="field-error-text">Informe a cidade.</small>}
               </label>
 
-              <label>
+              <label className={establishmentMissing.state ? 'field-missing' : ''}>
                 <span>UF</span>
                 <input
                   maxLength={2}
                   value={settings.establishment?.state || ''}
-                  onChange={(event) => updateSettingsDraft((current) => ({
-                    ...current,
-                    establishment: {
-                      ...(current.establishment || {}),
-                      state: event.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2),
-                    },
-                  }))}
+                  onChange={(event) => {
+                    setEstablishmentMissing((current) => ({ ...current, state: false }))
+                    updateSettingsDraft((current) => ({
+                      ...current,
+                      establishment: {
+                        ...(current.establishment || {}),
+                        state: event.target.value.toUpperCase().replace(/[^A-Z]/g, '').slice(0, 2),
+                      },
+                    }))
+                  }}
                   placeholder="RO"
                 />
+                {establishmentMissing.state && <small className="field-error-text">Informe a UF com 2 letras.</small>}
               </label>
 
               <label className="establishment-wide">
@@ -1444,14 +1487,17 @@ export default function AdminPanel({
                   setAdminError('')
                   try {
                     const establishment = settings.establishment || {}
-                    const complete = Boolean(
-                      String(establishment.name || '').trim().length >= 2 &&
-                      String(establishment.ownerName || '').trim().length >= 3 &&
-                      String(establishment.phone || '').replace(/\D/g, '').length >= 10 &&
-                      String(establishment.address || '').trim().length >= 5 &&
-                      String(establishment.city || '').trim().length >= 2 &&
-                      /^[A-Z]{2}$/.test(String(establishment.state || '').trim())
-                    )
+                    const missing = {
+                      name: String(establishment.name || '').trim().length < 2,
+                      ownerName: String(establishment.ownerName || '').trim().length < 3,
+                      phone: String(establishment.phone || '').replace(/\D/g, '').length < 10,
+                      address: String(establishment.address || '').trim().length < 5,
+                      city: String(establishment.city || '').trim().length < 2,
+                      state: !/^[A-Z]{2}$/.test(String(establishment.state || '').trim()),
+                    }
+
+                    setEstablishmentMissing(missing)
+                    const complete = !Object.values(missing).some(Boolean)
 
                     await persistSettings({
                       ...settings,
@@ -1461,12 +1507,14 @@ export default function AdminPanel({
                       },
                     })
 
-                    setAdminError(
-                      complete
-                        ? 'Dados do estabelecimento salvos com sucesso.'
-                        : 'Dados salvos. Para concluir a configuração inicial, preencha nome, responsável, telefone, endereço, cidade e UF.'
-                    )
-                  } catch {}
+                    if (complete) {
+                      showSettingsMessage('Dados do estabelecimento salvos com sucesso.', 'success')
+                    } else {
+                      showSettingsMessage('Dados salvos, mas ainda faltam campos obrigatórios destacados em vermelho.', 'warning')
+                    }
+                  } catch (error) {
+                    showSettingsMessage(error.message || 'Não foi possível salvar os dados do estabelecimento.', 'error')
+                  }
                 }}
               >
                 <CheckCircle2 size={16} />
@@ -1559,7 +1607,7 @@ export default function AdminPanel({
                         setSettings(saved)
                         settingsDirtyRef.current = false
                         onSettingsSaved(saved)
-                        setAdminError('Logo atualizada com sucesso.')
+                        showSettingsMessage('Logo atualizada com sucesso.', 'success')
                       } catch (error) {
                         setAdminError(error.message || 'Não foi possível enviar a logo.')
                       } finally {
@@ -1595,7 +1643,7 @@ export default function AdminPanel({
                           await api.deleteImage(match[1]).catch(() => {})
                         }
 
-                        setAdminError('Logo personalizada removida. A identidade padrão voltou a ser usada.')
+                        showSettingsMessage('Logo personalizada removida. A identidade padrão voltou a ser usada.', 'success')
                       } catch (error) {
                         setAdminError(error.message || 'Não foi possível remover a logo.')
                       } finally {
@@ -1660,7 +1708,7 @@ export default function AdminPanel({
                     setSettings(saved)
                     settingsDirtyRef.current = false
                     onSettingsSaved(saved)
-                    setAdminError('Identidade visual salva com sucesso.')
+                    showSettingsMessage('Identidade visual salva com sucesso.', 'success')
                   } catch (error) {
                     setAdminError(error.message || 'Não foi possível salvar a identidade visual.')
                   }

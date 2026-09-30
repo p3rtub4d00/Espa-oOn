@@ -102,6 +102,9 @@ const reservationSchema = new mongoose.Schema(
     date: String,
     dateISO: { type: String, index: true },
     period: String,
+    basePrice: Number,
+    extrasTotal: Number,
+    extras: [mongoose.Schema.Types.Mixed],
     price: Number,
     customer: {
       name: String,
@@ -149,6 +152,9 @@ const contractSchema = new mongoose.Schema(
     reservationDate: String,
     reservationDateISO: String,
     period: String,
+    basePrice: Number,
+    extrasTotal: Number,
+    extras: [mongoose.Schema.Types.Mixed],
     price: Number,
     customer: {
       name: String,
@@ -211,6 +217,7 @@ const settingsSchema = new mongoose.Schema(
     rentalHours: mongoose.Schema.Types.Mixed,
     gallery: [String],
     amenities: [mongoose.Schema.Types.Mixed],
+    extras: [mongoose.Schema.Types.Mixed],
     notifications: {
       notifyPaidReservation: { type: Boolean, default: true },
       notifyNewVisit: { type: Boolean, default: true },
@@ -318,6 +325,7 @@ const DEFAULT_SETTINGS = {
     { id: 'snooker', name: 'Sinuca', description: 'Mesa de sinuca disponível para os convidados.', icon: 'game' },
     { id: 'support', name: 'Área de apoio', description: 'Estrutura para confraternizações.', icon: 'food' },
   ],
+  extras: [],
   notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
@@ -783,6 +791,15 @@ function contractHash(contract) {
     contract.reservationDate || '',
     contract.period,
     Number(contract.price || 0).toFixed(2),
+    Number(contract.basePrice || 0).toFixed(2),
+    Number(contract.extrasTotal || 0).toFixed(2),
+    JSON.stringify((contract.extras || []).map((item) => ({
+      id: item.id,
+      name: item.name,
+      unitPrice: Number(item.unitPrice || 0).toFixed(2),
+      quantity: Number(item.quantity || 0),
+      subtotal: Number(item.subtotal || 0).toFixed(2),
+    }))),
     contract.customer?.name || '',
     onlyDigits(contract.customer?.cpf),
     onlyDigits(contract.customer?.phone),
@@ -1041,6 +1058,38 @@ function sanitizeSettingsUpdate(body = {}) {
     }
   }
 
+  if (body.extras !== undefined) {
+    if (!Array.isArray(body.extras) || body.extras.length > 100) {
+      const error = new Error('Lista de adicionais inválida.')
+      error.statusCode = 400
+      throw error
+    }
+
+    const seen = new Set()
+    update.extras = body.extras.map((item, index) => {
+      const id = textValue(item?.id || ('extra-' + index), 80)
+      const name = textValue(item?.name, 100)
+      const description = textValue(item?.description, 300)
+      const price = Number(item?.price)
+      const active = item?.active === true
+
+      if (!id || seen.has(id) || name.length < 2 || !Number.isFinite(price) || price <= 0 || price > 100000) {
+        const error = new Error('Existe um adicional com dados inválidos.')
+        error.statusCode = 400
+        throw error
+      }
+
+      seen.add(id)
+      return {
+        id,
+        name,
+        description,
+        price: Math.round(price * 100) / 100,
+        active,
+      }
+    })
+  }
+
   if (body.notifications !== undefined) {
     const timePattern = /^(?:[01]\d|2[0-3]):[0-5]\d$/
     const reservationDayBeforeTime = textValue(
@@ -1175,6 +1224,51 @@ function priceForDate(dateISO, period, settings) {
   if (weekday === 0) return Number(period === '12h' ? settings.prices.sunday12 : settings.prices.sunday24)
   if (weekday === 5 || weekday === 6) return Number(period === '12h' ? settings.prices.weekend12 : settings.prices.weekend24)
   return Number(period === '12h' ? settings.prices.weekday12 : settings.prices.weekday24)
+}
+
+function selectedExtrasForContract(settings, requestedExtras) {
+  if (!Array.isArray(requestedExtras) || requestedExtras.length === 0) {
+    return { extras: [], extrasTotal: 0 }
+  }
+
+  if (requestedExtras.length > 50) {
+    const error = new Error('Quantidade de tipos de adicionais inválida.')
+    error.statusCode = 400
+    throw error
+  }
+
+  const available = new Map(
+    (Array.isArray(settings.extras) ? settings.extras : [])
+      .filter((item) => item?.active === true)
+      .map((item) => [String(item.id), item]),
+  )
+
+  const extras = requestedExtras
+    .map((requested) => {
+      const id = textValue(requested?.id, 80)
+      const quantity = Number(requested?.quantity)
+      const source = available.get(id)
+
+      if (!source || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+        const error = new Error('Um dos adicionais selecionados não está disponível ou possui quantidade inválida.')
+        error.statusCode = 400
+        throw error
+      }
+
+      const unitPrice = Number(source.price)
+      const subtotal = Math.round(unitPrice * quantity * 100) / 100
+      return {
+        id,
+        name: textValue(source.name, 100),
+        description: textValue(source.description, 300),
+        unitPrice: Math.round(unitPrice * 100) / 100,
+        quantity,
+        subtotal,
+      }
+    })
+
+  const extrasTotal = Math.round(extras.reduce((sum, item) => sum + item.subtotal, 0) * 100) / 100
+  return { extras, extrasTotal }
 }
 
 async function acquireDateLock(dateISO, reservationId) {
@@ -1860,7 +1954,9 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
     if (existing) return res.status(200).json(existing)
 
     const settings = await currentSettings()
-    const price = priceForDate(reservationDateISO, payload.period, settings)
+    const basePrice = priceForDate(reservationDateISO, payload.period, settings)
+    const selectedExtras = selectedExtrasForContract(settings, payload.extras)
+    const price = Math.round((basePrice + selectedExtras.extrasTotal) * 100) / 100
     const cancellationPolicyText = textValue(
       settings.cancellationPolicy?.text || DEFAULT_SETTINGS.cancellationPolicy.text,
       2000,
@@ -1878,6 +1974,9 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       reservationDate: displayDate(reservationDateISO),
       reservationDateISO,
       period: payload.period,
+      basePrice,
+      extrasTotal: selectedExtras.extrasTotal,
+      extras: selectedExtras.extras,
       price,
       customer,
       signedAt,
@@ -2403,6 +2502,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             date: contract.reservationDate || displayDate(contractDateISO),
             dateISO: contractDateISO,
             period: contract.period,
+            basePrice: Number(contract.basePrice || serverPrice),
+            extrasTotal: Number(contract.extrasTotal || 0),
+            extras: Array.isArray(contract.extras) ? contract.extras : [],
             customer: contract.customer,
             price: serverPrice,
             contractId,
@@ -2515,6 +2617,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             date: contract.reservationDate || displayDate(contractDateISO),
             dateISO: contractDateISO,
             period: contract.period,
+            basePrice: Number(contract.basePrice || serverPrice),
+            extrasTotal: Number(contract.extrasTotal || 0),
+            extras: Array.isArray(contract.extras) ? contract.extras : [],
             customer: contract.customer,
             price: serverPrice,
             contractId,
@@ -2601,6 +2706,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             date: contract.reservationDate || displayDate(contractDateISO),
             dateISO: contractDateISO,
             period: contract.period,
+            basePrice: Number(contract.basePrice || serverPrice),
+            extrasTotal: Number(contract.extrasTotal || 0),
+            extras: Array.isArray(contract.extras) ? contract.extras : [],
             customer: contract.customer,
             price: serverPrice,
             contractId,

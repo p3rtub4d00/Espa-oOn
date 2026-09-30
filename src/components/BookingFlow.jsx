@@ -188,7 +188,11 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     setDeliveryStatus('sharing')
 
     try {
-      const delivery = await sharePaymentDocuments(result.reservation, result.contract)
+      const delivery = await sharePaymentDocuments(
+        result.reservation,
+        result.contract,
+        liveSettings.establishment?.name || result.contract?.establishmentName || 'EspaçoOn',
+      )
       setDeliveryStatus(delivery.method)
     } catch {
       setDeliveryStatus('error')
@@ -282,7 +286,11 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
     setDeliveryStatus('sharing')
     try {
-      const result = await sharePaymentDocuments(paidReservation, signedContract)
+      const result = await sharePaymentDocuments(
+        paidReservation,
+        signedContract,
+        liveSettings.establishment?.name || signedContract?.establishmentName || 'EspaçoOn',
+      )
       setDeliveryStatus(result.method)
     } catch {
       setDeliveryStatus('error')

@@ -1552,7 +1552,7 @@ app.get('/api/payments/config', async (_req, res, next) => {
     const config = await masterBillingRequest('/api/license/mercadopago/config')
     res.json({
       paymentProvider: 'mercadopago',
-      cardEnabled: Boolean(config?.connected && config?.publicKey),
+      cardEnabled: Boolean(config?.connected),
       mercadoPagoPublicKey: config?.publicKey || '',
     })
   } catch (error) {

@@ -68,7 +68,7 @@ function maskCpf(value = '') {
 function paymentStatusLabel(status) {
   if (status === 'paid') return 'Pago'
   if (status === 'confirmed-asaas') return 'Confirmado • processando'
-  if (status === 'pending-asaas') return 'Aguardando Pix'
+  if (status === 'pending-asaas' || status === 'pending-mercadopago') return 'Aguardando Pix'
   if (status === 'manual-review') return 'Conferência manual'
   if (status === 'refunded') return 'Estornado'
   if (status === 'cancelled') return 'Cancelado'
@@ -78,7 +78,7 @@ function paymentStatusLabel(status) {
 
 function isActiveReservation(reservation) {
   return reservation?.reservationStatus !== 'cancelled' &&
-    ['paid', 'confirmed-asaas', 'pending-asaas', 'manual-review'].includes(reservation?.paymentStatus)
+    ['paid', 'confirmed-asaas', 'pending-asaas', 'pending-mercadopago', 'manual-review'].includes(reservation?.paymentStatus)
 }
 
 function normalizeWhatsAppNumber(phone = '') {
@@ -2251,7 +2251,7 @@ export default function AdminPanel({
                 </div>
                 <div>
                   <span>Pagamento</span>
-                  <strong>{selectedReservation.asaasStatus || selectedReservation.paymentStatus || '-'}</strong>
+                  <strong>{selectedReservation.providerStatus || selectedReservation.asaasStatus || selectedReservation.paymentStatus || '-'}</strong>
                 </div>
               </div>
 

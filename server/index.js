@@ -1299,6 +1299,7 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
         paymentProvider: provider,
         providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId || payment?.id,
         providerStatus: payment?.status || 'RECEIVED',
+        reservationStatus: 'active',
         paidAt,
         holdUntil: null,
       },
@@ -1689,7 +1690,7 @@ app.get('/api/availability', async (_req, res, next) => {
     await cleanupExpiredLocks()
 
     const [locks, settings] = await Promise.all([
-      DateLock.find({}, { _id: 1 }).lean(),
+      DateLock.find({}, { _id: 1, status: 1 }).lean(),
       Settings.findOne(
         { key: 'main' },
         { blockedDays: 1, blockedDates: 1, _id: 0 },
@@ -1697,7 +1698,8 @@ app.get('/api/availability', async (_req, res, next) => {
     ])
 
     res.json({
-      reservedDates: locks.map((lock) => lock._id),
+      reservedDates: locks.filter((lock) => ['paid', 'confirmed'].includes(lock.status)).map((lock) => lock._id),
+      pendingDates: locks.filter((lock) => lock.status === 'pending').map((lock) => lock._id),
       blockedDates: settings?.blockedDates || [],
     })
   } catch (error) {
@@ -1907,7 +1909,7 @@ app.post('/api/payments/mercadopago/checkout', requireBookingLicense, paymentLim
           providerStatus: 'checkout_created',
           pixExpirationDate: null,
           holdUntil,
-          reservationStatus: 'active',
+          reservationStatus: 'pending-payment',
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -2179,7 +2181,7 @@ app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter
           providerStatus,
           pixExpirationDate: null,
           holdUntil,
-          reservationStatus: 'active',
+          reservationStatus: 'pending-payment',
         },
       },
       { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -2435,7 +2437,7 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             providerStatus: order.status || 'action_required',
             pixExpirationDate: holdUntil.toISOString(),
             holdUntil,
-            reservationStatus: 'active',
+            reservationStatus: 'pending-payment',
           },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -3403,9 +3405,9 @@ app.delete('/api/admin/reservations/:id', requireAdmin, async (req, res, next) =
       return res.status(404).json({ error: 'Reserva não encontrada.' })
     }
 
-    if (!['pending-asaas', 'expired', 'cancelled'].includes(reservation.paymentStatus)) {
+    if (!['pending-asaas', 'pending-mercadopago', 'expired', 'cancelled', 'awaiting-payment'].includes(reservation.paymentStatus)) {
       return res.status(409).json({
-        error: 'Somente reservas pendentes, expiradas ou canceladas podem ser excluídas por esta opção.',
+        error: 'Somente tentativas pendentes, expiradas ou canceladas podem ser excluídas por esta opção.',
       })
     }
 
@@ -3456,6 +3458,37 @@ app.delete('/api/admin/reservations/:id', requireAdmin, async (req, res, next) =
             cancelError.statusCode = 409
             throw cancelError
           }
+        }
+      }
+    }
+
+    if (reservation.paymentStatus === 'pending-mercadopago') {
+      const payment = await masterBillingRequest(
+        '/api/license/mercadopago/payments/by-reference/' + encodeURIComponent(reservation.id),
+      )
+
+      if (payment?.found && payment.status === 'approved') {
+        const protectedError = new Error(
+          'Este pagamento já foi aprovado no Mercado Pago e não pode ser excluído como pendente.'
+        )
+        protectedError.statusCode = 409
+        throw protectedError
+      }
+
+      if (reservation.paymentMethod === 'card' && reservation.providerPaymentId) {
+        try {
+          await masterBillingRequest(
+            '/api/license/mercadopago/checkout/preferences/' +
+              encodeURIComponent(reservation.providerPaymentId) +
+              '/expire',
+            { method: 'POST' },
+          )
+        } catch (expireError) {
+          const cancelError = new Error(
+            'Não foi possível encerrar o checkout do Mercado Pago. A tentativa não foi excluída.'
+          )
+          cancelError.statusCode = 409
+          throw cancelError
         }
       }
     }

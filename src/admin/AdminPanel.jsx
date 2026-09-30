@@ -514,7 +514,7 @@ export default function AdminPanel({
         {active === 'overview' && (
           <>
             {paymentConfig?.paymentProvider === 'mercadopago' && (
-              <section className="admin-card large payment-home-card">
+              <section className="admin-card payment-home-card">
                 <div className="payment-home-content">
                   <div className="payment-home-icon">
                     <CircleDollarSign size={28} />

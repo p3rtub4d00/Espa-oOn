@@ -168,6 +168,7 @@ export default function AdminPanel({
   appInstalled = false,
   initialBranding = {},
   initialBrandName = 'EspaçoOn',
+  onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
   const [reservations, setReservations] = useState([])
@@ -389,6 +390,7 @@ export default function AdminPanel({
       const saved = await api.saveSettings(next)
       settingsDirtyRef.current = false
       setSettings(saved)
+      onSettingsSaved(saved)
       return saved
     } catch (error) {
       settingsDirtyRef.current = true
@@ -1454,6 +1456,8 @@ export default function AdminPanel({
                         }
                         const saved = await api.saveSettings(next)
                         setSettings(saved)
+                        settingsDirtyRef.current = false
+                        onSettingsSaved(saved)
                         setAdminError('Logo atualizada com sucesso.')
                       } catch (error) {
                         setAdminError(error.message || 'Não foi possível enviar a logo.')
@@ -1482,6 +1486,8 @@ export default function AdminPanel({
                         }
                         const saved = await api.saveSettings(next)
                         setSettings(saved)
+                        settingsDirtyRef.current = false
+                        onSettingsSaved(saved)
 
                         const match = String(oldUrl).match(/^\/api\/images\/([a-f0-9]{24})$/i)
                         if (match) {
@@ -1551,6 +1557,8 @@ export default function AdminPanel({
                   try {
                     const saved = await api.saveSettings(settings)
                     setSettings(saved)
+                    settingsDirtyRef.current = false
+                    onSettingsSaved(saved)
                     setAdminError('Identidade visual salva com sucesso.')
                   } catch (error) {
                     setAdminError(error.message || 'Não foi possível salvar a identidade visual.')
@@ -1635,6 +1643,8 @@ export default function AdminPanel({
                       cancellationPolicy: { text },
                     })
                     setSettings(saved)
+                    settingsDirtyRef.current = false
+                    onSettingsSaved(saved)
                     setPolicySaveMessage('Política salva. Ela aparecerá nos novos contratos antes da assinatura.')
                   } catch (error) {
                     setPolicySaveMessage(error.message || 'Não foi possível salvar a política.')

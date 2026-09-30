@@ -40,6 +40,11 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   adminLogout: () => request('/api/admin/logout', { method: 'POST' }),
+  paymentProviderStatus: () => request('/api/admin/payment-provider'),
+  connectMercadoPago: () =>
+    request('/api/admin/payments/mercadopago/connect', { method: 'POST' }),
+  disconnectMercadoPago: () =>
+    request('/api/admin/payments/mercadopago/disconnect', { method: 'POST' }),
 
   saveSettings: (settings) =>
     request('/api/admin/settings', {

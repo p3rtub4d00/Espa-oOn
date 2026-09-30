@@ -40,6 +40,7 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   adminLogout: () => request('/api/admin/logout', { method: 'POST' }),
+  paymentConfig: () => request('/api/payments/config'),
   paymentProviderStatus: () => request('/api/admin/payment-provider'),
   connectMercadoPago: () =>
     request('/api/admin/payments/mercadopago/connect', { method: 'POST' }),
@@ -65,6 +66,12 @@ export const api = {
     request('/api/payments/asaas/pix', {
       method: 'POST',
       body: JSON.stringify({ reservation, contractId }),
+    }),
+
+  createCardPayment: (reservation, contractId, card) =>
+    request('/api/payments/mercadopago/card', {
+      method: 'POST',
+      body: JSON.stringify({ reservation, contractId, card }),
     }),
 
   paymentStatus: (reservationId) =>

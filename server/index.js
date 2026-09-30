@@ -1556,7 +1556,7 @@ app.get('/api/admin/session', requireAdmin, requireActiveLicense, (_req, res) =>
   res.json({ authenticated: true })
 })
 
-app.get('/api/admin/payment-provider', requireAdmin, async (_req, res, next) => {
+app.get('/api/admin/payment-provider', requireAdmin, requireActiveLicense, async (_req, res, next) => {
   try {
     const license = await checkMasterLicense({ force: true })
     res.json({
@@ -1569,7 +1569,7 @@ app.get('/api/admin/payment-provider', requireAdmin, async (_req, res, next) => 
   }
 })
 
-app.post('/api/admin/payments/mercadopago/connect', requireAdmin, writeLimiter, async (req, res, next) => {
+app.post('/api/admin/payments/mercadopago/connect', requireAdmin, requireActiveLicense, writeLimiter, async (req, res, next) => {
   try {
     const returnUrl =
       req.protocol + '://' + req.get('host') + '/admin?mercadopago=connected'
@@ -1585,7 +1585,7 @@ app.post('/api/admin/payments/mercadopago/connect', requireAdmin, writeLimiter, 
   }
 })
 
-app.post('/api/admin/payments/mercadopago/disconnect', requireAdmin, writeLimiter, async (_req, res, next) => {
+app.post('/api/admin/payments/mercadopago/disconnect', requireAdmin, requireActiveLicense, writeLimiter, async (_req, res, next) => {
   try {
     const result = await masterBillingRequest('/api/license/mercadopago/disconnect', {
       method: 'POST',

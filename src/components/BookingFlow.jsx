@@ -579,6 +579,17 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div className="payment-method-loading">Carregando formas de pagamento...</div>
               )}
 
+              <div className="payment-hold-notice">
+                <Clock3 size={18} />
+                <span>
+                  <strong>Sua data ficará protegida por 15 minutos durante o pagamento.</strong>
+                  <small>
+                    Nesse período, outra pessoa não poderá concluir uma reserva para esta mesma data.
+                    Se o pagamento não for confirmado a tempo, a data será liberada automaticamente.
+                  </small>
+                </span>
+              </div>
+
               {!paymentConfigLoading && paymentConfig?.cardEnabled && !pixPayment && !cardOrder && (
                 <div className="payment-method-choice">
                   <button
@@ -634,6 +645,12 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                           {checkingPayment
                             ? 'Consultando o Mercado Pago...'
                             : 'Conclua o pagamento na aba do Mercado Pago. Depois voltaremos automaticamente.'}
+                          {cardOrder && (
+                            <small>
+                              Data protegida por mais {String(Math.floor(holdSeconds / 60)).padStart(2, '0')}:
+                              {String(holdSeconds % 60).padStart(2, '0')}
+                            </small>
+                          )}
                         </small>
                       </div>
                       <button onClick={verifyPayment} disabled={checkingPayment}>

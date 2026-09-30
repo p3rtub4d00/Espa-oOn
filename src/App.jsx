@@ -383,6 +383,7 @@ function App() {
         initialBranding={brandSettings}
         initialBrandName={brandName}
         appInstalled={appInstalled}
+        onSettingsSaved={(saved) => setSiteSettings(saved)}
         onClose={async () => {
           try {
             await api.adminLogout()

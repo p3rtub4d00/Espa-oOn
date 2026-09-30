@@ -422,6 +422,55 @@ export default function AdminPanel({
   const currentBranding = settings.branding || initialBranding || {}
   const currentBrandName = settings.establishment?.name || initialBrandName || 'EspaçoOn'
 
+  const establishmentSetupComplete = Boolean(
+    settings.onboarding?.establishmentConfigured === true
+  )
+  const pricesSetupComplete = Boolean(
+    settings.onboarding?.pricesConfigured === true
+  )
+  const mercadoPagoSetupComplete = Boolean(
+    paymentConfig?.paymentProvider === 'mercadopago' &&
+    paymentConfig?.mercadoPagoConnected
+  )
+  const showSetupChecklist = Boolean(
+    paymentConfig &&
+    paymentConfig.demoMode !== true &&
+    paymentConfig.paymentProvider === 'mercadopago' &&
+    !(establishmentSetupComplete && pricesSetupComplete && mercadoPagoSetupComplete)
+  )
+
+  const startMercadoPagoConnection = async () => {
+    if (paymentConfigBusy) return
+
+    setPaymentConfigBusy(true)
+    setPaymentConfigMessage('')
+    const oauthWindow = window.open('about:blank', '_blank')
+
+    try {
+      const result = await api.connectMercadoPago()
+      if (!result?.authorizationUrl) {
+        throw new Error('O Mercado Pago não retornou o link de autorização.')
+      }
+
+      if (oauthWindow && !oauthWindow.closed) {
+        oauthWindow.opener = null
+        oauthWindow.location.replace(result.authorizationUrl)
+        setPaymentConfigMessage(
+          'O Mercado Pago foi aberto no navegador. Conclua a autorização e depois volte ao EspaçoOn.'
+        )
+      } else {
+        setPaymentConfigMessage(
+          'Não foi possível abrir o navegador automaticamente. Tente novamente permitindo pop-ups para este site.'
+        )
+      }
+    } catch (error) {
+      if (oauthWindow && !oauthWindow.closed) oauthWindow.close()
+      setPaymentConfigMessage(error.message || 'Não foi possível iniciar a conexão.')
+    } finally {
+      setPaymentConfigBusy(false)
+    }
+  }
+
   const adminThemeStyle = {
     '--brand-primary': currentBranding.primaryColor || '#0f3554',
     '--brand-secondary': currentBranding.secondaryColor || '#1f8efa',
@@ -513,6 +562,62 @@ export default function AdminPanel({
 
         {active === 'overview' && (
           <>
+            {showSetupChecklist && (
+              <section className="admin-card club-setup-card">
+                <div className="club-setup-head">
+                  <div>
+                    <span>Configuração inicial</span>
+                    <strong>Prepare seu clube para receber reservas</strong>
+                    <p>Conclua estas três etapas para deixar o EspaçoOn pronto para seus clientes.</p>
+                  </div>
+                  <div className="club-setup-progress">
+                    {[mercadoPagoSetupComplete, establishmentSetupComplete, pricesSetupComplete].filter(Boolean).length}/3
+                  </div>
+                </div>
+
+                <div className="club-setup-list">
+                  <article className={mercadoPagoSetupComplete ? 'done' : ''}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>Conectar Mercado Pago</strong>
+                      <span>{mercadoPagoSetupComplete ? 'Conta conectada e pronta para receber.' : 'Autorize sua conta para receber os pagamentos das reservas.'}</span>
+                    </div>
+                    {!mercadoPagoSetupComplete && (
+                      <button onClick={startMercadoPagoConnection} disabled={paymentConfigBusy}>
+                        {paymentConfigBusy ? 'Abrindo...' : 'Conectar'}
+                      </button>
+                    )}
+                  </article>
+
+                  <article className={establishmentSetupComplete ? 'done' : ''}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>Preencher dados do clube</strong>
+                      <span>{establishmentSetupComplete ? 'Dados do estabelecimento concluídos.' : 'Cadastre nome, responsável, contato e localização.'}</span>
+                    </div>
+                    {!establishmentSetupComplete && (
+                      <button onClick={() => setActive('establishment')}>Preencher dados</button>
+                    )}
+                  </article>
+
+                  <article className={pricesSetupComplete ? 'done' : ''}>
+                    <CheckCircle2 size={18} />
+                    <div>
+                      <strong>Definir valores das reservas</strong>
+                      <span>{pricesSetupComplete ? 'Tabela de preços configurada.' : 'Revise os valores de 12h e 24h antes de começar a vender.'}</span>
+                    </div>
+                    {!pricesSetupComplete && (
+                      <button onClick={() => setActive('prices')}>Configurar valores</button>
+                    )}
+                  </article>
+                </div>
+
+                {paymentConfigMessage && (
+                  <div className="payment-settings-message">{paymentConfigMessage}</div>
+                )}
+              </section>
+            )}
+
             {paymentConfig?.paymentProvider === 'mercadopago' && (
               <section className="admin-card payment-home-card">
                 <div className="payment-home-content">
@@ -563,38 +668,7 @@ export default function AdminPanel({
                     <button
                       className="payment-home-primary"
                       disabled={paymentConfigBusy}
-                      onClick={async () => {
-                        setPaymentConfigBusy(true)
-                        setPaymentConfigMessage('')
-
-                        // Abre a janela imediatamente para evitar bloqueio de pop-up no mobile/PWA.
-                        // Depois que o backend devolver a URL OAuth, navegamos essa janela para o Mercado Pago.
-                        const oauthWindow = window.open('about:blank', '_blank')
-
-                        try {
-                          const result = await api.connectMercadoPago()
-                          if (!result?.authorizationUrl) {
-                            throw new Error('O Mercado Pago não retornou o link de autorização.')
-                          }
-
-                          if (oauthWindow && !oauthWindow.closed) {
-                            oauthWindow.opener = null
-                            oauthWindow.location.replace(result.authorizationUrl)
-                            setPaymentConfigMessage(
-                              'O Mercado Pago foi aberto no navegador. Conclua a autorização e depois volte ao EspaçoOn.'
-                            )
-                          } else {
-                            setPaymentConfigMessage(
-                              'Não foi possível abrir o navegador automaticamente. Tente novamente permitindo pop-ups para este site.'
-                            )
-                          }
-                        } catch (error) {
-                          if (oauthWindow && !oauthWindow.closed) oauthWindow.close()
-                          setPaymentConfigMessage(error.message || 'Não foi possível iniciar a conexão.')
-                        } finally {
-                          setPaymentConfigBusy(false)
-                        }
-                      }}
+                      onClick={startMercadoPagoConnection}
                     >
                       {paymentConfigBusy ? 'Abrindo Mercado Pago...' : 'Conectar Mercado Pago'}
                     </button>
@@ -1209,7 +1283,13 @@ export default function AdminPanel({
                 onClick={async () => {
                   setAdminError('')
                   try {
-                    await persistSettings(settings)
+                    await persistSettings({
+                      ...settings,
+                      onboarding: {
+                        ...(settings.onboarding || {}),
+                        pricesConfigured: true,
+                      },
+                    })
                     setAdminError('Tabela de preços salva com sucesso.')
                   } catch {}
                 }}
@@ -1363,8 +1443,29 @@ export default function AdminPanel({
                 onClick={async () => {
                   setAdminError('')
                   try {
-                    await persistSettings(settings)
-                    setAdminError('Dados do estabelecimento salvos com sucesso.')
+                    const establishment = settings.establishment || {}
+                    const complete = Boolean(
+                      String(establishment.name || '').trim().length >= 2 &&
+                      String(establishment.ownerName || '').trim().length >= 3 &&
+                      String(establishment.phone || '').replace(/\D/g, '').length >= 10 &&
+                      String(establishment.address || '').trim().length >= 5 &&
+                      String(establishment.city || '').trim().length >= 2 &&
+                      /^[A-Z]{2}$/.test(String(establishment.state || '').trim())
+                    )
+
+                    await persistSettings({
+                      ...settings,
+                      onboarding: {
+                        ...(settings.onboarding || {}),
+                        establishmentConfigured: complete,
+                      },
+                    })
+
+                    setAdminError(
+                      complete
+                        ? 'Dados do estabelecimento salvos com sucesso.'
+                        : 'Dados salvos. Para concluir a configuração inicial, preencha nome, responsável, telefone, endereço, cidade e UF.'
+                    )
                   } catch {}
                 }}
               >

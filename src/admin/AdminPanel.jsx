@@ -65,11 +65,22 @@ function maskCpf(value = '') {
   return '***.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-**'
 }
 
-function paymentStatusLabel(status, paymentMethod = '') {
+function paymentStatusLabel(status, paymentMethod = '', holdUntil = null) {
   if (status === 'paid') return 'Pago'
   if (status === 'confirmed-asaas') return 'Confirmado • processando'
-  if (status === 'pending-mercadopago') return paymentMethod === 'card' ? 'Aguardando cartão' : 'Aguardando Pix'
-  if (status === 'pending-asaas') return 'Aguardando Pix'
+
+  const remainingLabel = (() => {
+    if (!holdUntil) return ''
+    const ms = new Date(holdUntil).getTime() - Date.now()
+    if (!Number.isFinite(ms) || ms <= 0) return ' • expirando'
+    const minutes = Math.max(1, Math.ceil(ms / 60000))
+    return ' • ' + minutes + ' min'
+  })()
+
+  if (status === 'pending-mercadopago') {
+    return (paymentMethod === 'card' ? 'Aguardando cartão' : 'Aguardando Pix') + remainingLabel
+  }
+  if (status === 'pending-asaas') return 'Aguardando Pix' + remainingLabel
   if (status === 'manual-review') return 'Conferência manual'
   if (status === 'refunded') return 'Estornado'
   if (status === 'cancelled') return 'Cancelado'
@@ -890,7 +901,7 @@ export default function AdminPanel({
                                 : 'Cancelada • reembolso registrado'
                               : 'Cancelada'
                           )
-                        : paymentStatusLabel(r.paymentStatus, r.paymentMethod)}
+                        : paymentStatusLabel(r.paymentStatus, r.paymentMethod, r.holdUntil)}
                     </i>
                   </span>
                   <span className="reservation-row-actions">
@@ -2424,7 +2435,7 @@ export default function AdminPanel({
                 <div>
                   <span>Status</span>
                   <strong>
-                    {paymentStatusLabel(selectedReservation.paymentStatus, selectedReservation.paymentMethod)}
+                    {paymentStatusLabel(selectedReservation.paymentStatus, selectedReservation.paymentMethod, selectedReservation.holdUntil)}
                   </strong>
                 </div>
               </div>

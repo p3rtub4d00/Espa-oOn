@@ -42,7 +42,6 @@ const menu = [
   ['overview', 'Visão geral', Gauge],
   ['calendar', 'Agenda', CalendarDays],
   ['reservations', 'Reservas', WalletCards],
-  ['payments', 'Recebimentos', CircleDollarSign],
   ['revenue', 'Faturamento', BarChart3],
   ['visits', 'Visitas', CalendarCheck2],
   ['contracts', 'Contratos', FileCheck2],
@@ -170,11 +169,7 @@ export default function AdminPanel({
   initialBranding = {},
   initialBrandName = 'EspaçoOn',
 }) {
-  const [active, setActive] = useState(() =>
-    new URLSearchParams(window.location.search).get('mercadopago') === 'connected'
-      ? 'payments'
-      : 'overview'
-  )
+  const [active, setActive] = useState('overview')
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
   const [settings, setSettings] = useState(loadSettings)
@@ -285,8 +280,6 @@ export default function AdminPanel({
   }, [active, revenueMonth])
 
   useEffect(() => {
-    if (active !== 'payments') return
-
     let alive = true
     setPaymentConfigBusy(true)
 
@@ -312,7 +305,7 @@ export default function AdminPanel({
     return () => {
       alive = false
     }
-  }, [active])
+  }, [])
 
   useEffect(() => {
     if (active !== 'notifications') return
@@ -504,6 +497,88 @@ export default function AdminPanel({
 
         {active === 'overview' && (
           <>
+            {paymentConfig?.paymentProvider === 'mercadopago' && (
+              <section className="admin-card large payment-home-card">
+                <div className="payment-home-content">
+                  <div className="payment-home-icon">
+                    <CircleDollarSign size={28} />
+                  </div>
+                  <div>
+                    <span>Recebimentos das reservas</span>
+                    <strong>
+                      {paymentConfig.mercadoPagoConnected
+                        ? 'Mercado Pago conectado'
+                        : 'Conecte sua conta Mercado Pago'}
+                    </strong>
+                    <p>
+                      {paymentConfig.demoMode
+                        ? 'Este ambiente está em demonstração e não processa pagamentos reais.'
+                        : paymentConfig.mercadoPagoConnected
+                          ? 'Sua conta está autorizada e pronta para receber as novas reservas.'
+                          : 'Entre na sua própria conta Mercado Pago e autorize o EspaçoOn. Sua senha não é compartilhada conosco.'}
+                    </p>
+                  </div>
+                </div>
+
+                {!paymentConfig.demoMode && (
+                  paymentConfig.mercadoPagoConnected ? (
+                    <button
+                      className="payment-home-secondary"
+                      disabled={paymentConfigBusy}
+                      onClick={async () => {
+                        if (!confirm('Desconectar sua conta Mercado Pago do EspaçoOn?')) return
+                        setPaymentConfigBusy(true)
+                        setPaymentConfigMessage('')
+                        try {
+                          await api.disconnectMercadoPago()
+                          const status = await api.paymentProviderStatus()
+                          setPaymentConfig(status)
+                          setPaymentConfigMessage('Conta Mercado Pago desconectada.')
+                        } catch (error) {
+                          setPaymentConfigMessage(error.message || 'Não foi possível desconectar a conta.')
+                        } finally {
+                          setPaymentConfigBusy(false)
+                        }
+                      }}
+                    >
+                      Desconectar Mercado Pago
+                    </button>
+                  ) : (
+                    <button
+                      className="payment-home-primary"
+                      disabled={paymentConfigBusy}
+                      onClick={async () => {
+                        setPaymentConfigBusy(true)
+                        setPaymentConfigMessage('')
+                        try {
+                          const result = await api.connectMercadoPago()
+                          if (!result?.authorizationUrl) {
+                            throw new Error('O Mercado Pago não retornou o link de autorização.')
+                          }
+                          window.location.href = result.authorizationUrl
+                        } catch (error) {
+                          setPaymentConfigMessage(error.message || 'Não foi possível iniciar a conexão.')
+                          setPaymentConfigBusy(false)
+                        }
+                      }}
+                    >
+                      {paymentConfigBusy ? 'Abrindo Mercado Pago...' : 'Conectar Mercado Pago'}
+                    </button>
+                  )
+                )}
+
+                {paymentConfig.demoMode && (
+                  <span className="payment-home-demo-badge">Demonstração</span>
+                )}
+
+                {paymentConfigMessage && (
+                  <div className="payment-settings-message payment-home-message">
+                    {paymentConfigMessage}
+                  </div>
+                )}
+              </section>
+            )}
+
             <section className="admin-stats">
               <article>
                 <div><WalletCards /></div>
@@ -1527,129 +1602,6 @@ export default function AdminPanel({
 
             {policySaveMessage && (
               <div className="cancellation-policy-message">{policySaveMessage}</div>
-            )}
-          </section>
-        )}
-
-        {active === 'payments' && (
-          <section className="admin-card large payment-settings-panel">
-            <div className="admin-card-title">
-              <div>
-                <span>Conta de recebimentos</span>
-                <strong>Pagamentos das reservas</strong>
-              </div>
-              <CircleDollarSign />
-            </div>
-
-            {paymentConfigBusy && (
-              <div className="payment-settings-notice">Consultando configuração no EspaçoOn Master...</div>
-            )}
-
-            {paymentConfig && (
-              <div className="payment-settings-grid">
-                <article>
-                  <span>Provedor definido pelo EspaçoOn</span>
-                  <strong>
-                    {paymentConfig.paymentProvider === 'mercadopago' ? 'Mercado Pago' : 'Asaas'}
-                  </strong>
-                  <small>
-                    A escolha do provedor é feita pela administração do EspaçoOn.
-                  </small>
-                </article>
-
-                <article>
-                  <span>Status da conta</span>
-                  <strong>
-                    {paymentConfig.demoMode
-                      ? 'Ambiente de demonstração'
-                      : paymentConfig.paymentProvider === 'mercadopago'
-                        ? paymentConfig.mercadoPagoConnected
-                          ? 'Mercado Pago conectado'
-                          : 'Mercado Pago aguardando conexão'
-                        : 'Asaas configurado'}
-                  </strong>
-                  <small>
-                    {paymentConfig.demoMode
-                      ? 'Nenhum pagamento real é processado neste ambiente.'
-                      : paymentConfig.paymentProvider === 'mercadopago'
-                        ? paymentConfig.mercadoPagoConnected
-                          ? 'Sua conta está autorizada para receber novas reservas.'
-                          : 'Conecte sua própria conta Mercado Pago para começar a receber.'
-                        : 'As novas cobranças de reserva serão processadas pelo Asaas.'}
-                  </small>
-                </article>
-              </div>
-            )}
-
-            {paymentConfig?.paymentProvider === 'mercadopago' && (
-              <div className="mercadopago-owner-card">
-                <div>
-                  <span>Mercado Pago</span>
-                  <strong>
-                    {paymentConfig.mercadoPagoConnected ? 'Conta conectada' : 'Conecte sua conta'}
-                  </strong>
-                  <p>
-                    Você será direcionado ao site oficial do Mercado Pago para entrar na sua conta
-                    e autorizar o EspaçoOn. Sua senha não é compartilhada com o EspaçoOn.
-                  </p>
-                </div>
-
-                {!paymentConfig.demoMode && (
-                  paymentConfig.mercadoPagoConnected ? (
-                    <button
-                      className="payment-disconnect"
-                      disabled={paymentConfigBusy}
-                      onClick={async () => {
-                        if (!confirm('Desconectar sua conta Mercado Pago do EspaçoOn?')) return
-                        setPaymentConfigBusy(true)
-                        setPaymentConfigMessage('')
-                        try {
-                          await api.disconnectMercadoPago()
-                          const status = await api.paymentProviderStatus()
-                          setPaymentConfig(status)
-                          setPaymentConfigMessage('Conta Mercado Pago desconectada.')
-                        } catch (error) {
-                          setPaymentConfigMessage(error.message || 'Não foi possível desconectar a conta.')
-                        } finally {
-                          setPaymentConfigBusy(false)
-                        }
-                      }}
-                    >
-                      Desconectar Mercado Pago
-                    </button>
-                  ) : (
-                    <button
-                      disabled={paymentConfigBusy}
-                      onClick={async () => {
-                        setPaymentConfigBusy(true)
-                        setPaymentConfigMessage('')
-                        try {
-                          const result = await api.connectMercadoPago()
-                          if (!result?.authorizationUrl) {
-                            throw new Error('O Mercado Pago não retornou o link de autorização.')
-                          }
-                          window.location.href = result.authorizationUrl
-                        } catch (error) {
-                          setPaymentConfigMessage(error.message || 'Não foi possível iniciar a conexão.')
-                          setPaymentConfigBusy(false)
-                        }
-                      }}
-                    >
-                      {paymentConfigBusy ? 'Abrindo Mercado Pago...' : 'Conectar minha conta Mercado Pago'}
-                    </button>
-                  )
-                )}
-              </div>
-            )}
-
-            {paymentConfig?.paymentProvider === 'asaas' && (
-              <div className="payment-settings-notice">
-                O Asaas está selecionado para este clube. Não é necessário conectar Mercado Pago.
-              </div>
-            )}
-
-            {paymentConfigMessage && (
-              <div className="payment-settings-message">{paymentConfigMessage}</div>
             )}
           </section>
         )}

@@ -47,6 +47,7 @@ const menu = [
   ['contracts', 'Contratos', FileCheck2],
   ['gallery', 'Galeria', Images],
   ['amenities', 'Estrutura', ListPlus],
+  ['extras', 'Adicionais', ListPlus],
   ['prices', 'Preços', CircleDollarSign],
   ['establishment', 'Estabelecimento', Building2],
   ['branding', 'Marca', Palette],
@@ -213,6 +214,12 @@ export default function AdminPanel({
   const [settingsSaveMessage, setSettingsSaveMessage] = useState('')
   const [settingsSaveType, setSettingsSaveType] = useState('success')
   const [establishmentMissing, setEstablishmentMissing] = useState({})
+  const [newExtra, setNewExtra] = useState({
+    name: '',
+    description: '',
+    price: '',
+    active: true,
+  })
   const [pushStatus, setPushStatus] = useState(null)
   const [pushSubscription, setPushSubscription] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)
@@ -355,6 +362,7 @@ export default function AdminPanel({
   }, [active])
 
   const prices = settings.prices
+  const extras = Array.isArray(settings.extras) ? settings.extras : []
   const blockedDates = new Set(settings.blockedDates || [])
 
   const adminMonthDays = useMemo(() => {
@@ -1267,6 +1275,205 @@ export default function AdminPanel({
             ) : (
               <div className="admin-empty large">Ainda não existem solicitações de visita.</div>
             )}
+          </section>
+        )}
+
+        {active === 'extras' && (
+          <section className="admin-card large extras-settings">
+            <div className="admin-card-title">
+              <div>
+                <span>Serviços adicionais</span>
+                <strong>Itens opcionais que o cliente pode incluir na reserva</strong>
+              </div>
+              <ListPlus />
+            </div>
+
+            <div className="extras-admin-note">
+              Somente itens marcados como ativos aparecem para o cliente. O preço é por unidade e o cliente escolhe a quantidade na reserva.
+            </div>
+
+            <div className="extras-create-grid">
+              <label>
+                <span>Nome</span>
+                <input
+                  value={newExtra.name}
+                  onChange={(e) => setNewExtra((current) => ({ ...current, name: e.target.value }))}
+                  placeholder="Ex.: Jogo de mesa"
+                />
+              </label>
+              <label>
+                <span>Preço unitário</span>
+                <div className="extra-price-input">
+                  <small>R$</small>
+                  <input
+                    type="number"
+                    min="0.01"
+                    step="0.01"
+                    value={newExtra.price}
+                    onChange={(e) => setNewExtra((current) => ({ ...current, price: e.target.value }))}
+                    placeholder="25,00"
+                  />
+                </div>
+              </label>
+              <label className="extra-description-field">
+                <span>Descrição</span>
+                <input
+                  value={newExtra.description}
+                  onChange={(e) => setNewExtra((current) => ({ ...current, description: e.target.value }))}
+                  placeholder="Ex.: Mesa com 4 cadeiras"
+                />
+              </label>
+              <label className="extra-active-field">
+                <input
+                  type="checkbox"
+                  checked={newExtra.active}
+                  onChange={(e) => setNewExtra((current) => ({ ...current, active: e.target.checked }))}
+                />
+                <span>Ativo</span>
+              </label>
+              <button
+                className="extra-add-button"
+                onClick={() => {
+                  const name = newExtra.name.trim()
+                  const description = newExtra.description.trim()
+                  const price = Number(newExtra.price)
+                  if (name.length < 2 || !Number.isFinite(price) || price <= 0) {
+                    showSettingsMessage('Informe um nome e um preço unitário válido.', 'warning')
+                    return
+                  }
+
+                  updateSettingsDraft((current) => ({
+                    ...current,
+                    extras: [
+                      ...(Array.isArray(current.extras) ? current.extras : []),
+                      {
+                        id: 'extra-' + Date.now().toString(36),
+                        name,
+                        description,
+                        price: Math.round(price * 100) / 100,
+                        active: newExtra.active,
+                      },
+                    ],
+                  }))
+                  setNewExtra({ name: '', description: '', price: '', active: true })
+                }}
+              >
+                <ListPlus size={16} />
+                Adicionar
+              </button>
+            </div>
+
+            <div className="extras-admin-list">
+              {extras.length ? extras.map((extra) => (
+                <article key={extra.id} className={extra.active ? 'extra-admin-item active' : 'extra-admin-item'}>
+                  <div className="extra-admin-main">
+                    <label>
+                      <span>Nome</span>
+                      <input
+                        value={extra.name || ''}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          updateSettingsDraft((current) => ({
+                            ...current,
+                            extras: (current.extras || []).map((item) =>
+                              item.id === extra.id ? { ...item, name: value } : item
+                            ),
+                          }))
+                        }}
+                      />
+                    </label>
+                    <label>
+                      <span>Descrição</span>
+                      <input
+                        value={extra.description || ''}
+                        onChange={(e) => {
+                          const value = e.target.value
+                          updateSettingsDraft((current) => ({
+                            ...current,
+                            extras: (current.extras || []).map((item) =>
+                              item.id === extra.id ? { ...item, description: value } : item
+                            ),
+                          }))
+                        }}
+                      />
+                    </label>
+                    <label>
+                      <span>Preço unitário</span>
+                      <div className="extra-price-input">
+                        <small>R$</small>
+                        <input
+                          type="number"
+                          min="0.01"
+                          step="0.01"
+                          value={extra.price}
+                          onChange={(e) => {
+                            const value = e.target.value
+                            updateSettingsDraft((current) => ({
+                              ...current,
+                              extras: (current.extras || []).map((item) =>
+                                item.id === extra.id
+                                  ? { ...item, price: value === '' ? '' : Number(value) }
+                                  : item
+                              ),
+                            }))
+                          }}
+                        />
+                      </div>
+                    </label>
+                  </div>
+                  <div className="extra-admin-actions">
+                    <label className="extra-switch">
+                      <input
+                        type="checkbox"
+                        checked={extra.active === true}
+                        onChange={(e) => {
+                          const active = e.target.checked
+                          updateSettingsDraft((current) => ({
+                            ...current,
+                            extras: (current.extras || []).map((item) =>
+                              item.id === extra.id ? { ...item, active } : item
+                            ),
+                          }))
+                        }}
+                      />
+                      <span>{extra.active ? 'Ativo' : 'Inativo'}</span>
+                    </label>
+                    <button
+                      className="extra-remove-button"
+                      onClick={() => {
+                        if (!window.confirm('Remover este adicional?')) return
+                        updateSettingsDraft((current) => ({
+                          ...current,
+                          extras: (current.extras || []).filter((item) => item.id !== extra.id),
+                        }))
+                      }}
+                    >
+                      <Trash2 size={14} />
+                      Remover
+                    </button>
+                  </div>
+                </article>
+              )) : (
+                <div className="admin-empty">Nenhum serviço adicional cadastrado.</div>
+              )}
+            </div>
+
+            <div className="establishment-actions">
+              <button
+                onClick={async () => {
+                  setAdminError('')
+                  try {
+                    await persistSettings(settings)
+                    showSettingsMessage('Serviços adicionais salvos com sucesso.', 'success')
+                  } catch (error) {
+                    showSettingsMessage(error.message || 'Não foi possível salvar os adicionais.', 'error')
+                  }
+                }}
+              >
+                <CheckCircle2 size={16} />
+                Salvar adicionais
+              </button>
+            </div>
           </section>
         )}
 

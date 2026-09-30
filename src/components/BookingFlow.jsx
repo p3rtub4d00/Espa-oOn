@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import ContractFlow from './ContractFlow'
 import { getPriceForDate, loadSettings } from '../data/settings'
 import { api } from '../data/api'
@@ -9,6 +9,7 @@ import {
   CheckCircle2,
   Clock3,
   Copy,
+  CreditCard,
   FileSignature,
   ShieldCheck,
   Share2,
@@ -66,6 +67,32 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, '$1-$2')
 }
 
+let mercadoPagoSdkPromise
+
+function loadMercadoPagoSdk() {
+  if (window.MercadoPago) return Promise.resolve(window.MercadoPago)
+  if (mercadoPagoSdkPromise) return mercadoPagoSdkPromise
+
+  mercadoPagoSdkPromise = new Promise((resolve, reject) => {
+    const existing = document.querySelector('script[data-mercadopago-sdk="true"]')
+    if (existing) {
+      existing.addEventListener('load', () => resolve(window.MercadoPago), { once: true })
+      existing.addEventListener('error', () => reject(new Error('Não foi possível carregar o checkout do Mercado Pago.')), { once: true })
+      return
+    }
+
+    const script = document.createElement('script')
+    script.src = 'https://sdk.mercadopago.com/js/v2'
+    script.async = true
+    script.dataset.mercadopagoSdk = 'true'
+    script.onload = () => resolve(window.MercadoPago)
+    script.onerror = () => reject(new Error('Não foi possível carregar o checkout do Mercado Pago.'))
+    document.head.appendChild(script)
+  })
+
+  return mercadoPagoSdkPromise
+}
+
 export default function BookingFlow({ dateISO, settings = loadSettings(), onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
@@ -79,6 +106,15 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const [paymentError, setPaymentError] = useState('')
   const [checkingPayment, setCheckingPayment] = useState(false)
   const [asaasStatus, setAsaasStatus] = useState('')
+  const [paymentMethod, setPaymentMethod] = useState('')
+  const [paymentConfig, setPaymentConfig] = useState(null)
+  const [paymentConfigLoading, setPaymentConfigLoading] = useState(false)
+  const [cardReady, setCardReady] = useState(false)
+  const [cardSubmitting, setCardSubmitting] = useState(false)
+  const [cardError, setCardError] = useState('')
+  const [cardOrder, setCardOrder] = useState(null)
+  const [challengeUrl, setChallengeUrl] = useState('')
+  const cardBrickControllerRef = useRef(null)
   const [holdSeconds, setHoldSeconds] = useState(15 * 60)
   const [liveSettings, setLiveSettings] = useState(settings)
   const [preparingContract, setPreparingContract] = useState(false)
@@ -234,11 +270,12 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   }
 
   const verifyPayment = async () => {
-    if (!pixPayment || checkingPayment || step !== 4) return
+    if ((!pixPayment && !cardOrder) || checkingPayment || step !== 4) return
     setCheckingPayment(true)
     try {
       const result = await api.paymentStatus(reservationId)
-      setAsaasStatus(result.asaasStatus || '')
+      setAsaasStatus(result.asaasStatus || result.providerStatus || '')
+      if (result.challengeUrl) setChallengeUrl(result.challengeUrl)
       if (result.paid) {
         await finishPaidReservation(result)
       } else if (result.manualReview) {
@@ -246,6 +283,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       } else if (result.expired) {
         setPaymentError('O prazo desta cobrança expirou. A data foi liberada e você precisa gerar um novo Pix.')
         setPixPayment(null)
+        setCardOrder(null)
+        setChallengeUrl('')
         setHoldSeconds(0)
       }
     } catch (error) {
@@ -256,30 +295,200 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   }
 
   useEffect(() => {
-    if (step === 4 && signedContract && !pixPayment && !paymentLoading) {
-      createPixCharge()
+    if (step !== 4) return
+
+    let alive = true
+    setPaymentConfigLoading(true)
+
+    api.paymentConfig()
+      .then((config) => {
+        if (!alive) return
+        setPaymentConfig(config)
+        setPaymentMethod(config?.cardEnabled ? '' : 'pix')
+      })
+      .catch(() => {
+        if (!alive) return
+        setPaymentConfig({ cardEnabled: false })
+        setPaymentMethod('pix')
+      })
+      .finally(() => {
+        if (alive) setPaymentConfigLoading(false)
+      })
+
+    return () => {
+      alive = false
     }
-  }, [step, signedContract])
+  }, [step])
 
   useEffect(() => {
-    if (step !== 4 || !pixPayment) return
+    if (
+      step === 4 &&
+      paymentMethod === 'pix' &&
+      signedContract &&
+      !pixPayment &&
+      !paymentLoading
+    ) {
+      createPixCharge()
+    }
+  }, [step, paymentMethod, signedContract])
+
+  useEffect(() => {
+    if (step !== 4 || (!pixPayment && !cardOrder)) return
 
     const timer = window.setInterval(() => {
       verifyPayment()
     }, 10000)
 
     return () => window.clearInterval(timer)
-  }, [step, pixPayment, reservationId])
+  }, [step, pixPayment, cardOrder, reservationId])
 
   useEffect(() => {
-    if (step !== 4 || !pixPayment) return
+    if (step !== 4 || (!pixPayment && !cardOrder)) return
 
     const timer = window.setInterval(() => {
       setHoldSeconds((current) => Math.max(0, current - 1))
     }, 1000)
 
     return () => window.clearInterval(timer)
-  }, [step, pixPayment])
+  }, [step, pixPayment, cardOrder])
+
+  useEffect(() => {
+    if (
+      step !== 4 ||
+      paymentMethod !== 'card' ||
+      !paymentConfig?.cardEnabled ||
+      !paymentConfig?.mercadoPagoPublicKey ||
+      cardOrder
+    ) {
+      return
+    }
+
+    let alive = true
+    setCardReady(false)
+    setCardError('')
+
+    const renderBrick = async () => {
+      try {
+        await loadMercadoPagoSdk()
+        if (!alive || !window.MercadoPago) return
+
+        if (cardBrickControllerRef.current) {
+          await cardBrickControllerRef.current.unmount().catch(() => {})
+          cardBrickControllerRef.current = null
+        }
+
+        const mp = new window.MercadoPago(paymentConfig.mercadoPagoPublicKey, {
+          locale: 'pt-BR',
+        })
+        const bricksBuilder = mp.bricks()
+
+        const controller = await bricksBuilder.create(
+          'cardPayment',
+          'cardPaymentBrick_container',
+          {
+            initialization: {
+              amount: lockedPrice,
+              payer: {
+                email: form.email,
+                identification: {
+                  type: 'CPF',
+                  number: onlyDigits(form.cpf),
+                },
+              },
+            },
+            callbacks: {
+              onReady: () => {
+                if (alive) setCardReady(true)
+              },
+              onSubmit: (formData, additionalData) =>
+                new Promise(async (resolve, reject) => {
+                  setCardSubmitting(true)
+                  setCardError('')
+
+                  try {
+                    const result = await api.createCardPayment(
+                      draftReservation,
+                      signedContract.id,
+                      {
+                        ...formData,
+                        payment_type_id: additionalData?.paymentTypeId || 'credit_card',
+                      },
+                    )
+
+                    if (result?.reservation?.holdUntil) {
+                      const remaining = Math.max(
+                        0,
+                        Math.floor((new Date(result.reservation.holdUntil).getTime() - Date.now()) / 1000),
+                      )
+                      setHoldSeconds(remaining)
+                    }
+
+                    if (result?.paid) {
+                      await finishPaidReservation(result)
+                    } else {
+                      setCardOrder(result)
+                      setChallengeUrl(result?.challengeUrl || '')
+                    }
+
+                    resolve()
+                  } catch (error) {
+                    const message = error.message || 'O pagamento no cartão não pôde ser concluído.'
+                    setCardError(message)
+                    reject(error)
+                  } finally {
+                    setCardSubmitting(false)
+                  }
+                }),
+              onError: () => {
+                if (alive) setCardError('Não foi possível carregar ou validar os dados do cartão.')
+              },
+            },
+          },
+        )
+
+        if (!alive) {
+          await controller.unmount().catch(() => {})
+          return
+        }
+
+        cardBrickControllerRef.current = controller
+      } catch (error) {
+        if (alive) setCardError(error.message || 'Não foi possível carregar o pagamento por cartão.')
+      }
+    }
+
+    renderBrick()
+
+    return () => {
+      alive = false
+      const controller = cardBrickControllerRef.current
+      cardBrickControllerRef.current = null
+      if (controller) controller.unmount().catch(() => {})
+    }
+  }, [
+    step,
+    paymentMethod,
+    paymentConfig?.cardEnabled,
+    paymentConfig?.mercadoPagoPublicKey,
+    signedContract?.id,
+    lockedPrice,
+    form.email,
+    form.cpf,
+    cardOrder,
+  ])
+
+  useEffect(() => {
+    if (!challengeUrl) return
+
+    const handleChallengeMessage = (event) => {
+      if (event?.data?.status === 'COMPLETE') {
+        verifyPayment()
+      }
+    }
+
+    window.addEventListener('message', handleChallengeMessage)
+    return () => window.removeEventListener('message', handleChallengeMessage)
+  }, [challengeUrl, cardOrder, pixPayment, step])
 
   const resendDocuments = async () => {
     if (!signedContract || !paidReservation) return
@@ -520,13 +729,104 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div><span>Total</span><strong className="summary-price">{money(lockedPrice)}</strong></div>
               </div>
 
-              {paymentLoading && (
+              {paymentConfigLoading && (
+                <div className="payment-method-loading">Carregando formas de pagamento...</div>
+              )}
+
+              {!paymentConfigLoading && paymentConfig?.cardEnabled && !pixPayment && !cardOrder && (
+                <div className="payment-method-choice">
+                  <button
+                    className={paymentMethod === 'pix' ? 'selected' : ''}
+                    onClick={() => {
+                      setPaymentMethod('pix')
+                      setCardError('')
+                    }}
+                  >
+                    <span>PIX</span>
+                    <strong>Pix</strong>
+                    <small>Pagamento à vista</small>
+                  </button>
+                  <button
+                    className={paymentMethod === 'card' ? 'selected' : ''}
+                    onClick={() => {
+                      setPaymentMethod('card')
+                      setPaymentError('')
+                    }}
+                  >
+                    <CreditCard size={20} />
+                    <strong>Cartão de crédito</strong>
+                    <small>Parcelas disponíveis pelo Mercado Pago</small>
+                  </button>
+                </div>
+              )}
+
+              {paymentMethod === 'card' && paymentConfig?.cardEnabled && (
+                <div className="card-payment-area">
+                  {!cardOrder && (
+                    <>
+                      <div className="card-payment-head">
+                        <CreditCard size={18} />
+                        <span>
+                          <strong>Pagamento seguro com Mercado Pago</strong>
+                          <small>Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.</small>
+                        </span>
+                      </div>
+                      <div id="cardPaymentBrick_container" />
+                      {!cardReady && !cardError && (
+                        <div className="card-payment-loading">Carregando formulário seguro...</div>
+                      )}
+                    </>
+                  )}
+
+                  {cardSubmitting && (
+                    <div className="card-payment-loading">Processando pagamento...</div>
+                  )}
+
+                  {cardError && (
+                    <div className="asaas-payment-error">
+                      <strong>Não foi possível concluir no cartão.</strong>
+                      <span>{cardError}</span>
+                    </div>
+                  )}
+
+                  {challengeUrl && (
+                    <div className="card-challenge">
+                      <strong>Confirme a compra com o seu banco</strong>
+                      <span>Conclua a verificação de segurança abaixo. Depois confirmaremos o pagamento automaticamente.</span>
+                      <iframe
+                        src={challengeUrl}
+                        title="Verificação de segurança do cartão"
+                        allow="payment"
+                      />
+                    </div>
+                  )}
+
+                  {cardOrder && !challengeUrl && (
+                    <div className="asaas-payment-status">
+                      <span className="payment-pulse" />
+                      <div>
+                        <strong>Pagamento em processamento</strong>
+                        <small>
+                          {checkingPayment
+                            ? 'Consultando o Mercado Pago...'
+                            : 'Aguardando a confirmação do cartão.'}
+                        </small>
+                      </div>
+                      <button onClick={verifyPayment} disabled={checkingPayment}>
+                        {checkingPayment ? 'Verificando...' : 'Verificar pagamento'}
+                      </button>
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {paymentMethod === 'pix' && paymentLoading && (
                 <div className="asaas-payment-loading">
                   Gerando cobrança Pix segura...
                 </div>
               )}
 
-              {paymentError && (
+              {paymentMethod === 'pix' && paymentError && (
                 <div className="asaas-payment-error">
                   <strong>Não foi possível continuar.</strong>
                   <span>{paymentError}</span>
@@ -536,7 +836,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 </div>
               )}
 
-              {pixPayment && (
+              {paymentMethod === 'pix' && pixPayment && (
                 <>
                   <div className="pix-box asaas-pix-box">
                     <div className="asaas-qr">
@@ -617,7 +917,12 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div><span>Reserva</span><strong>{reservationId}</strong></div>
                 <div><span>Contrato</span><strong>{signedContract?.id}</strong></div>
                 <div><span>Valor</span><strong>{money(lockedPrice)}</strong></div>
-                <div><span>Status</span><strong className="paid-status">Pago via Pix</strong></div>
+                <div>
+                  <span>Status</span>
+                  <strong className="paid-status">
+                    {paymentMethod === 'card' ? 'Pago via cartão de crédito' : 'Pago via Pix'}
+                  </strong>
+                </div>
               </div>
 
               <div className="document-delivery-status">

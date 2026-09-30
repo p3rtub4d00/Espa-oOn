@@ -2463,6 +2463,7 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
         paid: false,
         reservation: updated,
         providerStatus,
+        challengeUrl: order.challengeUrl || null,
         asaasStatus: providerStatus,
       })
     }

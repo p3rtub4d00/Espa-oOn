@@ -1569,7 +1569,7 @@ app.get('/api/admin/payment-provider', requireAdmin, requireActiveLicense, async
   }
 })
 
-app.post('/api/admin/payments/mercadopago/connect', requireAdmin, requireActiveLicense, writeLimiter, async (req, res, next) => {
+app.post('/api/admin/payments/mercadopago/connect', requireAdmin, requireActiveLicense, publicWriteLimiter, async (req, res, next) => {
   try {
     const returnUrl =
       req.protocol + '://' + req.get('host') + '/admin?mercadopago=connected'
@@ -1585,7 +1585,7 @@ app.post('/api/admin/payments/mercadopago/connect', requireAdmin, requireActiveL
   }
 })
 
-app.post('/api/admin/payments/mercadopago/disconnect', requireAdmin, requireActiveLicense, writeLimiter, async (_req, res, next) => {
+app.post('/api/admin/payments/mercadopago/disconnect', requireAdmin, requireActiveLicense, publicWriteLimiter, async (_req, res, next) => {
   try {
     const result = await masterBillingRequest('/api/license/mercadopago/disconnect', {
       method: 'POST',

@@ -105,7 +105,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
   const price = getPriceForDate(dateISO, period, liveSettings)
   const lockedPrice = Number(signedContract?.price ?? price)
-  const progressStep = step === 4 ? 3 : step === 5 ? 4 : step
+  const progressStep = step >= 4 ? 4 : step
   const dateLabel = useMemo(() => {
     const [year, month, day] = dateISO.split('-')
     return day + '/' + month + '/' + year
@@ -163,6 +163,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     try {
       const latestSettings = await api.getSettings()
       setLiveSettings(latestSettings)
+      setStep(3)
       setContractOpen(true)
     } catch (error) {
       setErrors((current) => ({
@@ -562,7 +563,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
           {step === 4 && (
             <div className="booking-step">
               <div className="booking-heading">
-                <span>Etapa 3 de 4</span>
+                <span>Etapa 4 de 4</span>
                 <h2>Contrato assinado. Escolha como pagar.</h2>
                 <p>Você pode pagar por Pix ou cartão de crédito quando essa opção estiver disponível.</p>
               </div>
@@ -795,7 +796,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       {contractOpen && (
         <ContractFlow
           reservation={draftReservation}
-          onClose={() => setContractOpen(false)}
+          onClose={() => {
+            setContractOpen(false)
+            setStep(2)
+          }}
           onSigned={(contract) => {
             setSignedContract(contract)
             setContractOpen(false)

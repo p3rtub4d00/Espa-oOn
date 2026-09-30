@@ -1029,3 +1029,38 @@
     min-height: 520px;
   }
 }
+
+
+/* Payment hold notice */
+.payment-hold-notice {
+  margin-top: 14px;
+  padding: 13px 14px;
+  display: flex;
+  align-items: flex-start;
+  gap: 10px;
+  border: 1px solid #f0dca5;
+  border-radius: 12px;
+  color: #6f571e;
+  background: #fff9e9;
+}
+
+.payment-hold-notice > svg {
+  margin-top: 1px;
+  flex: 0 0 auto;
+}
+
+.payment-hold-notice strong,
+.payment-hold-notice small {
+  display: block;
+}
+
+.payment-hold-notice strong {
+  font-size: 10px;
+}
+
+.payment-hold-notice small {
+  margin-top: 4px;
+  color: #7f6c3c;
+  font-size: 9px;
+  line-height: 1.5;
+}

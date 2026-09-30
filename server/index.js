@@ -1866,6 +1866,7 @@ app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter
       const currentOrder = await masterBillingRequest(
         '/api/license/mercadopago/orders/' + encodeURIComponent(existing.providerPaymentId),
       )
+
       if (currentOrder.status === 'processed' && currentOrder.statusDetail === 'accredited') {
         const result = await markPaymentReceived(
           existing,
@@ -1875,10 +1876,14 @@ app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter
         )
         return res.json({ paid: !result?.manualReview, ...result })
       }
-      return res.status(409).json({
-        error: 'Já existe uma cobrança Mercado Pago para esta reserva.',
-        code: 'PAYMENT_ALREADY_EXISTS',
-      })
+
+      const terminal = ['failed', 'canceled', 'expired'].includes(currentOrder.status)
+      if (!terminal) {
+        return res.status(409).json({
+          error: 'Já existe uma cobrança Mercado Pago em andamento para esta reserva.',
+          code: 'PAYMENT_ALREADY_EXISTS',
+        })
+      }
     }
 
     const order = await masterBillingRequest('/api/license/mercadopago/orders/card', {

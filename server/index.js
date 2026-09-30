@@ -37,11 +37,12 @@ app.use(helmet({
   contentSecurityPolicy: {
     directives: {
       defaultSrc: ["'self'"],
-      scriptSrc: ["'self'"],
+      scriptSrc: ["'self'", 'https://sdk.mercadopago.com', 'https://www.mercadopago.com'],
       styleSrc: ["'self'", "'unsafe-inline'", 'https://fonts.googleapis.com'],
       fontSrc: ["'self'", 'https://fonts.gstatic.com', 'data:'],
       imgSrc: ["'self'", 'data:', 'blob:', 'https:'],
-      connectSrc: ["'self'"],
+      connectSrc: ["'self'", 'https://api.mercadopago.com', 'https://*.mercadopago.com'],
+      frameSrc: ["'self'", 'https://*.mercadopago.com', 'https://*.mercadopago.com.br'],
       objectSrc: ["'none'"],
       frameAncestors: ["'none'"],
       baseUri: ["'self'"],
@@ -1526,6 +1527,33 @@ app.get('/api/license', async (req, res, next) => {
   }
 })
 
+app.get('/api/payments/config', async (_req, res, next) => {
+  try {
+    const license = await checkMasterLicense({ force: true })
+
+    if (
+      license.demoMode === true ||
+      (license.paymentProvider || 'asaas') !== 'mercadopago' ||
+      license.mercadoPagoConnected !== true
+    ) {
+      return res.json({
+        paymentProvider: license.demoMode ? 'demo' : (license.paymentProvider || 'asaas'),
+        cardEnabled: false,
+        mercadoPagoPublicKey: '',
+      })
+    }
+
+    const config = await masterBillingRequest('/api/license/mercadopago/config')
+    res.json({
+      paymentProvider: 'mercadopago',
+      cardEnabled: Boolean(config?.connected && config?.publicKey),
+      mercadoPagoPublicKey: config?.publicKey || '',
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.get('/api/license/billing', async (_req, res, next) => {
   try {
     res.json(await masterBillingRequest('/api/license/billing'))
@@ -1768,6 +1796,184 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
     const contract = await Contract.create(contractRecord)
     res.status(201).json(contract.toObject())
   } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter, async (req, res, next) => {
+  let lockCreated = false
+  let contractDateISO = null
+  let reservationId = null
+
+  try {
+    const { reservation, contractId, card } = req.body || {}
+    reservationId = textValue(reservation?.id, 60)
+
+    if (!isValidId(reservationId, 'ESP') || !isValidId(contractId, 'CTR')) {
+      return res.status(400).json({ error: 'Dados da cobrança incompletos.' })
+    }
+
+    const contract = await Contract.findOne({ id: contractId, reservationId }).lean()
+    if (!contract) {
+      return res.status(400).json({ error: 'Contrato assinado não encontrado para esta reserva.' })
+    }
+
+    contractDateISO = contract.reservationDateISO || displayDateToISO(contract.reservationDate)
+    if (!contractDateISO || !isValidPeriod(contract.period)) {
+      return res.status(400).json({ error: 'O contrato não possui uma data ou período válido.' })
+    }
+
+    const serverPrice = Number(contract.price)
+    if (!Number.isFinite(serverPrice) || serverPrice <= 0) {
+      return res.status(400).json({ error: 'O contrato não possui um valor válido para cobrança.' })
+    }
+
+    const license = await checkMasterLicense({ force: true })
+    if (license.demoMode) {
+      return res.status(409).json({ error: 'Cartão não é processado no modo demonstração.' })
+    }
+    if ((license.paymentProvider || 'asaas') !== 'mercadopago' || !license.mercadoPagoConnected) {
+      return res.status(409).json({ error: 'Mercado Pago não está conectado para este clube.' })
+    }
+
+    if (!isValidEmail(contract.customer?.email)) {
+      return res.status(400).json({ error: 'Informe um e-mail válido do responsável pela reserva.' })
+    }
+
+    const token = textValue(card?.token, 500)
+    const paymentMethodId = textValue(card?.payment_method_id, 40)
+    const paymentTypeId = textValue(card?.payment_type_id, 40)
+    const installments = Number(card?.installments || 1)
+    const identificationType = textValue(card?.payer?.identification?.type || 'CPF', 12)
+    const identificationNumber = onlyDigits(
+      card?.payer?.identification?.number || contract.customer?.cpf || ''
+    )
+
+    if (!token || !paymentMethodId || paymentTypeId !== 'credit_card') {
+      return res.status(400).json({ error: 'Dados do cartão inválidos ou incompletos.' })
+    }
+
+    const lockResult = await acquireDateLock(contractDateISO, reservationId)
+    lockCreated = lockResult.created
+
+    const existing = await Reservation.findOne({ id: reservationId }).lean()
+    if (existing?.paymentProvider === 'mercadopago' && existing?.providerPaymentId) {
+      const currentOrder = await masterBillingRequest(
+        '/api/license/mercadopago/orders/' + encodeURIComponent(existing.providerPaymentId),
+      )
+      if (currentOrder.status === 'processed' && currentOrder.statusDetail === 'accredited') {
+        const result = await markPaymentReceived(
+          existing,
+          { id: currentOrder.orderId, status: 'PROCESSED', paymentDate: new Date() },
+          'MERCADOPAGO_CARD_RECONCILIATION',
+          'mercadopago',
+        )
+        return res.json({ paid: !result?.manualReview, ...result })
+      }
+      return res.status(409).json({
+        error: 'Já existe uma cobrança Mercado Pago para esta reserva.',
+        code: 'PAYMENT_ALREADY_EXISTS',
+      })
+    }
+
+    const order = await masterBillingRequest('/api/license/mercadopago/orders/card', {
+      method: 'POST',
+      body: {
+        amount: serverPrice,
+        externalReference: reservationId,
+        payerEmail: contract.customer.email,
+        description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
+        token,
+        paymentMethodId,
+        paymentTypeId,
+        installments,
+        identificationType,
+        identificationNumber,
+      },
+    })
+
+    if (!order?.orderId) {
+      throw Object.assign(new Error('O Mercado Pago não retornou a identificação da cobrança.'), { statusCode: 502 })
+    }
+
+    const holdUntil = new Date(Date.now() + 40 * 60 * 1000)
+    const providerStatus = order.statusDetail
+      ? String(order.status || '') + ':' + String(order.statusDetail)
+      : String(order.status || '')
+
+    const savedReservation = await Reservation.findOneAndUpdate(
+      { id: reservationId },
+      {
+        $set: {
+          id: reservationId,
+          day: Number(contractDateISO.slice(-2)),
+          date: contract.reservationDate || displayDate(contractDateISO),
+          dateISO: contractDateISO,
+          period: contract.period,
+          customer: contract.customer,
+          price: serverPrice,
+          contractId,
+          paymentStatus: 'pending-mercadopago',
+          paymentProvider: 'mercadopago',
+          providerCustomerId: null,
+          providerPaymentId: order.orderId,
+          providerStatus,
+          pixExpirationDate: null,
+          holdUntil,
+          reservationStatus: 'active',
+        },
+      },
+      { upsert: true, new: true, setDefaultsOnInsert: true },
+    ).lean()
+
+    await Contract.updateOne(
+      { id: contractId },
+      { $set: { price: serverPrice, paymentStatus: 'pending-mercadopago', status: 'signed-awaiting-payment' } },
+    )
+
+    await DateLock.updateOne(
+      { _id: contractDateISO, reservationId },
+      { $set: { status: 'pending', expiresAt: holdUntil } },
+    )
+
+    if (order.status === 'processed' && order.statusDetail === 'accredited') {
+      const result = await markPaymentReceived(
+        savedReservation,
+        { id: order.orderId, status: 'PROCESSED', paymentDate: new Date() },
+        'MERCADOPAGO_CARD_APPROVED',
+        'mercadopago',
+      )
+      return res.status(201).json({
+        paid: !result?.manualReview,
+        manualReview: Boolean(result?.manualReview),
+        ...result,
+        payment: order,
+      })
+    }
+
+    if (['failed', 'canceled', 'expired'].includes(order.status)) {
+      await releasePendingDateLock(contractDateISO, reservationId).catch(() => {})
+      await Reservation.updateOne(
+        { id: reservationId },
+        { $set: { paymentStatus: 'expired', providerStatus, holdUntil: null } },
+      )
+      return res.status(402).json({
+        error: 'O pagamento no cartão não foi aprovado. Confira os dados ou tente outro cartão.',
+        code: 'CARD_NOT_APPROVED',
+        payment: order,
+      })
+    }
+
+    return res.status(201).json({
+      paid: false,
+      reservation: savedReservation,
+      payment: order,
+      challengeUrl: order.challengeUrl || null,
+    })
+  } catch (error) {
+    if (lockCreated && contractDateISO && reservationId) {
+      await releasePendingDateLock(contractDateISO, reservationId).catch(() => {})
+    }
     next(error)
   }
 })
@@ -2189,6 +2395,7 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
           manualReview: Boolean(result?.manualReview),
           ...result,
           providerStatus,
+          challengeUrl: order.challengeUrl || null,
           asaasStatus: providerStatus,
         })
       }

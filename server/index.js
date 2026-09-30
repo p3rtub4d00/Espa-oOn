@@ -791,21 +791,32 @@ function contractHash(contract) {
     contract.reservationDate || '',
     contract.period,
     Number(contract.price || 0).toFixed(2),
-    Number(contract.basePrice || 0).toFixed(2),
-    Number(contract.extrasTotal || 0).toFixed(2),
-    JSON.stringify((contract.extras || []).map((item) => ({
-      id: item.id,
-      name: item.name,
-      unitPrice: Number(item.unitPrice || 0).toFixed(2),
-      quantity: Number(item.quantity || 0),
-      subtotal: Number(item.subtotal || 0).toFixed(2),
-    }))),
     contract.customer?.name || '',
     onlyDigits(contract.customer?.cpf),
     onlyDigits(contract.customer?.phone),
     contract.signedAt instanceof Date ? contract.signedAt.toISOString() : String(contract.signedAt || ''),
     contract.signature || '',
   ]
+
+  const hasExtrasSnapshot =
+    contract.basePrice !== undefined ||
+    contract.extrasTotal !== undefined ||
+    (Array.isArray(contract.extras) && contract.extras.length > 0)
+
+  if (hasExtrasSnapshot) {
+    canonicalParts.push(
+      'EXTRAS_V1',
+      Number(contract.basePrice || 0).toFixed(2),
+      Number(contract.extrasTotal || 0).toFixed(2),
+      JSON.stringify((contract.extras || []).map((item) => ({
+        id: item.id,
+        name: item.name,
+        unitPrice: Number(item.unitPrice || 0).toFixed(2),
+        quantity: Number(item.quantity || 0),
+        subtotal: Number(item.subtotal || 0).toFixed(2),
+      }))),
+    )
+  }
 
   if (contract.establishmentName) {
     canonicalParts.push(contract.establishmentName)
@@ -1243,18 +1254,26 @@ function selectedExtrasForContract(settings, requestedExtras) {
       .map((item) => [String(item.id), item]),
   )
 
+  const selectedIds = new Set()
   const extras = requestedExtras
     .map((requested) => {
       const id = textValue(requested?.id, 80)
       const quantity = Number(requested?.quantity)
       const source = available.get(id)
 
-      if (!source || !Number.isInteger(quantity) || quantity < 1 || quantity > 100) {
+      if (
+        !source ||
+        selectedIds.has(id) ||
+        !Number.isInteger(quantity) ||
+        quantity < 1 ||
+        quantity > 100
+      ) {
         const error = new Error('Um dos adicionais selecionados não está disponível ou possui quantidade inválida.')
         error.statusCode = 400
         throw error
       }
 
+      selectedIds.add(id)
       const unitPrice = Number(source.price)
       const subtotal = Math.round(unitPrice * quantity * 100) / 100
       return {

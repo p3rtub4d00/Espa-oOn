@@ -527,7 +527,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                                 max="100"
                                 value={quantity}
                                 onChange={(event) => {
-                                  const value = Math.max(0, Math.min(100, Number(event.target.value || 0)))
+                                  const rawValue = Number(event.target.value || 0)
+                                  const value = Math.max(0, Math.min(100, Math.floor(rawValue)))
                                   setSelectedExtras((current) => ({
                                     ...current,
                                     [extra.id]: Number.isFinite(value) ? value : 0,

@@ -156,6 +156,9 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       reservationDate: reservation.date,
       reservationDateISO: reservation.dateISO,
       period: reservation.period,
+      basePrice: reservation.basePrice,
+      extrasTotal: reservation.extrasTotal,
+      extras: Array.isArray(reservation.extras) ? reservation.extras : [],
       price: reservation.price,
       customer: reservation.customer,
       signedAt,
@@ -222,9 +225,28 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <div><span>CPF</span><strong>{maskCpf(reservation.customer?.cpf)}</strong></div>
                 <div><span>Data da locação</span><strong>{reservation.date}</strong></div>
                 <div><span>Período</span><strong>{reservation.period}</strong></div>
-                <div><span>Valor</span><strong>R$ {Number(reservation.price).toFixed(2).replace('.', ',')}</strong></div>
+                <div><span>Valor total</span><strong>R$ {Number(reservation.price).toFixed(2).replace('.', ',')}</strong></div>
                 <div><span>Reserva</span><strong>{reservation.id}</strong></div>
               </div>
+
+              {Array.isArray(reservation.extras) && reservation.extras.length > 0 && (
+                <div className="contract-extras">
+                  <div className="contract-extras-title">
+                    <strong>Adicionais incluídos</strong>
+                    <span>Aluguel do espaço: R$ {Number(reservation.basePrice || 0).toFixed(2).replace('.', ',')}</span>
+                  </div>
+                  {reservation.extras.map((item) => (
+                    <div className="contract-extra-row" key={item.id}>
+                      <span>{item.quantity}× {item.name}</span>
+                      <strong>R$ {Number(item.subtotal || 0).toFixed(2).replace('.', ',')}</strong>
+                    </div>
+                  ))}
+                  <div className="contract-extra-total">
+                    <span>Adicionais</span>
+                    <strong>R$ {Number(reservation.extrasTotal || 0).toFixed(2).replace('.', ',')}</strong>
+                  </div>
+                </div>
+              )}
 
               <div className="contract-body">
                 <p>
@@ -241,8 +263,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                   e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.
                 </p>
                 <p>
-                  <strong>4. Pagamento.</strong> O valor indicado neste documento será cobrado por Pix
-                  por meio do Asaas e a reserva somente será confirmada após a confirmação do recebimento.
+                  <strong>4. Pagamento.</strong> O valor total indicado neste documento, incluindo os adicionais selecionados quando houver, será cobrado pelo meio de pagamento disponibilizado pelo estabelecimento. A reserva somente será confirmada após a confirmação do recebimento.
                 </p>
                 <div className="contract-cancellation-policy">
                   <div>

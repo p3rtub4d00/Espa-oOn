@@ -143,10 +143,24 @@ export default function ContractsPanel() {
                 <div><span>Telefone</span><strong>{selected.customer?.phone || '-'}</strong></div>
                 <div><span>Data da locação</span><strong>{selected.reservationDate || '-'}</strong></div>
                 <div><span>Período</span><strong>{selected.period || '-'}</strong></div>
-                <div><span>Valor</span><strong>{money(selected.price)}</strong></div>
+                <div><span>Aluguel</span><strong>{money(selected.basePrice || selected.price)}</strong></div>
+                <div><span>Adicionais</span><strong>{money(selected.extrasTotal || 0)}</strong></div>
+                <div><span>Valor total</span><strong>{money(selected.price)}</strong></div>
                 <div><span>Reserva</span><strong>{selected.reservationId}</strong></div>
                 <div><span>Assinado em</span><strong>{new Date(selected.signedAt).toLocaleString('pt-BR')}</strong></div>
               </div>
+
+              {Array.isArray(selected.extras) && selected.extras.length > 0 && (
+                <div className="admin-contract-extras">
+                  <strong>Adicionais contratados</strong>
+                  {selected.extras.map((item) => (
+                    <span key={item.id}>
+                      {item.quantity}× {item.name}
+                      <b>{money(item.subtotal)}</b>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               <div className="admin-contract-text">
                 <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma {selected.establishmentName || 'EspaçoOn'}, na data e período informados acima.</p>

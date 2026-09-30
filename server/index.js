@@ -1556,6 +1556,47 @@ app.get('/api/admin/session', requireAdmin, requireActiveLicense, (_req, res) =>
   res.json({ authenticated: true })
 })
 
+app.get('/api/admin/payment-provider', requireAdmin, async (_req, res, next) => {
+  try {
+    const license = await checkMasterLicense({ force: true })
+    res.json({
+      paymentProvider: license.paymentProvider || 'asaas',
+      mercadoPagoConnected: license.mercadoPagoConnected === true,
+      demoMode: license.demoMode === true,
+    })
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/payments/mercadopago/connect', requireAdmin, writeLimiter, async (req, res, next) => {
+  try {
+    const returnUrl =
+      req.protocol + '://' + req.get('host') + '/admin?mercadopago=connected'
+
+    const result = await masterBillingRequest('/api/license/mercadopago/connect', {
+      method: 'POST',
+      body: { returnUrl },
+    })
+
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
+app.post('/api/admin/payments/mercadopago/disconnect', requireAdmin, writeLimiter, async (_req, res, next) => {
+  try {
+    const result = await masterBillingRequest('/api/license/mercadopago/disconnect', {
+      method: 'POST',
+    })
+    await checkMasterLicense({ force: true })
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.post('/api/admin/logout', (_req, res) => {
   res.clearCookie('espacoon_admin', {
     httpOnly: true,

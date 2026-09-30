@@ -550,14 +550,32 @@ export default function AdminPanel({
                       onClick={async () => {
                         setPaymentConfigBusy(true)
                         setPaymentConfigMessage('')
+
+                        // Abre a janela imediatamente para evitar bloqueio de pop-up no mobile/PWA.
+                        // Depois que o backend devolver a URL OAuth, navegamos essa janela para o Mercado Pago.
+                        const oauthWindow = window.open('about:blank', '_blank')
+
                         try {
                           const result = await api.connectMercadoPago()
                           if (!result?.authorizationUrl) {
                             throw new Error('O Mercado Pago não retornou o link de autorização.')
                           }
-                          window.location.href = result.authorizationUrl
+
+                          if (oauthWindow && !oauthWindow.closed) {
+                            oauthWindow.opener = null
+                            oauthWindow.location.replace(result.authorizationUrl)
+                            setPaymentConfigMessage(
+                              'O Mercado Pago foi aberto no navegador. Conclua a autorização e depois volte ao EspaçoOn.'
+                            )
+                          } else {
+                            setPaymentConfigMessage(
+                              'Não foi possível abrir o navegador automaticamente. Tente novamente permitindo pop-ups para este site.'
+                            )
+                          }
                         } catch (error) {
+                          if (oauthWindow && !oauthWindow.closed) oauthWindow.close()
                           setPaymentConfigMessage(error.message || 'Não foi possível iniciar a conexão.')
+                        } finally {
                           setPaymentConfigBusy(false)
                         }
                       }}

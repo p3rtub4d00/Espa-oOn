@@ -106,6 +106,7 @@ const reservationSchema = new mongoose.Schema(
       name: String,
       cpf: String,
       phone: String,
+      email: String,
       address: String,
     },
     paymentStatus: { type: String, default: 'awaiting-payment', index: true },
@@ -146,6 +147,7 @@ const contractSchema = new mongoose.Schema(
       name: String,
       cpf: String,
       phone: String,
+      email: String,
       address: String,
     },
     signedAt: Date,
@@ -728,6 +730,10 @@ function isValidPhone(value = '') {
   return digits.length >= 10 && digits.length <= 13
 }
 
+function isValidEmail(value = '') {
+  return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(String(value || '').trim())
+}
+
 function isValidPeriod(value) {
   return value === '12h' || value === '24h'
 }
@@ -1210,7 +1216,7 @@ async function releasePendingDateLock(dateISO, reservationId) {
   })
 }
 
-async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RECEIVED') {
+async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RECEIVED', provider = 'asaas') {
   if (!reservation) return null
 
   if (reservation.paymentStatus === 'paid') {
@@ -1227,8 +1233,8 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
       {
         $set: {
           paymentStatus: 'manual-review',
-          asaasStatus: payment?.status || 'RECEIVED',
-          paymentProvider: reservation.paymentProvider || 'asaas',
+          ...(provider === 'asaas' ? { asaasStatus: payment?.status || 'RECEIVED' } : {}),
+          paymentProvider: provider,
           providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId || payment?.id,
           providerStatus: payment?.status || 'RECEIVED',
           paidAt,
@@ -1267,8 +1273,8 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
     {
       $set: {
         paymentStatus: 'paid',
-        asaasStatus: payment?.status || 'RECEIVED',
-        paymentProvider: reservation.paymentProvider || 'asaas',
+        ...(provider === 'asaas' ? { asaasStatus: payment?.status || 'RECEIVED' } : {}),
+        paymentProvider: provider,
         providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId || payment?.id,
         providerStatus: payment?.status || 'RECEIVED',
         paidAt,
@@ -1687,10 +1693,16 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       name: textValue(payload.customer?.name, 120),
       cpf: onlyDigits(payload.customer?.cpf),
       phone: onlyDigits(payload.customer?.phone),
+      email: textValue(payload.customer?.email, 160).toLowerCase(),
       address: textValue(payload.customer?.address, 240),
     }
 
-    if (customer.name.length < 3 || !isValidCpf(customer.cpf) || !isValidPhone(customer.phone)) {
+    if (
+      customer.name.length < 3 ||
+      !isValidCpf(customer.cpf) ||
+      !isValidPhone(customer.phone) ||
+      (customer.email && !isValidEmail(customer.email))
+    ) {
       return res.status(400).json({ error: 'Dados do locatário inválidos.' })
     }
 
@@ -1872,13 +1884,114 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
       })
     }
 
-    if ((license.paymentProvider || 'asaas') !== 'asaas') {
-      return res.status(503).json({
-        error: license.mercadoPagoConnected
-          ? 'Mercado Pago conectado, mas a criação de cobranças ainda está em preparação. Nenhuma cobrança foi criada.'
-          : 'A conta Mercado Pago deste clube ainda não está conectada. Nenhuma cobrança foi criada.',
-        code: license.mercadoPagoConnected ? 'PAYMENT_PROVIDER_NOT_READY' : 'MERCADOPAGO_NOT_CONNECTED',
-        paymentProvider: license.paymentProvider,
+    if ((license.paymentProvider || 'asaas') === 'mercadopago') {
+      if (!license.mercadoPagoConnected) {
+        return res.status(409).json({
+          error: 'A conta Mercado Pago deste clube ainda não está conectada.',
+          code: 'MERCADOPAGO_NOT_CONNECTED',
+          paymentProvider: 'mercadopago',
+        })
+      }
+
+      if (!isValidEmail(contract.customer?.email)) {
+        return res.status(400).json({
+          error: 'Informe um e-mail válido do responsável pela reserva para gerar o Pix no Mercado Pago.',
+          code: 'PAYER_EMAIL_REQUIRED',
+        })
+      }
+
+      if (existing?.paymentProvider === 'mercadopago' && existing?.providerPaymentId) {
+        const currentOrder = await masterBillingRequest(
+          '/api/license/mercadopago/orders/' + encodeURIComponent(existing.providerPaymentId),
+        )
+        return res.json({
+          reservation: existing,
+          payment: {
+            id: currentOrder.orderId,
+            status: currentOrder.status,
+          },
+          pix: {
+            payload: currentOrder.qrCode,
+            encodedImage: currentOrder.qrCodeBase64,
+            ticketUrl: currentOrder.ticketUrl,
+            expirationDate: existing.pixExpirationDate || null,
+          },
+        })
+      }
+
+      const order = await masterBillingRequest('/api/license/mercadopago/orders', {
+        method: 'POST',
+        body: {
+          amount: serverPrice,
+          externalReference: reservationId,
+          payerEmail: contract.customer.email,
+          description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
+        },
+      })
+
+      if (!order?.orderId || !order?.qrCode) {
+        throw Object.assign(new Error('O Mercado Pago não retornou os dados do Pix.'), { statusCode: 502 })
+      }
+
+      const holdUntil = new Date(Date.now() + 30 * 60 * 1000)
+      const savedReservation = await Reservation.findOneAndUpdate(
+        { id: reservationId },
+        {
+          $set: {
+            id: reservationId,
+            day: Number(contractDateISO.slice(-2)),
+            date: contract.reservationDate || displayDate(contractDateISO),
+            dateISO: contractDateISO,
+            period: contract.period,
+            customer: contract.customer,
+            price: serverPrice,
+            contractId,
+            paymentStatus: 'pending-mercadopago',
+            paymentProvider: 'mercadopago',
+            providerCustomerId: null,
+            providerPaymentId: order.orderId,
+            providerStatus: order.status || 'action_required',
+            pixExpirationDate: holdUntil.toISOString(),
+            holdUntil,
+            reservationStatus: 'active',
+          },
+        },
+        { upsert: true, new: true, setDefaultsOnInsert: true },
+      ).lean()
+
+      await Contract.updateOne(
+        { id: contractId },
+        {
+          $set: {
+            price: serverPrice,
+            paymentStatus: 'pending-mercadopago',
+            status: 'signed-awaiting-payment',
+          },
+        },
+      )
+
+      await DateLock.updateOne(
+        { _id: contractDateISO, reservationId },
+        {
+          $set: {
+            status: 'pending',
+            expiresAt: holdUntil,
+          },
+        },
+      )
+
+      return res.status(201).json({
+        reservation: savedReservation,
+        payment: {
+          id: order.orderId,
+          status: order.status,
+        },
+        pix: {
+          payload: order.qrCode,
+          encodedImage: order.qrCodeBase64,
+          ticketUrl: order.ticketUrl,
+          expirationDate: holdUntil.toISOString(),
+        },
       })
     }
 
@@ -2030,6 +2143,91 @@ app.get('/api/payments/asaas/:reservationId/status', paymentStatusLimiter, async
         manualReview: true,
         reservation,
         asaasStatus: reservation.asaasStatus,
+      })
+    }
+
+    if (reservation.paymentProvider === 'mercadopago') {
+      if (!reservation.providerPaymentId) {
+        return res.status(400).json({ error: 'Esta reserva ainda não possui cobrança Mercado Pago.' })
+      }
+
+      const order = await masterBillingRequest(
+        '/api/license/mercadopago/orders/' + encodeURIComponent(reservation.providerPaymentId),
+      )
+      const providerStatus = order.status || 'unknown'
+      const providerStatusDetail = order.statusDetail || ''
+
+      if (providerStatus === 'processed' && providerStatusDetail === 'accredited') {
+        const result = await markPaymentReceived(
+          reservation,
+          {
+            id: order.orderId,
+            status: 'PROCESSED',
+            paymentDate: new Date(),
+          },
+          'MERCADOPAGO_STATUS_CHECK',
+          'mercadopago',
+        )
+
+        return res.json({
+          paid: !result?.manualReview,
+          manualReview: Boolean(result?.manualReview),
+          ...result,
+          providerStatus,
+          asaasStatus: providerStatus,
+        })
+      }
+
+      if (['canceled', 'expired', 'failed'].includes(providerStatus)) {
+        await DateLock.deleteOne({
+          _id: reservation.dateISO,
+          reservationId: reservation.id,
+          status: 'pending',
+        })
+
+        const updated = await Reservation.findOneAndUpdate(
+          { id: reservation.id },
+          {
+            $set: {
+              paymentStatus: 'expired',
+              providerStatus,
+              holdUntil: null,
+            },
+          },
+          { new: true },
+        ).lean()
+
+        await Contract.updateOne(
+          { id: reservation.contractId, paymentStatus: { $ne: 'paid' } },
+          { $set: { paymentStatus: 'expired' } },
+        )
+
+        return res.json({
+          paid: false,
+          expired: true,
+          reservation: updated,
+          providerStatus,
+          asaasStatus: providerStatus,
+        })
+      }
+
+      const updated = await Reservation.findOneAndUpdate(
+        { id: reservation.id },
+        {
+          $set: {
+            providerStatus: providerStatusDetail
+              ? providerStatus + ':' + providerStatusDetail
+              : providerStatus,
+          },
+        },
+        { new: true },
+      ).lean()
+
+      return res.json({
+        paid: false,
+        reservation: updated,
+        providerStatus,
+        asaasStatus: providerStatus,
       })
     }
 

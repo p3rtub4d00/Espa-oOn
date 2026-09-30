@@ -878,3 +878,154 @@
   font-size: 10px;
   line-height: 1.45;
 }
+
+
+/* Mercado Pago card payment */
+.payment-method-loading,
+.card-payment-loading {
+  margin-top: 16px;
+  padding: 12px 14px;
+  border-radius: 11px;
+  color: #60777c;
+  background: #f4f8fb;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+.payment-method-choice {
+  margin-top: 18px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+}
+
+.payment-method-choice button {
+  min-height: 92px;
+  padding: 14px;
+  display: grid;
+  grid-template-columns: 30px 1fr;
+  align-items: center;
+  column-gap: 8px;
+  border: 1px solid rgba(15,53,84,.12);
+  border-radius: 13px;
+  text-align: left;
+  color: #294553;
+  background: white;
+}
+
+.payment-method-choice button > span,
+.payment-method-choice button > svg {
+  grid-row: 1 / span 2;
+  width: 30px;
+  height: 30px;
+  display: grid;
+  place-items: center;
+  border-radius: 9px;
+  color: var(--brand-secondary, #1f8efa);
+  background: color-mix(in srgb, var(--brand-secondary, #1f8efa) 10%, white);
+  font-size: 9px;
+  font-weight: 900;
+}
+
+.payment-method-choice button strong,
+.payment-method-choice button small {
+  display: block;
+}
+
+.payment-method-choice button strong {
+  font-size: 11px;
+}
+
+.payment-method-choice button small {
+  margin-top: 3px;
+  color: #81929a;
+  font-size: 9px;
+}
+
+.payment-method-choice button.selected {
+  border-color: var(--brand-secondary, #1f8efa);
+  box-shadow: 0 0 0 3px color-mix(in srgb, var(--brand-secondary, #1f8efa) 10%, transparent);
+}
+
+.card-payment-area {
+  margin-top: 16px;
+}
+
+.card-payment-head {
+  margin-bottom: 12px;
+  padding: 12px 13px;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(15,53,84,.09);
+  border-radius: 11px;
+  background: #fbfdff;
+}
+
+.card-payment-head > svg {
+  color: var(--brand-secondary, #1f8efa);
+}
+
+.card-payment-head strong,
+.card-payment-head small {
+  display: block;
+}
+
+.card-payment-head strong {
+  color: #294553;
+  font-size: 10px;
+}
+
+.card-payment-head small {
+  margin-top: 3px;
+  color: #7f919a;
+  font-size: 9px;
+}
+
+#cardPaymentBrick_container {
+  min-height: 120px;
+}
+
+.card-challenge {
+  margin-top: 14px;
+  padding: 14px;
+  border: 1px solid rgba(15,53,84,.10);
+  border-radius: 13px;
+  background: white;
+}
+
+.card-challenge > strong,
+.card-challenge > span {
+  display: block;
+}
+
+.card-challenge > strong {
+  color: #294553;
+  font-size: 11px;
+}
+
+.card-challenge > span {
+  margin-top: 4px;
+  color: #748891;
+  font-size: 9px;
+  line-height: 1.5;
+}
+
+.card-challenge iframe {
+  width: 100%;
+  min-height: 480px;
+  margin-top: 12px;
+  border: 0;
+  border-radius: 10px;
+  background: white;
+}
+
+@media (max-width: 640px) {
+  .payment-method-choice {
+    grid-template-columns: 1fr;
+  }
+
+  .card-challenge iframe {
+    min-height: 520px;
+  }
+}

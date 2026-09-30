@@ -621,3 +621,53 @@
 .contract-accept input:disabled + span {
   opacity: .55;
 }
+
+
+/* Contract extras */
+.contract-extras {
+  margin: 14px 0;
+  padding: 13px;
+  display: grid;
+  gap: 8px;
+  border: 1px solid rgba(15,53,84,.09);
+  border-radius: 12px;
+  background: #f8fbfd;
+}
+
+.contract-extras-title,
+.contract-extra-row,
+.contract-extra-total {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+}
+
+.contract-extras-title {
+  align-items: flex-start;
+  flex-direction: column;
+}
+
+.contract-extras-title strong {
+  color: #294553;
+  font-size: 10px;
+}
+
+.contract-extras-title span,
+.contract-extra-row {
+  color: #6e828d;
+  font-size: 9px;
+}
+
+.contract-extra-row strong,
+.contract-extra-total strong {
+  color: #294553;
+}
+
+.contract-extra-total {
+  padding-top: 8px;
+  border-top: 1px solid rgba(15,53,84,.08);
+  color: #294553;
+  font-size: 10px;
+  font-weight: 800;
+}

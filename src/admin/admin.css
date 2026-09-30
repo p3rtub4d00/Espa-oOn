@@ -4090,3 +4090,138 @@
     font-size: 11px;
   }
 }
+
+
+/* Club setup checklist */
+.club-setup-card {
+  margin-bottom: 14px;
+  padding: 18px;
+  border: 1px solid rgba(15,53,84,.10);
+  background: #fff;
+}
+
+.club-setup-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+}
+
+.club-setup-head span,
+.club-setup-head strong,
+.club-setup-head p {
+  display: block;
+}
+
+.club-setup-head span {
+  color: var(--brand-secondary, #1f8efa);
+  font-size: 8px;
+  font-weight: 900;
+  text-transform: uppercase;
+  letter-spacing: .08em;
+}
+
+.club-setup-head strong {
+  margin-top: 4px;
+  color: #294553;
+  font-size: 17px;
+}
+
+.club-setup-head p {
+  margin: 5px 0 0;
+  color: #7b8f99;
+  font-size: 10px;
+  line-height: 1.5;
+}
+
+.club-setup-progress {
+  min-width: 54px;
+  height: 54px;
+  display: grid;
+  place-items: center;
+  border-radius: 50%;
+  color: var(--brand-secondary, #1f8efa);
+  background: color-mix(in srgb, var(--brand-secondary, #1f8efa) 10%, white);
+  font-size: 13px;
+  font-weight: 900;
+}
+
+.club-setup-list {
+  margin-top: 14px;
+  display: grid;
+  gap: 9px;
+}
+
+.club-setup-list article {
+  padding: 12px 13px;
+  display: grid;
+  grid-template-columns: 22px 1fr auto;
+  align-items: center;
+  gap: 10px;
+  border: 1px solid rgba(15,53,84,.08);
+  border-radius: 11px;
+  background: #fbfdff;
+}
+
+.club-setup-list article > svg {
+  color: #a9b6bd;
+}
+
+.club-setup-list article.done {
+  background: #f8fcfa;
+}
+
+.club-setup-list article.done > svg {
+  color: #2f9b66;
+}
+
+.club-setup-list article strong,
+.club-setup-list article span {
+  display: block;
+}
+
+.club-setup-list article strong {
+  color: #294553;
+  font-size: 10px;
+}
+
+.club-setup-list article span {
+  margin-top: 3px;
+  color: #7b8f99;
+  font-size: 9px;
+  line-height: 1.4;
+}
+
+.club-setup-list article button {
+  min-height: 34px;
+  padding: 0 11px;
+  border: 0;
+  border-radius: 9px;
+  color: #fff;
+  background: var(--brand-secondary, #1f8efa);
+  font-size: 8px;
+  font-weight: 900;
+}
+
+.club-setup-list article button:disabled {
+  opacity: .55;
+}
+
+@media (max-width: 680px) {
+  .club-setup-head {
+    align-items: flex-start;
+  }
+
+  .club-setup-head strong {
+    font-size: 15px;
+  }
+
+  .club-setup-list article {
+    grid-template-columns: 22px 1fr;
+  }
+
+  .club-setup-list article button {
+    grid-column: 1 / -1;
+    width: 100%;
+  }
+}

@@ -113,6 +113,15 @@ const reservationSchema = new mongoose.Schema(
     asaasCustomerId: String,
     asaasPaymentId: { type: String, index: true },
     asaasStatus: String,
+    paymentProvider: {
+      type: String,
+      enum: ['asaas', 'mercadopago', 'demo'],
+      default: 'asaas',
+      index: true,
+    },
+    providerCustomerId: String,
+    providerPaymentId: { type: String, index: true },
+    providerStatus: String,
     pixExpirationDate: String,
     holdUntil: Date,
     paidAt: Date,
@@ -539,6 +548,7 @@ let masterLicenseCache = {
   temporaryUnlockUntil: null,
   unavailable: false,
   demoMode: false,
+  paymentProvider: 'asaas',
 }
 
 async function checkMasterLicense({ force = false } = {}) {
@@ -550,6 +560,7 @@ async function checkMasterLicense({ force = false } = {}) {
       billingStatus: 'standalone',
       unavailable: false,
       demoMode: false,
+      paymentProvider: 'asaas',
     }
   }
 
@@ -585,6 +596,7 @@ async function checkMasterLicense({ force = false } = {}) {
         temporaryUnlockUntil: null,
         unavailable: false,
         demoMode: false,
+        paymentProvider: 'asaas',
       }
       return masterLicenseCache
     }
@@ -603,6 +615,9 @@ async function checkMasterLicense({ force = false } = {}) {
       temporaryUnlockUntil: data.temporaryUnlockUntil || null,
       unavailable: false,
       demoMode: data.demoMode === true,
+      paymentProvider: ['asaas', 'mercadopago'].includes(data.paymentProvider)
+        ? data.paymentProvider
+        : 'asaas',
     }
 
     return masterLicenseCache
@@ -628,6 +643,7 @@ async function checkMasterLicense({ force = false } = {}) {
       temporaryUnlockUntil: null,
       unavailable: true,
       demoMode: false,
+      paymentProvider: 'asaas',
     }
   } finally {
     clearTimeout(timeout)
@@ -1207,6 +1223,9 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
         $set: {
           paymentStatus: 'manual-review',
           asaasStatus: payment?.status || 'RECEIVED',
+          paymentProvider: reservation.paymentProvider || 'asaas',
+          providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId || payment?.id,
+          providerStatus: payment?.status || 'RECEIVED',
           paidAt,
         },
       },
@@ -1244,6 +1263,9 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
       $set: {
         paymentStatus: 'paid',
         asaasStatus: payment?.status || 'RECEIVED',
+        paymentProvider: reservation.paymentProvider || 'asaas',
+        providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId || payment?.id,
+        providerStatus: payment?.status || 'RECEIVED',
         paidAt,
         holdUntil: null,
       },
@@ -1307,6 +1329,9 @@ async function resolveExpiredPayment(reservation) {
         $set: {
           paymentStatus: 'expired',
           asaasStatus: 'EXPIRED_LOCAL_HOLD',
+          paymentProvider: reservation.paymentProvider || 'asaas',
+          providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId,
+          providerStatus: 'EXPIRED_LOCAL_HOLD',
           holdUntil: null,
         },
       },
@@ -1358,6 +1383,9 @@ async function resolveExpiredPayment(reservation) {
             $set: {
               paymentStatus: 'confirmed-asaas',
               asaasStatus: 'CONFIRMED',
+              paymentProvider: reservation.paymentProvider || 'asaas',
+              providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId,
+              providerStatus: 'CONFIRMED',
               holdUntil: null,
             },
           },
@@ -1458,6 +1486,7 @@ app.get('/api/license', async (req, res, next) => {
       nextDueDate: license.nextDueDate,
       temporaryUnlockUntil: license.temporaryUnlockUntil,
       masterUnavailable: license.unavailable === true,
+      paymentProvider: license.paymentProvider || 'asaas',
       bookingAllowed:
         license.demoMode === true ||
         (
@@ -1751,6 +1780,10 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             asaasCustomerId: null,
             asaasPaymentId: null,
             asaasStatus: 'DEMO_SIMULATED',
+            paymentProvider: 'demo',
+            providerCustomerId: null,
+            providerPaymentId: null,
+            providerStatus: 'DEMO_SIMULATED',
             pixExpirationDate: null,
             holdUntil: null,
             paidAt,
@@ -1789,6 +1822,14 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
         asaasStatus: 'DEMO_SIMULATED',
         reservation: savedReservation,
         contract: updatedContract,
+      })
+    }
+
+    if ((license.paymentProvider || 'asaas') !== 'asaas') {
+      return res.status(503).json({
+        error: 'Mercado Pago ainda está em preparação para este clube. Nenhuma cobrança foi criada.',
+        code: 'PAYMENT_PROVIDER_NOT_READY',
+        paymentProvider: license.paymentProvider,
       })
     }
 
@@ -1832,6 +1873,10 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             asaasCustomerId: customer.id,
             asaasPaymentId: payment.id,
             asaasStatus: payment.status,
+            paymentProvider: 'asaas',
+            providerCustomerId: customer.id,
+            providerPaymentId: payment.id,
+            providerStatus: payment.status,
           },
         },
         { upsert: true, new: true, setDefaultsOnInsert: true },
@@ -1867,6 +1912,10 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
           asaasCustomerId: customer.id,
           asaasPaymentId: payment.id,
           asaasStatus: payment.status,
+          paymentProvider: 'asaas',
+          providerCustomerId: customer.id,
+          providerPaymentId: payment.id,
+          providerStatus: payment.status,
           pixExpirationDate: pix.expirationDate,
           holdUntil: paymentStatus === 'pending-asaas' ? holdUntil : null,
         },

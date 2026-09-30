@@ -86,6 +86,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     name: '',
     cpf: '',
     phone: '',
+    email: '',
     address: '',
   })
   const [errors, setErrors] = useState({})
@@ -140,6 +141,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     if (form.name.trim().length < 3) next.name = 'Informe seu nome completo.'
     if (!isValidCpf(form.cpf)) next.cpf = 'Informe um CPF válido.'
     if (onlyDigits(form.phone).length < 10) next.phone = 'Informe um telefone válido.'
+    if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'Informe um e-mail válido.'
     if (form.address.trim().length < 8) next.address = 'Informe seu endereço.'
     setErrors(next)
     return Object.keys(next).length === 0
@@ -405,6 +407,20 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 </label>
 
                 <label className="full">
+                  <span>E-mail</span>
+                  <div className={errors.email ? 'input-wrap error' : 'input-wrap'}>
+                    <input
+                      inputMode="email"
+                      type="email"
+                      value={form.email}
+                      onChange={(event) => updateField('email', event.target.value)}
+                      placeholder="voce@email.com"
+                    />
+                  </div>
+                  {errors.email && <small>{errors.email}</small>}
+                </label>
+
+                <label className="full">
                   <span>Endereço</span>
                   <div className={errors.address ? 'input-wrap error' : 'input-wrap'}>
                     <input
@@ -486,7 +502,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
               <div className="booking-heading">
                 <span>Etapa 4 de 5</span>
                 <h2>Contrato assinado. Agora pague por Pix.</h2>
-                <p>A cobrança é gerada pelo Asaas e a confirmação acontece automaticamente.</p>
+                <p>A cobrança é gerada pelo provedor configurado para este espaço e a confirmação acontece automaticamente.</p>
               </div>
 
               <div className="booking-summary">
@@ -527,7 +543,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                     </div>
 
                     <div className="pix-copy">
-                      <span>Pix copia e cola • Asaas</span>
+                      <span>Pix copia e cola</span>
                       <p>{pixPayment.pix?.payload}</p>
                       <button onClick={copyPix}>
                         {copied ? <CheckCircle2 size={16} /> : <Copy size={16} />}
@@ -573,7 +589,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <ShieldCheck />
                 <span>
                   <strong>Contrato {signedContract?.id}</strong>
-                  A reserva só será confirmada depois que o Asaas informar o recebimento do Pix.
+                  A reserva só será confirmada depois que o provedor de pagamento informar o recebimento do Pix.
                 </span>
               </div>
             </div>
@@ -586,7 +602,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
               <h2>Pagamento confirmado!</h2>
               <p>
                 A reserva de <strong>{dateLabel}</strong> foi concluída para <strong>{form.name}</strong>.
-                O pagamento foi confirmado pelo Asaas. O comprovante e o contrato foram preparados para compartilhamento.
+                O pagamento foi confirmado. O comprovante e o contrato foram preparados para compartilhamento.
               </p>
 
               <div className="success-ticket">

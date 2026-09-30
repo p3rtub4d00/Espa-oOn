@@ -738,6 +738,13 @@ button {
   cursor: not-allowed;
 }
 
+.calendar-days button.pending-payment-date {
+  color: #9a7624;
+  background: #fff9e8;
+  text-decoration: none;
+  cursor: not-allowed;
+}
+
 .calendar-days button.selected {
   color: white;
   background: var(--green);

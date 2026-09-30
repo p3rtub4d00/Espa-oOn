@@ -231,6 +231,10 @@ const settingsSchema = new mongoose.Schema(
       secondaryColor: String,
       accentColor: String,
     },
+    onboarding: {
+      establishmentConfigured: { type: Boolean, default: false },
+      pricesConfigured: { type: Boolean, default: false },
+    },
   },
   { timestamps: true },
 )
@@ -333,6 +337,10 @@ const DEFAULT_SETTINGS = {
     primaryColor: '#0f3554',
     secondaryColor: '#1f8efa',
     accentColor: '#53b9ff',
+  },
+  onboarding: {
+    establishmentConfigured: false,
+    pricesConfigured: false,
   },
 }
 
@@ -1099,6 +1107,13 @@ function sanitizeSettingsUpdate(body = {}) {
     }
 
     update.establishment = establishment
+  }
+
+  if (body.onboarding !== undefined) {
+    update.onboarding = {
+      establishmentConfigured: body.onboarding?.establishmentConfigured === true,
+      pricesConfigured: body.onboarding?.pricesConfigured === true,
+    }
   }
 
   if (body.branding !== undefined) {

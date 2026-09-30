@@ -105,6 +105,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
   const price = getPriceForDate(dateISO, period, liveSettings)
   const lockedPrice = Number(signedContract?.price ?? price)
+  const progressStep = step === 4 ? 3 : step === 5 ? 4 : step
   const dateLabel = useMemo(() => {
     const [year, month, day] = dateISO.split('-')
     return day + '/' + month + '/' + year
@@ -162,7 +163,6 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     try {
       const latestSettings = await api.getSettings()
       setLiveSettings(latestSettings)
-      setStep(3)
       setContractOpen(true)
     } catch (error) {
       setErrors((current) => ({
@@ -415,11 +415,11 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
         </div>
 
         <div className="booking-progress">
-          {['Período', 'Seus dados', 'Contrato', 'Pagamento', 'Confirmado'].map((label, index) => {
+          {['Período', 'Seus dados', 'Contrato', 'Pagamento'].map((label, index) => {
             const number = index + 1
             return (
-              <div className={number <= step ? 'active' : ''} key={label}>
-                <span>{number < step ? <Check size={14} /> : number}</span>
+              <div className={number <= progressStep ? 'active' : ''} key={label}>
+                <span>{number < progressStep ? <Check size={14} /> : number}</span>
                 <small>{label}</small>
               </div>
             )
@@ -430,7 +430,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
           {step === 1 && (
             <div className="booking-step">
               <div className="booking-heading">
-                <span>Etapa 1 de 5</span>
+                <span>Etapa 1 de 4</span>
                 <h2>Quanto tempo você quer aproveitar o espaço?</h2>
                 <p>Escolha o período da locação. O valor é calculado automaticamente conforme o dia.</p>
               </div>
@@ -473,7 +473,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
           {step === 2 && (
             <div className="booking-step">
               <div className="booking-heading">
-                <span>Etapa 2 de 5</span>
+                <span>Etapa 2 de 4</span>
                 <h2>Agora precisamos dos seus dados.</h2>
                 <p>Seu nome, data, período e valor serão inseridos automaticamente no contrato.</p>
               </div>
@@ -559,60 +559,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
             </div>
           )}
 
-          {step === 3 && (
-            <div className="booking-step">
-              <div className="booking-heading">
-                <span>Etapa 3 de 5</span>
-                <h2>Assine o contrato antes do pagamento.</h2>
-                <p>O pagamento só será liberado depois que o contrato estiver assinado.</p>
-              </div>
-
-              <div className="booking-summary">
-                <div><span>Locatário</span><strong>{form.name}</strong></div>
-                <div><span>Data</span><strong>{dateLabel}</strong></div>
-                <div><span>Período</span><strong>{period}</strong></div>
-                <div><span>Valor do contrato</span><strong className="summary-price">{money(lockedPrice)}</strong></div>
-              </div>
-
-              <div className="next-contract">
-                <ShieldCheck />
-                <span>
-                  <strong>{signedContract ? 'Contrato assinado' : 'Assinatura necessária'}</strong>
-                  {signedContract
-                    ? 'O documento foi assinado. Você já pode seguir para o pagamento.'
-                    : 'Leia o documento e faça sua assinatura para liberar a próxima etapa.'}
-                </span>
-              </div>
-
-              <div className="booking-actions">
-                <button
-                  className="booking-back"
-                  onClick={() => {
-                    setSignedContract(null)
-                    setPixPayment(null)
-                    setStep(2)
-                  }}
-                >
-                  <ArrowLeft size={17} /> Corrigir dados
-                </button>
-                {!signedContract ? (
-                  <button className="booking-primary" onClick={() => setContractOpen(true)}>
-                    <FileSignature size={17} />
-                    Abrir contrato
-                  </button>
-                ) : (
-                  <button className="booking-primary" onClick={() => setStep(4)}>
-                    Ir para pagamento
-                  </button>
-                )}
-              </div>
-            </div>
-          )}
-
           {step === 4 && (
             <div className="booking-step">
               <div className="booking-heading">
-                <span>Etapa 4 de 5</span>
+                <span>Etapa 3 de 4</span>
                 <h2>Contrato assinado. Escolha como pagar.</h2>
                 <p>Você pode pagar por Pix ou cartão de crédito quando essa opção estiver disponível.</p>
               </div>
@@ -849,7 +799,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
           onSigned={(contract) => {
             setSignedContract(contract)
             setContractOpen(false)
-            setStep(3)
+            setStep(4)
           }}
           continueLabel="Contrato assinado — ir para pagamento"
         />

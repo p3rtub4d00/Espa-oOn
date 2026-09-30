@@ -1358,15 +1358,21 @@ async function resolveExpiredPayment(reservation) {
 
   const expire = async () => {
     const expiredReservation = await Reservation.findOneAndUpdate(
-      { id: reservation.id, paymentStatus: 'pending-asaas' },
+      {
+        id: reservation.id,
+        paymentStatus: { $in: ['pending-asaas', 'pending-mercadopago', 'awaiting-payment'] },
+      },
       {
         $set: {
           paymentStatus: 'expired',
-          asaasStatus: 'EXPIRED_LOCAL_HOLD',
+          ...(reservation.paymentProvider === 'asaas'
+            ? { asaasStatus: 'EXPIRED_LOCAL_HOLD' }
+            : {}),
           paymentProvider: reservation.paymentProvider || 'asaas',
-          providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId,
+          providerPaymentId: reservation.providerPaymentId || reservation.asaasPaymentId || null,
           providerStatus: 'EXPIRED_LOCAL_HOLD',
           holdUntil: null,
+          reservationStatus: 'pending-payment',
         },
       },
       { new: true },
@@ -1374,7 +1380,7 @@ async function resolveExpiredPayment(reservation) {
 
     await Contract.updateOne(
       { id: reservation.contractId, paymentStatus: { $ne: 'paid' } },
-      { $set: { paymentStatus: 'expired' } },
+      { $set: { paymentStatus: 'expired', status: 'signed-awaiting-payment' } },
     )
 
     await DateLock.deleteOne({
@@ -1383,7 +1389,90 @@ async function resolveExpiredPayment(reservation) {
       status: 'pending',
     })
 
-    return { expired: true, reservation: expiredReservation }
+    return { expired: true, reservation: expiredReservation || reservation }
+  }
+
+  if (reservation.paymentProvider === 'mercadopago') {
+    try {
+      if (reservation.paymentMethod === 'card') {
+        const payment = await masterBillingRequest(
+          '/api/license/mercadopago/payments/by-reference/' + encodeURIComponent(reservation.id),
+        )
+
+        if (
+          payment?.found &&
+          payment.externalReference === reservation.id &&
+          Number(payment.amount || 0).toFixed(2) === Number(reservation.price || 0).toFixed(2) &&
+          payment.status === 'approved'
+        ) {
+          const result = await markPaymentReceived(
+            reservation,
+            {
+              id: payment.paymentId,
+              status: 'APPROVED',
+              paymentDate: payment.dateApproved ? new Date(payment.dateApproved) : new Date(),
+            },
+            'MERCADOPAGO_EXPIRATION_CHECK',
+            'mercadopago',
+          )
+          return {
+            expired: false,
+            paid: !result?.manualReview,
+            manualReview: Boolean(result?.manualReview),
+            ...result,
+          }
+        }
+
+        if (reservation.providerPaymentId) {
+          await masterBillingRequest(
+            '/api/license/mercadopago/checkout/preferences/' +
+              encodeURIComponent(reservation.providerPaymentId) +
+              '/expire',
+            { method: 'POST' },
+          ).catch(() => {})
+        }
+
+        return expire()
+      }
+
+      if (reservation.providerPaymentId) {
+        const order = await masterBillingRequest(
+          '/api/license/mercadopago/orders/' + encodeURIComponent(reservation.providerPaymentId),
+        )
+
+        if (order?.status === 'processed' && order?.statusDetail === 'accredited') {
+          const result = await markPaymentReceived(
+            reservation,
+            {
+              id: order.orderId,
+              status: 'PROCESSED',
+              paymentDate: new Date(),
+            },
+            'MERCADOPAGO_EXPIRATION_CHECK',
+            'mercadopago',
+          )
+          return {
+            expired: false,
+            paid: !result?.manualReview,
+            manualReview: Boolean(result?.manualReview),
+            ...result,
+          }
+        }
+      }
+
+      return expire()
+    } catch {
+      const extendedUntil = new Date(Date.now() + 2 * 60 * 1000)
+      await DateLock.updateOne(
+        { _id: reservation.dateISO, reservationId: reservation.id, status: 'pending' },
+        { $set: { expiresAt: extendedUntil } },
+      )
+      await Reservation.updateOne(
+        { id: reservation.id, paymentStatus: 'pending-mercadopago' },
+        { $set: { holdUntil: extendedUntil } },
+      )
+      return { expired: false, retry: true }
+    }
   }
 
   if (!reservation.asaasPaymentId) return expire()
@@ -1434,10 +1523,10 @@ async function resolveExpiredPayment(reservation) {
         return { expired: false, confirmed: true, reservation: updated }
       }
     } catch {
-      // Mantém a data protegida por mais alguns minutos em caso de indisponibilidade temporária do provedor.
+      // Mantém a data protegida brevemente em caso de indisponibilidade temporária do provedor.
     }
 
-    const extendedUntil = new Date(Date.now() + 5 * 60 * 1000)
+    const extendedUntil = new Date(Date.now() + 2 * 60 * 1000)
     await DateLock.updateOne(
       { _id: reservation.dateISO, reservationId: reservation.id, status: 'pending' },
       { $set: { expiresAt: extendedUntil } },
@@ -1887,7 +1976,7 @@ app.post('/api/payments/mercadopago/checkout', requireBookingLicense, paymentLim
       throw Object.assign(new Error('O Mercado Pago não retornou o link do checkout.'), { statusCode: 502 })
     }
 
-    const holdUntil = new Date(Date.now() + 60 * 60 * 1000)
+    const holdUntil = new Date(Date.now() + 15 * 60 * 1000)
     const savedReservation = await Reservation.findOneAndUpdate(
       { id: reservationId },
       {
@@ -2156,7 +2245,7 @@ app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter
       throw Object.assign(new Error('O Mercado Pago não retornou a identificação da cobrança.'), { statusCode: 502 })
     }
 
-    const holdUntil = new Date(Date.now() + 40 * 60 * 1000)
+    const holdUntil = new Date(Date.now() + 15 * 60 * 1000)
     const providerStatus = order.statusDetail
       ? String(order.status || '') + ':' + String(order.statusDetail)
       : String(order.status || '')
@@ -2416,7 +2505,7 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
         throw Object.assign(new Error('O Mercado Pago não retornou os dados do Pix.'), { statusCode: 502 })
       }
 
-      const holdUntil = new Date(Date.now() + 30 * 60 * 1000)
+      const holdUntil = new Date(Date.now() + 15 * 60 * 1000)
       const savedReservation = await Reservation.findOneAndUpdate(
         { id: reservationId },
         {

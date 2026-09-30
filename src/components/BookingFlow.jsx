@@ -89,6 +89,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const [holdSeconds, setHoldSeconds] = useState(15 * 60)
   const [liveSettings, setLiveSettings] = useState(settings)
   const [preparingContract, setPreparingContract] = useState(false)
+  const [selectedExtras, setSelectedExtras] = useState({})
   const [form, setForm] = useState({
     name: '',
     cpf: '',
@@ -104,7 +105,30 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   }, [dateISO])
 
   const price = getPriceForDate(dateISO, period, liveSettings)
-  const lockedPrice = Number(signedContract?.price ?? price)
+  const activeExtras = (Array.isArray(liveSettings.extras) ? liveSettings.extras : [])
+    .filter((item) => item?.active === true)
+
+  const selectedExtrasList = activeExtras
+    .map((item) => {
+      const quantity = Math.max(0, Math.min(100, Number(selectedExtras[item.id] || 0)))
+      if (!quantity) return null
+      const unitPrice = Number(item.price || 0)
+      return {
+        id: item.id,
+        name: item.name,
+        description: item.description || '',
+        unitPrice,
+        quantity,
+        subtotal: Math.round(unitPrice * quantity * 100) / 100,
+      }
+    })
+    .filter(Boolean)
+
+  const extrasTotal = Math.round(
+    selectedExtrasList.reduce((sum, item) => sum + item.subtotal, 0) * 100
+  ) / 100
+  const totalPrice = Math.round((Number(price || 0) + extrasTotal) * 100) / 100
+  const lockedPrice = Number(signedContract?.price ?? totalPrice)
   const progressStep = step >= 4 ? 4 : step
   const dateLabel = useMemo(() => {
     const [year, month, day] = dateISO.split('-')
@@ -121,7 +145,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     date: dateLabel,
     dateISO,
     period,
-    price,
+    basePrice: price,
+    extrasTotal,
+    extras: selectedExtrasList,
+    price: totalPrice,
     customer: form,
     paymentStatus: 'awaiting-payment',
     createdAt: new Date().toISOString(),
@@ -457,6 +484,91 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 ))}
               </div>
 
+              {activeExtras.length > 0 && (
+                <div className="booking-extras">
+                  <div className="booking-extras-head">
+                    <div>
+                      <span>Adicionais opcionais</span>
+                      <strong>Quer incluir algo na sua reserva?</strong>
+                      <p>Escolha a quantidade desejada. Você pode continuar sem adicionar nenhum item.</p>
+                    </div>
+                  </div>
+
+                  <div className="booking-extras-list">
+                    {activeExtras.map((extra) => {
+                      const quantity = Math.max(0, Math.min(100, Number(selectedExtras[extra.id] || 0)))
+                      return (
+                        <article key={extra.id} className={quantity > 0 ? 'selected' : ''}>
+                          <div className="booking-extra-copy">
+                            <strong>{extra.name}</strong>
+                            {extra.description && <small>{extra.description}</small>}
+                            <b>{money(extra.price)} <em>por unidade</em></b>
+                          </div>
+                          <div className="booking-extra-quantity">
+                            <button
+                              type="button"
+                              disabled={quantity <= 0}
+                              onClick={() =>
+                                setSelectedExtras((current) => ({
+                                  ...current,
+                                  [extra.id]: Math.max(0, quantity - 1),
+                                }))
+                              }
+                              aria-label={'Diminuir quantidade de ' + extra.name}
+                            >
+                              −
+                            </button>
+                            <label>
+                              <span>Qtd.</span>
+                              <input
+                                type="number"
+                                inputMode="numeric"
+                                min="0"
+                                max="100"
+                                value={quantity}
+                                onChange={(event) => {
+                                  const value = Math.max(0, Math.min(100, Number(event.target.value || 0)))
+                                  setSelectedExtras((current) => ({
+                                    ...current,
+                                    [extra.id]: Number.isFinite(value) ? value : 0,
+                                  }))
+                                }}
+                              />
+                            </label>
+                            <button
+                              type="button"
+                              disabled={quantity >= 100}
+                              onClick={() =>
+                                setSelectedExtras((current) => ({
+                                  ...current,
+                                  [extra.id]: Math.min(100, quantity + 1),
+                                }))
+                              }
+                              aria-label={'Aumentar quantidade de ' + extra.name}
+                            >
+                              +
+                            </button>
+                          </div>
+                          {quantity > 0 && (
+                            <div className="booking-extra-subtotal">
+                              {quantity} × {money(extra.price)} = <strong>{money(Number(extra.price) * quantity)}</strong>
+                            </div>
+                          )}
+                        </article>
+                      )
+                    })}
+                  </div>
+
+                  {extrasTotal > 0 && (
+                    <div className="booking-extras-total">
+                      <span>Aluguel <strong>{money(price)}</strong></span>
+                      <span>Adicionais <strong>{money(extrasTotal)}</strong></span>
+                      <span className="grand-total">Total <strong>{money(totalPrice)}</strong></span>
+                    </div>
+                  )}
+                </div>
+              )}
+
               <div className="booking-security">
                 <ShieldCheck />
                 <span>
@@ -574,6 +686,18 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <div><span>Responsável</span><strong>{form.name}</strong></div>
                 <div><span>Total</span><strong className="summary-price">{money(lockedPrice)}</strong></div>
               </div>
+
+              {signedContract?.extras?.length > 0 && (
+                <div className="booking-selected-extras-summary">
+                  <strong>Adicionais incluídos</strong>
+                  {signedContract.extras.map((item) => (
+                    <span key={item.id}>
+                      {item.quantity}× {item.name}
+                      <b>{money(item.subtotal)}</b>
+                    </span>
+                  ))}
+                </div>
+              )}
 
               {paymentConfigLoading && (
                 <div className="payment-method-loading">Carregando formas de pagamento...</div>

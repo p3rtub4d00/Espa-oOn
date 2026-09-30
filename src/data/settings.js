@@ -26,6 +26,7 @@ export const DEFAULT_SETTINGS = {
     { id: 'snooker', name: 'Sinuca', description: 'Mesa de sinuca disponível para os convidados.', icon: 'game' },
     { id: 'support', name: 'Área de apoio', description: 'Estrutura para confraternizações.', icon: 'food' },
   ],
+  extras: [],
   notifications: {
     notifyPaidReservation: true,
     notifyNewVisit: true,
@@ -68,6 +69,7 @@ export function loadSettings() {
     specialDates: [],
     gallery: [...DEFAULT_SETTINGS.gallery],
     amenities: DEFAULT_SETTINGS.amenities.map((item) => ({ ...item })),
+    extras: DEFAULT_SETTINGS.extras.map((item) => ({ ...item })),
     notifications: { ...DEFAULT_SETTINGS.notifications },
     cancellationPolicy: { ...DEFAULT_SETTINGS.cancellationPolicy },
     establishment: { ...DEFAULT_SETTINGS.establishment },

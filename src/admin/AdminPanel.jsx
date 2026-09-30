@@ -65,10 +65,11 @@ function maskCpf(value = '') {
   return '***.' + digits.slice(3, 6) + '.' + digits.slice(6, 9) + '-**'
 }
 
-function paymentStatusLabel(status) {
+function paymentStatusLabel(status, paymentMethod = '') {
   if (status === 'paid') return 'Pago'
   if (status === 'confirmed-asaas') return 'Confirmado • processando'
-  if (status === 'pending-asaas' || status === 'pending-mercadopago') return 'Aguardando Pix'
+  if (status === 'pending-mercadopago') return paymentMethod === 'card' ? 'Aguardando cartão' : 'Aguardando Pix'
+  if (status === 'pending-asaas') return 'Aguardando Pix'
   if (status === 'manual-review') return 'Conferência manual'
   if (status === 'refunded') return 'Estornado'
   if (status === 'cancelled') return 'Cancelado'
@@ -78,7 +79,7 @@ function paymentStatusLabel(status) {
 
 function isActiveReservation(reservation) {
   return reservation?.reservationStatus !== 'cancelled' &&
-    ['paid', 'confirmed-asaas', 'pending-asaas', 'pending-mercadopago', 'manual-review'].includes(reservation?.paymentStatus)
+    ['paid', 'confirmed-asaas', 'manual-review'].includes(reservation?.paymentStatus)
 }
 
 function normalizeWhatsAppNumber(phone = '') {
@@ -889,7 +890,7 @@ export default function AdminPanel({
                                 : 'Cancelada • reembolso registrado'
                               : 'Cancelada'
                           )
-                        : paymentStatusLabel(r.paymentStatus)}
+                        : paymentStatusLabel(r.paymentStatus, r.paymentMethod)}
                     </i>
                   </span>
                   <span className="reservation-row-actions">
@@ -935,13 +936,13 @@ export default function AdminPanel({
                         <X size={14} />
                         Cancelar
                       </button>
-                    ) : ['pending-asaas', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
+                    ) : ['pending-asaas', 'pending-mercadopago', 'awaiting-payment', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
                       <button
                         className="delete-pending-reservation"
                         disabled={deletingReservationId === r.id}
                         onClick={async () => {
                           const confirmed = window.confirm(
-                            'Excluir esta reserva pendente? A cobrança Pix será cancelada e a data será liberada.'
+                            'Excluir esta tentativa pendente? O pagamento será encerrado quando possível e a data será liberada.'
                           )
                           if (!confirmed) return
 
@@ -2423,7 +2424,7 @@ export default function AdminPanel({
                 <div>
                   <span>Status</span>
                   <strong>
-                    {paymentStatusLabel(selectedReservation.paymentStatus)}
+                    {paymentStatusLabel(selectedReservation.paymentStatus, selectedReservation.paymentMethod)}
                   </strong>
                 </div>
               </div>

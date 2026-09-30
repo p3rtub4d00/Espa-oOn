@@ -368,7 +368,6 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 className="finish-contract-button"
                 onClick={() => {
                   onSigned?.(signedContract)
-                  onClose()
                 }}
               >
                 {continueLabel}

@@ -549,6 +549,7 @@ let masterLicenseCache = {
   unavailable: false,
   demoMode: false,
   paymentProvider: 'asaas',
+  mercadoPagoConnected: false,
 }
 
 async function checkMasterLicense({ force = false } = {}) {
@@ -561,6 +562,7 @@ async function checkMasterLicense({ force = false } = {}) {
       unavailable: false,
       demoMode: false,
       paymentProvider: 'asaas',
+      mercadoPagoConnected: false,
     }
   }
 
@@ -597,6 +599,7 @@ async function checkMasterLicense({ force = false } = {}) {
         unavailable: false,
         demoMode: false,
         paymentProvider: 'asaas',
+        mercadoPagoConnected: false,
       }
       return masterLicenseCache
     }
@@ -618,6 +621,7 @@ async function checkMasterLicense({ force = false } = {}) {
       paymentProvider: ['asaas', 'mercadopago'].includes(data.paymentProvider)
         ? data.paymentProvider
         : 'asaas',
+      mercadoPagoConnected: data.mercadoPagoConnected === true,
     }
 
     return masterLicenseCache
@@ -644,6 +648,7 @@ async function checkMasterLicense({ force = false } = {}) {
       unavailable: true,
       demoMode: false,
       paymentProvider: 'asaas',
+      mercadoPagoConnected: false,
     }
   } finally {
     clearTimeout(timeout)
@@ -1487,6 +1492,7 @@ app.get('/api/license', async (req, res, next) => {
       temporaryUnlockUntil: license.temporaryUnlockUntil,
       masterUnavailable: license.unavailable === true,
       paymentProvider: license.paymentProvider || 'asaas',
+      mercadoPagoConnected: license.mercadoPagoConnected === true,
       bookingAllowed:
         license.demoMode === true ||
         (
@@ -1827,8 +1833,10 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
 
     if ((license.paymentProvider || 'asaas') !== 'asaas') {
       return res.status(503).json({
-        error: 'Mercado Pago ainda está em preparação para este clube. Nenhuma cobrança foi criada.',
-        code: 'PAYMENT_PROVIDER_NOT_READY',
+        error: license.mercadoPagoConnected
+          ? 'Mercado Pago conectado, mas a criação de cobranças ainda está em preparação. Nenhuma cobrança foi criada.'
+          : 'A conta Mercado Pago deste clube ainda não está conectada. Nenhuma cobrança foi criada.',
+        code: license.mercadoPagoConnected ? 'PAYMENT_PROVIDER_NOT_READY' : 'MERCADOPAGO_NOT_CONNECTED',
         paymentProvider: license.paymentProvider,
       })
     }

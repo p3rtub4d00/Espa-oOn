@@ -33,7 +33,17 @@ export function createReceiptPdf(reservation, contract, establishmentName = '') 
     ['Cliente', reservation.customer?.name || '-'],
     ['Data da locação', reservation.date || '-'],
     ['Período', reservation.period || '-'],
-    ['Valor', money(reservation.price)],
+    ['Aluguel do espaço', money(reservation.basePrice || contract?.basePrice || reservation.price)],
+    ...(Array.isArray(reservation.extras) && reservation.extras.length
+      ? reservation.extras.map((item) => [
+          'Adicional',
+          item.quantity + '× ' + item.name + ' — ' + money(item.subtotal),
+        ])
+      : []),
+    ...(Number(reservation.extrasTotal || contract?.extrasTotal || 0) > 0
+      ? [['Total adicionais', money(reservation.extrasTotal || contract?.extrasTotal)]]
+      : []),
+    ['Valor total', money(reservation.price)],
     ['Pagamento', reservation.paymentMethod === 'card' ? 'Confirmado via cartão de crédito' : 'Confirmado via Pix'],
     ['Confirmado em', paidAt],
     ['Contrato', contract?.id || reservation.contractId || '-'],
@@ -82,7 +92,17 @@ export function createContractPdf(contract, establishmentName = '') {
     ['CPF', contract.customer?.cpf || '-'],
     ['Data', contract.reservationDate || '-'],
     ['Período', contract.period || '-'],
-    ['Valor', money(contract.price)],
+    ['Aluguel do espaço', money(contract.basePrice || contract.price)],
+    ...(Array.isArray(contract.extras) && contract.extras.length
+      ? contract.extras.map((item) => [
+          'Adicional',
+          item.quantity + '× ' + item.name + ' — ' + money(item.subtotal),
+        ])
+      : []),
+    ...(Number(contract.extrasTotal || 0) > 0
+      ? [['Total adicionais', money(contract.extrasTotal)]]
+      : []),
+    ['Valor total', money(contract.price)],
     ['Assinado em', contract.signedAt ? new Date(contract.signedAt).toLocaleString('pt-BR') : '-'],
     ['Hash', contract.hash || '-'],
   ]

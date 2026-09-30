@@ -13,13 +13,14 @@ function addWrappedText(doc, text, x, y, width, lineHeight = 6) {
   return y + lines.length * lineHeight
 }
 
-export function createReceiptPdf(reservation, contract) {
+export function createReceiptPdf(reservation, contract, establishmentName = '') {
   const doc = new jsPDF()
   const paidAt = reservation.paidAt ? new Date(reservation.paidAt).toLocaleString('pt-BR') : '-'
+  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
-  doc.text(contract?.establishmentName || 'EspaçoOn', 20, 22)
+  doc.text(spaceName, 20, 22)
 
   doc.setFontSize(14)
   doc.text('Comprovante de pagamento', 20, 34)
@@ -33,7 +34,7 @@ export function createReceiptPdf(reservation, contract) {
     ['Data da locação', reservation.date || '-'],
     ['Período', reservation.period || '-'],
     ['Valor', money(reservation.price)],
-    ['Pagamento', 'Confirmado via Pix / Asaas'],
+    ['Pagamento', 'Confirmado via Pix'],
     ['Confirmado em', paidAt],
     ['Contrato', contract?.id || reservation.contractId || '-'],
   ]
@@ -51,7 +52,7 @@ export function createReceiptPdf(reservation, contract) {
   doc.setTextColor(90)
   addWrappedText(
     doc,
-    'Este comprovante foi gerado pelo ' + (contract?.establishmentName || 'EspaçoOn') + ' a partir do status de pagamento registrado na integração com o Asaas.',
+    'Este comprovante foi gerado pelo ' + spaceName + ' a partir da confirmação eletrônica do pagamento da reserva.',
     20,
     y,
     170,
@@ -61,11 +62,12 @@ export function createReceiptPdf(reservation, contract) {
   return doc
 }
 
-export function createContractPdf(contract) {
+export function createContractPdf(contract, establishmentName = '') {
   const doc = new jsPDF()
+  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
-  doc.text(contract.establishmentName || 'EspaçoOn', 20, 20)
+  doc.text(spaceName, 20, 20)
   doc.setFontSize(14)
   doc.text('Contrato de locação do espaço de lazer', 20, 31)
 
@@ -96,10 +98,10 @@ export function createContractPdf(contract) {
 
   y += 4
   const clauses = [
-    ['1. Objeto.', 'O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma ' + (contract.establishmentName || 'EspaçoOn') + ', na data e período informados acima.'],
+    ['1. Objeto.', 'O presente instrumento registra a locação temporária do espaço de lazer ' + spaceName + ', na data e período informados acima.'],
     ['2. Uso do espaço.', 'O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.'],
     ['3. Responsabilidade.', 'O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.'],
-    ['4. Pagamento.', 'O valor indicado neste documento é cobrado por Pix por meio do Asaas e a reserva é confirmada após o registro do recebimento.'],
+    ['4. Pagamento.', 'O valor indicado neste documento é cobrado por Pix e a reserva é confirmada após a confirmação eletrônica do recebimento.'],
     ['5. Cancelamento e reembolso.', contract.cancellationPolicyText || 'A política de cancelamento registrada no momento da assinatura integra este contrato.'],
     ['6. Assinatura eletrônica.', 'O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.'],
   ]
@@ -150,34 +152,36 @@ export function normalizeWhatsApp(phone = '') {
   return digits.startsWith('55') ? digits : '55' + digits
 }
 
-export function buildPaymentMessage(reservation, contract) {
+export function buildPaymentMessage(reservation, contract, establishmentName = '') {
+  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
   return [
     'Olá, ' + (reservation.customer?.name || 'cliente') + '!',
     '',
-    'Seu pagamento no ' + (contract?.establishmentName || 'EspaçoOn') + ' foi confirmado.',
+    'Seu pagamento no ' + spaceName + ' foi confirmado.',
     'Reserva: ' + reservation.id,
     'Data: ' + reservation.date,
     'Período: ' + reservation.period,
     'Valor: ' + money(reservation.price),
     'Contrato: ' + (contract?.id || reservation.contractId || '-'),
     '',
-    'Guarde o código da reserva para consultar seus dados posteriormente no ' + (contract?.establishmentName || 'EspaçoOn') + '.',
+    'Guarde o código da reserva para consultar seus dados posteriormente no ' + spaceName + '.',
   ].join('\n')
 }
 
-export async function sharePaymentDocuments(reservation, contract) {
-  const receiptDoc = createReceiptPdf(reservation, contract)
-  const contractDoc = createContractPdf(contract)
+export async function sharePaymentDocuments(reservation, contract, establishmentName = '') {
+  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
+  const receiptDoc = createReceiptPdf(reservation, contract, spaceName)
+  const contractDoc = createContractPdf(contract, spaceName)
   const receiptName = 'comprovante-' + reservation.id + '.pdf'
   const contractName = 'contrato-' + contract.id + '.pdf'
   const receiptFile = pdfToFile(receiptDoc, receiptName)
   const contractFile = pdfToFile(contractDoc, contractName)
-  const message = buildPaymentMessage(reservation, contract)
+  const message = buildPaymentMessage(reservation, contract, spaceName)
 
   if (navigator.share && navigator.canShare?.({ files: [receiptFile, contractFile] })) {
     try {
       await navigator.share({
-        title: 'EspaçoOn - Reserva ' + reservation.id,
+        title: spaceName + ' - Reserva ' + reservation.id,
         text: message,
         files: [receiptFile, contractFile],
       })

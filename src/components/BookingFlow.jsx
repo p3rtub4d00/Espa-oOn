@@ -279,16 +279,24 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       if (result.paid) {
         await finishPaidReservation(result)
       } else if (result.manualReview) {
-        setPaymentError('O pagamento foi recebido, mas a reserva precisa de conferência manual. Entre em contato com o responsável pelo espaço.')
+        const message = 'O pagamento foi recebido, mas a reserva precisa de conferência manual. Entre em contato com o responsável pelo espaço.'
+        if (cardOrder) setCardError(message)
+        else setPaymentError(message)
       } else if (result.expired) {
-        setPaymentError('O prazo desta cobrança expirou. A data foi liberada e você precisa gerar um novo Pix.')
+        const message = cardOrder
+          ? 'A tentativa no cartão expirou. Tente novamente.'
+          : 'O prazo desta cobrança expirou. A data foi liberada e você precisa gerar um novo Pix.'
+        if (cardOrder) setCardError(message)
+        else setPaymentError(message)
         setPixPayment(null)
         setCardOrder(null)
         setChallengeUrl('')
         setHoldSeconds(0)
       }
     } catch (error) {
-      setPaymentError(error.message || 'Não foi possível verificar o pagamento.')
+      const message = error.message || 'Não foi possível verificar o pagamento.'
+      if (cardOrder) setCardError(message)
+      else setPaymentError(message)
     } finally {
       setCheckingPayment(false)
     }
@@ -718,8 +726,8 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
             <div className="booking-step">
               <div className="booking-heading">
                 <span>Etapa 4 de 5</span>
-                <h2>Contrato assinado. Agora pague por Pix.</h2>
-                <p>A cobrança é gerada pelo provedor configurado para este espaço e a confirmação acontece automaticamente.</p>
+                <h2>Contrato assinado. Escolha como pagar.</h2>
+                <p>Você pode pagar por Pix ou cartão de crédito quando essa opção estiver disponível.</p>
               </div>
 
               <div className="booking-summary">
@@ -897,7 +905,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <ShieldCheck />
                 <span>
                   <strong>Contrato {signedContract?.id}</strong>
-                  A reserva só será confirmada depois que o provedor de pagamento informar o recebimento do Pix.
+                  A reserva só será confirmada depois que o provedor de pagamento confirmar o recebimento.
                 </span>
               </div>
             </div>

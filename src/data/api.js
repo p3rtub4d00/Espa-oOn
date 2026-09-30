@@ -68,6 +68,12 @@ export const api = {
       body: JSON.stringify({ reservation, contractId }),
     }),
 
+  createMercadoPagoCheckout: (reservation, contractId) =>
+    request('/api/payments/mercadopago/checkout', {
+      method: 'POST',
+      body: JSON.stringify({ reservation, contractId }),
+    }),
+
   createCardPayment: (reservation, contractId, card) =>
     request('/api/payments/mercadopago/card', {
       method: 'POST',

@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react'
+import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
   ArrowLeft,
@@ -173,6 +173,7 @@ export default function AdminPanel({
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
   const [settings, setSettings] = useState(loadSettings)
+  const settingsDirtyRef = useRef(false)
   const [loading, setLoading] = useState(true)
   const [adminError, setAdminError] = useState('')
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
@@ -226,7 +227,9 @@ export default function AdminPanel({
         if (!alive) return
         setReservations(reservationData)
         setVisits(visitData)
-        setSettings(settingsData)
+        // Não substitui o formulário enquanto o administrador está digitando.
+        // O refresh automático continua atualizando reservas/visitas sem apagar rascunhos.
+        if (!settingsDirtyRef.current) setSettings(settingsData)
         setAdminError('')
       } catch (error) {
         if (alive) setAdminError(error.message || 'Não foi possível atualizar o painel.')
@@ -373,13 +376,24 @@ export default function AdminPanel({
     setSelectedReservation({ ...reservation })
   }
 
+  const updateSettingsDraft = (updater) => {
+    settingsDirtyRef.current = true
+    setSettings(updater)
+  }
+
   const persistSettings = async (next) => {
+    settingsDirtyRef.current = true
     setSettings(next)
+
     try {
       const saved = await api.saveSettings(next)
+      settingsDirtyRef.current = false
       setSettings(saved)
+      return saved
     } catch (error) {
+      settingsDirtyRef.current = true
       setAdminError(error.message || 'Não foi possível salvar as configurações.')
+      throw error
     }
   }
 
@@ -1174,19 +1188,36 @@ export default function AdminPanel({
                       type="number"
                       value={prices[key]}
                       onChange={(e) => {
-                        const next = {
-                          ...settings,
-                          prices: { ...settings.prices, [key]: Number(e.target.value) },
-                        }
-                        persistSettings(next)
+                        const value = e.target.value
+                        updateSettingsDraft((current) => ({
+                          ...current,
+                          prices: {
+                            ...current.prices,
+                            [key]: value === '' ? '' : Number(value),
+                          },
+                        }))
                       }}
                     />
                   </div>
                 </label>
               ))}
             </div>
+            <div className="establishment-actions">
+              <button
+                onClick={async () => {
+                  setAdminError('')
+                  try {
+                    await persistSettings(settings)
+                    setAdminError('Tabela de preços salva com sucesso.')
+                  } catch {}
+                }}
+              >
+                <CheckCircle2 size={16} />
+                Salvar valores
+              </button>
+            </div>
             <div className="admin-demo-note">
-              As alterações são salvas no servidor e passam a ser utilizadas nas novas reservas do site.
+              Edite os valores e clique em “Salvar valores”. As novas reservas usarão a tabela salva.
             </div>
           </section>
         )}
@@ -1205,7 +1236,7 @@ export default function AdminPanel({
                 <span>Nome do espaço</span>
                 <input
                   value={settings.establishment?.name || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1220,7 +1251,7 @@ export default function AdminPanel({
                 <span>Responsável</span>
                 <input
                   value={settings.establishment?.ownerName || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1236,7 +1267,7 @@ export default function AdminPanel({
                 <input
                   inputMode="tel"
                   value={settings.establishment?.phone || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1251,7 +1282,7 @@ export default function AdminPanel({
                 <span>Horário de atendimento</span>
                 <input
                   value={settings.establishment?.openingHours || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1266,7 +1297,7 @@ export default function AdminPanel({
                 <span>Endereço completo</span>
                 <input
                   value={settings.establishment?.address || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1281,7 +1312,7 @@ export default function AdminPanel({
                 <span>Cidade</span>
                 <input
                   value={settings.establishment?.city || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1297,7 +1328,7 @@ export default function AdminPanel({
                 <input
                   maxLength={2}
                   value={settings.establishment?.state || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1313,7 +1344,7 @@ export default function AdminPanel({
                 <textarea
                   rows={3}
                   value={settings.establishment?.locationNote || ''}
-                  onChange={(event) => setSettings((current) => ({
+                  onChange={(event) => updateSettingsDraft((current) => ({
                     ...current,
                     establishment: {
                       ...(current.establishment || {}),
@@ -1533,7 +1564,7 @@ export default function AdminPanel({
               <button
                 className="secondary"
                 onClick={() => {
-                  setSettings((current) => ({
+                  updateSettingsDraft((current) => ({
                     ...current,
                     branding: {
                       ...(current.branding || {}),

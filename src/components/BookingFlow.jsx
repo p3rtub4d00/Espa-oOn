@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useRef, useState } from 'react'
+import { useEffect, useMemo, useState } from 'react'
 import ContractFlow from './ContractFlow'
 import { getPriceForDate, loadSettings } from '../data/settings'
 import { api } from '../data/api'
@@ -67,32 +67,6 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, '$1-$2')
 }
 
-let mercadoPagoSdkPromise
-
-function loadMercadoPagoSdk() {
-  if (window.MercadoPago) return Promise.resolve(window.MercadoPago)
-  if (mercadoPagoSdkPromise) return mercadoPagoSdkPromise
-
-  mercadoPagoSdkPromise = new Promise((resolve, reject) => {
-    const existing = document.querySelector('script[data-mercadopago-sdk="true"]')
-    if (existing) {
-      existing.addEventListener('load', () => resolve(window.MercadoPago), { once: true })
-      existing.addEventListener('error', () => reject(new Error('Não foi possível carregar o checkout do Mercado Pago.')), { once: true })
-      return
-    }
-
-    const script = document.createElement('script')
-    script.src = 'https://sdk.mercadopago.com/js/v2'
-    script.async = true
-    script.dataset.mercadopagoSdk = 'true'
-    script.onload = () => resolve(window.MercadoPago)
-    script.onerror = () => reject(new Error('Não foi possível carregar o checkout do Mercado Pago.'))
-    document.head.appendChild(script)
-  })
-
-  return mercadoPagoSdkPromise
-}
-
 export default function BookingFlow({ dateISO, settings = loadSettings(), onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
@@ -109,12 +83,9 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const [paymentMethod, setPaymentMethod] = useState('')
   const [paymentConfig, setPaymentConfig] = useState(null)
   const [paymentConfigLoading, setPaymentConfigLoading] = useState(false)
-  const [cardReady, setCardReady] = useState(false)
   const [cardSubmitting, setCardSubmitting] = useState(false)
   const [cardError, setCardError] = useState('')
   const [cardOrder, setCardOrder] = useState(null)
-  const [challengeUrl, setChallengeUrl] = useState('')
-  const cardBrickControllerRef = useRef(null)
   const [holdSeconds, setHoldSeconds] = useState(15 * 60)
   const [liveSettings, setLiveSettings] = useState(settings)
   const [preparingContract, setPreparingContract] = useState(false)
@@ -275,7 +246,6 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     try {
       const result = await api.paymentStatus(reservationId)
       setAsaasStatus(result.asaasStatus || result.providerStatus || '')
-      if (result.challengeUrl) setChallengeUrl(result.challengeUrl)
       if (result.paid) {
         await finishPaidReservation(result)
       } else if (result.manualReview) {
@@ -290,7 +260,6 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
         else setPaymentError(message)
         setPixPayment(null)
         setCardOrder(null)
-        setChallengeUrl('')
         setHoldSeconds(0)
       }
     } catch (error) {
@@ -360,143 +329,61 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     return () => window.clearInterval(timer)
   }, [step, pixPayment, cardOrder])
 
-  useEffect(() => {
-    if (
-      step !== 4 ||
-      paymentMethod !== 'card' ||
-      !paymentConfig?.cardEnabled ||
-      !paymentConfig?.mercadoPagoPublicKey ||
-      cardOrder
-    ) {
-      return
-    }
+  const openMercadoPagoCheckout = async () => {
+    if (!signedContract || cardSubmitting) return
 
-    let alive = true
-    setCardReady(false)
+    setCardSubmitting(true)
     setCardError('')
 
-    const renderBrick = async () => {
-      try {
-        await loadMercadoPagoSdk()
-        if (!alive || !window.MercadoPago) return
+    // Abre a aba imediatamente para evitar bloqueio de pop-up em navegadores móveis.
+    const checkoutWindow = window.open('about:blank', '_blank')
 
-        if (cardBrickControllerRef.current) {
-          await cardBrickControllerRef.current.unmount().catch(() => {})
-          cardBrickControllerRef.current = null
-        }
+    try {
+      const result = await api.createMercadoPagoCheckout(
+        draftReservation,
+        signedContract.id,
+      )
 
-        const mp = new window.MercadoPago(paymentConfig.mercadoPagoPublicKey, {
-          locale: 'pt-BR',
-        })
-        const bricksBuilder = mp.bricks()
-
-        const controller = await bricksBuilder.create(
-          'cardPayment',
-          'cardPaymentBrick_container',
-          {
-            initialization: {
-              amount: lockedPrice,
-              payer: {
-                email: form.email,
-                identification: {
-                  type: 'CPF',
-                  number: onlyDigits(form.cpf),
-                },
-              },
-            },
-            callbacks: {
-              onReady: () => {
-                if (alive) setCardReady(true)
-              },
-              onSubmit: (formData, additionalData) =>
-                new Promise(async (resolve, reject) => {
-                  setCardSubmitting(true)
-                  setCardError('')
-
-                  try {
-                    const result = await api.createCardPayment(
-                      draftReservation,
-                      signedContract.id,
-                      {
-                        ...formData,
-                        payment_type_id: additionalData?.paymentTypeId || 'credit_card',
-                      },
-                    )
-
-                    if (result?.reservation?.holdUntil) {
-                      const remaining = Math.max(
-                        0,
-                        Math.floor((new Date(result.reservation.holdUntil).getTime() - Date.now()) / 1000),
-                      )
-                      setHoldSeconds(remaining)
-                    }
-
-                    if (result?.paid) {
-                      await finishPaidReservation(result)
-                    } else {
-                      setCardOrder(result)
-                      setChallengeUrl(result?.challengeUrl || '')
-                    }
-
-                    resolve()
-                  } catch (error) {
-                    const message = error.message || 'O pagamento no cartão não pôde ser concluído.'
-                    setCardError(message)
-                    reject(error)
-                  } finally {
-                    setCardSubmitting(false)
-                  }
-                }),
-              onError: () => {
-                if (alive) setCardError('Não foi possível carregar ou validar os dados do cartão.')
-              },
-            },
-          },
-        )
-
-        if (!alive) {
-          await controller.unmount().catch(() => {})
-          return
-        }
-
-        cardBrickControllerRef.current = controller
-      } catch (error) {
-        if (alive) setCardError(error.message || 'Não foi possível carregar o pagamento por cartão.')
+      if (!result?.checkoutUrl) {
+        throw new Error('O Mercado Pago não retornou o link do checkout.')
       }
-    }
 
-    renderBrick()
+      setCardOrder(result)
 
-    return () => {
-      alive = false
-      const controller = cardBrickControllerRef.current
-      cardBrickControllerRef.current = null
-      if (controller) controller.unmount().catch(() => {})
+      if (result?.reservation?.holdUntil) {
+        const remaining = Math.max(
+          0,
+          Math.floor((new Date(result.reservation.holdUntil).getTime() - Date.now()) / 1000),
+        )
+        setHoldSeconds(remaining)
+      }
+
+      if (checkoutWindow && !checkoutWindow.closed) {
+        checkoutWindow.opener = window
+        checkoutWindow.location.replace(result.checkoutUrl)
+      } else {
+        window.location.href = result.checkoutUrl
+      }
+    } catch (error) {
+      if (checkoutWindow && !checkoutWindow.closed) checkoutWindow.close()
+      setCardError(error.message || 'Não foi possível abrir o Mercado Pago.')
+    } finally {
+      setCardSubmitting(false)
     }
-  }, [
-    step,
-    paymentMethod,
-    paymentConfig?.cardEnabled,
-    paymentConfig?.mercadoPagoPublicKey,
-    signedContract?.id,
-    lockedPrice,
-    form.email,
-    form.cpf,
-    cardOrder,
-  ])
+  }
 
   useEffect(() => {
-    if (!challengeUrl) return
+    const handlePaymentReturn = (event) => {
+      if (event.origin !== window.location.origin) return
+      if (event?.data?.type !== 'espacoon-payment-return') return
+      if (event?.data?.reservationId !== reservationId) return
 
-    const handleChallengeMessage = (event) => {
-      if (event?.data?.status === 'COMPLETE') {
-        verifyPayment()
-      }
+      verifyPayment()
     }
 
-    window.addEventListener('message', handleChallengeMessage)
-    return () => window.removeEventListener('message', handleChallengeMessage)
-  }, [challengeUrl, cardOrder, pixPayment, step])
+    window.addEventListener('message', handlePaymentReturn)
+    return () => window.removeEventListener('message', handlePaymentReturn)
+  }, [reservationId, cardOrder, pixPayment, step])
 
   const resendDocuments = async () => {
     if (!signedContract || !paidReservation) return
@@ -770,58 +657,51 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
 
               {paymentMethod === 'card' && paymentConfig?.cardEnabled && (
                 <div className="card-payment-area">
-                  {!cardOrder && (
-                    <>
-                      <div className="card-payment-head">
-                        <CreditCard size={18} />
-                        <span>
-                          <strong>Pagamento seguro com Mercado Pago</strong>
-                          <small>Os dados do cartão são protegidos e tokenizados pelo Mercado Pago.</small>
-                        </span>
-                      </div>
-                      <div id="cardPaymentBrick_container" />
-                      {!cardReady && !cardError && (
-                        <div className="card-payment-loading">Carregando formulário seguro...</div>
-                      )}
-                    </>
-                  )}
+                  <div className="card-payment-head">
+                    <CreditCard size={18} />
+                    <span>
+                      <strong>Pagamento seguro no Mercado Pago</strong>
+                      <small>Você será direcionado ao ambiente do Mercado Pago para concluir o pagamento.</small>
+                    </span>
+                  </div>
 
-                  {cardSubmitting && (
-                    <div className="card-payment-loading">Processando pagamento...</div>
+                  {!cardOrder ? (
+                    <button
+                      className="booking-primary payment card-checkout-button"
+                      onClick={openMercadoPagoCheckout}
+                      disabled={cardSubmitting}
+                    >
+                      <CreditCard size={18} />
+                      {cardSubmitting ? 'Abrindo Mercado Pago...' : 'Continuar para o Mercado Pago'}
+                    </button>
+                  ) : (
+                    <div className="asaas-payment-status">
+                      <span className="payment-pulse" />
+                      <div>
+                        <strong>Aguardando confirmação do cartão</strong>
+                        <small>
+                          {checkingPayment
+                            ? 'Consultando o Mercado Pago...'
+                            : 'Conclua o pagamento na aba do Mercado Pago. Depois voltaremos automaticamente.'}
+                        </small>
+                      </div>
+                      <button onClick={verifyPayment} disabled={checkingPayment}>
+                        {checkingPayment ? 'Verificando...' : 'Verificar pagamento'}
+                      </button>
+                    </div>
                   )}
 
                   {cardError && (
                     <div className="asaas-payment-error">
                       <strong>Não foi possível concluir no cartão.</strong>
                       <span>{cardError}</span>
-                    </div>
-                  )}
-
-                  {challengeUrl && (
-                    <div className="card-challenge">
-                      <strong>Confirme a compra com o seu banco</strong>
-                      <span>Conclua a verificação de segurança abaixo. Depois confirmaremos o pagamento automaticamente.</span>
-                      <iframe
-                        src={challengeUrl}
-                        title="Verificação de segurança do cartão"
-                        allow="payment"
-                      />
-                    </div>
-                  )}
-
-                  {cardOrder && !challengeUrl && (
-                    <div className="asaas-payment-status">
-                      <span className="payment-pulse" />
-                      <div>
-                        <strong>Pagamento em processamento</strong>
-                        <small>
-                          {checkingPayment
-                            ? 'Consultando o Mercado Pago...'
-                            : 'Aguardando a confirmação do cartão.'}
-                        </small>
-                      </div>
-                      <button onClick={verifyPayment} disabled={checkingPayment}>
-                        {checkingPayment ? 'Verificando...' : 'Verificar pagamento'}
+                      <button
+                        onClick={() => {
+                          setCardOrder(null)
+                          setCardError('')
+                        }}
+                      >
+                        Tentar novamente
                       </button>
                     </div>
                   )}

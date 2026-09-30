@@ -112,6 +112,7 @@ function App() {
   const brandName = siteSettings.establishment?.name || 'EspaçoOn'
   const brandSettings = siteSettings.branding || {}
   const [reservedDates, setReservedDates] = useState(new Set())
+  const [pendingDates, setPendingDates] = useState(new Set())
   const [siteReady, setSiteReady] = useState(false)
   const [siteLoadError, setSiteLoadError] = useState('')
   const [licenseStatus, setLicenseStatus] = useState({ active: true, configured: false, bookingAllowed: true })
@@ -202,6 +203,7 @@ function App() {
         if (!active) return
         setSiteSettings(settingsData)
         setReservedDates(new Set(availability.reservedDates || []))
+        setPendingDates(new Set(availability.pendingDates || []))
         setLicenseStatus(license || { active: true, configured: false })
         setSiteReady(true)
         setSiteLoadError('')
@@ -222,6 +224,8 @@ function App() {
       api.getAvailability()
         .then((availability) => {
           setReservedDates(new Set(availability.reservedDates || []))
+          setPendingDates(new Set(availability.pendingDates || []))
+        setPendingDates(new Set(availability.pendingDates || []))
         })
         .catch(() => {})
     }
@@ -396,6 +400,8 @@ function App() {
             ])
             setSiteSettings(refreshed)
             setReservedDates(new Set(availability.reservedDates || []))
+          setPendingDates(new Set(availability.pendingDates || []))
+        setPendingDates(new Set(availability.pendingDates || []))
             setLicenseStatus(license || { active: true, configured: false })
             setSiteReady(true)
             setSiteLoadError('')
@@ -711,8 +717,10 @@ function App() {
                   const todayOnly = new Date(today.getFullYear(), today.getMonth(), today.getDate(), 12)
                   const past = date < todayOnly
                   const blockedDates = siteSettings.blockedDates || []
+                  const paymentPending = pendingDates.has(iso)
                   const busy =
                     reservedDates.has(iso) ||
+                    paymentPending ||
                     blockedDates.includes(iso) ||
                     past ||
                     !siteReady ||
@@ -724,7 +732,8 @@ function App() {
                       key={iso}
                       disabled={busy}
                       onClick={() => !busy && setSelectedDate(iso)}
-                      className={`${busy ? 'busy' : ''} ${selected ? 'selected' : ''}`}
+                      className={`${busy ? 'busy' : ''} ${paymentPending ? 'pending-payment-date' : ''} ${selected ? 'selected' : ''}`}
+                      title={paymentPending ? 'Pagamento em andamento para esta data' : undefined}
                     >
                       {day}
                     </button>

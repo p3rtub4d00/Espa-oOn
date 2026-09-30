@@ -53,6 +53,10 @@ export const DEFAULT_SETTINGS = {
     secondaryColor: '#1f8efa',
     accentColor: '#53b9ff',
   },
+  onboarding: {
+    establishmentConfigured: false,
+    pricesConfigured: false,
+  },
 }
 
 export function loadSettings() {
@@ -68,6 +72,7 @@ export function loadSettings() {
     cancellationPolicy: { ...DEFAULT_SETTINGS.cancellationPolicy },
     establishment: { ...DEFAULT_SETTINGS.establishment },
     branding: { ...DEFAULT_SETTINGS.branding },
+    onboarding: { ...DEFAULT_SETTINGS.onboarding },
   }
 }
 

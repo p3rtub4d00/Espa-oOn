@@ -2426,6 +2426,332 @@ export default function AdminPanel({
 
       </main>
 
+      {manualReservationOpen && createPortal(
+        <div
+          className="manual-reservation-backdrop"
+          role="dialog"
+          aria-modal="true"
+          aria-label="Nova reserva manual"
+          onClick={() => !manualReservationBusy && setManualReservationOpen(false)}
+        >
+          <div className="manual-reservation-modal" onClick={(event) => event.stopPropagation()}>
+            <div className="manual-reservation-top">
+              <div>
+                <span>Atendimento por WhatsApp ou presencial</span>
+                <strong>Nova reserva manual</strong>
+              </div>
+              <button
+                onClick={() => !manualReservationBusy && setManualReservationOpen(false)}
+                aria-label="Fechar"
+              >
+                <X size={20} />
+              </button>
+            </div>
+
+            <div className="manual-reservation-body">
+              <div className="manual-reservation-grid">
+                <label>
+                  <span>Nome do cliente</span>
+                  <input
+                    value={manualReservationForm.name}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, name: e.target.value }))}
+                    placeholder="Nome completo"
+                  />
+                </label>
+
+                <label>
+                  <span>Telefone / WhatsApp</span>
+                  <input
+                    inputMode="tel"
+                    value={manualReservationForm.phone}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, phone: e.target.value }))}
+                    placeholder="(69) 99999-9999"
+                  />
+                </label>
+
+                <label>
+                  <span>CPF opcional</span>
+                  <input
+                    value={manualReservationForm.cpf}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, cpf: e.target.value }))}
+                    placeholder="000.000.000-00"
+                  />
+                </label>
+
+                <label>
+                  <span>Data</span>
+                  <input
+                    type="date"
+                    value={manualReservationForm.dateISO}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, dateISO: e.target.value }))}
+                  />
+                </label>
+
+                <label>
+                  <span>Período</span>
+                  <select
+                    value={manualReservationForm.period}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, period: e.target.value }))}
+                  >
+                    <option value="12h">12 horas</option>
+                    <option value="24h">24 horas</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Valor do aluguel</span>
+                  <div className="manual-money-input">
+                    <small>R$</small>
+                    <input
+                      type="number"
+                      min="0.01"
+                      step="0.01"
+                      value={manualReservationForm.basePrice}
+                      onChange={(e) => setManualReservationForm((current) => ({ ...current, basePrice: e.target.value }))}
+                      placeholder="450,00"
+                    />
+                  </div>
+                </label>
+
+                <label>
+                  <span>Forma de pagamento</span>
+                  <select
+                    value={manualReservationForm.paymentMethod}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, paymentMethod: e.target.value }))}
+                  >
+                    <option value="pix">Pix</option>
+                    <option value="cash">Dinheiro</option>
+                    <option value="card">Cartão</option>
+                    <option value="transfer">Transferência</option>
+                    <option value="other">Outro</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Status do pagamento</span>
+                  <select
+                    value={manualReservationForm.paymentStatus}
+                    onChange={(e) => {
+                      const paymentStatus = e.target.value
+                      setManualReservationForm((current) => ({
+                        ...current,
+                        paymentStatus,
+                        blockDate: paymentStatus === 'paid' || paymentStatus === 'manual-deposit'
+                          ? true
+                          : current.blockDate,
+                      }))
+                    }}
+                  >
+                    <option value="paid">Pago</option>
+                    <option value="manual-deposit">Sinal recebido</option>
+                    <option value="manual-pending">Pendente</option>
+                  </select>
+                </label>
+
+                {manualReservationForm.paymentStatus === 'manual-deposit' && (
+                  <label>
+                    <span>Valor do sinal</span>
+                    <div className="manual-money-input">
+                      <small>R$</small>
+                      <input
+                        type="number"
+                        min="0.01"
+                        step="0.01"
+                        max={manualTotal || undefined}
+                        value={manualReservationForm.amountPaid}
+                        onChange={(e) => setManualReservationForm((current) => ({ ...current, amountPaid: e.target.value }))}
+                        placeholder="100,00"
+                      />
+                    </div>
+                  </label>
+                )}
+              </div>
+
+              {activeExtras.length > 0 && (
+                <div className="manual-reservation-extras">
+                  <div className="manual-extras-heading">
+                    <strong>Adicionais</strong>
+                    <small>Informe a quantidade combinada com o cliente.</small>
+                  </div>
+                  {activeExtras.map((extra) => {
+                    const quantity = Math.max(
+                      0,
+                      Math.min(100, Math.floor(Number(manualReservationForm.extras?.[extra.id] || 0))),
+                    )
+                    return (
+                      <div className="manual-extra-row" key={extra.id}>
+                        <span>
+                          <strong>{extra.name}</strong>
+                          <small>{money(extra.price)} por unidade</small>
+                        </span>
+                        <input
+                          type="number"
+                          min="0"
+                          max="100"
+                          value={quantity}
+                          onChange={(e) => {
+                            const value = Math.max(0, Math.min(100, Math.floor(Number(e.target.value || 0))))
+                            setManualReservationForm((current) => ({
+                              ...current,
+                              extras: {
+                                ...(current.extras || {}),
+                                [extra.id]: Number.isFinite(value) ? value : 0,
+                              },
+                            }))
+                          }}
+                        />
+                      </div>
+                    )
+                  })}
+                </div>
+              )}
+
+              <label className="manual-block-date">
+                <input
+                  type="checkbox"
+                  checked={manualReservationForm.blockDate}
+                  disabled={manualReservationForm.paymentStatus === 'paid' || manualReservationForm.paymentStatus === 'manual-deposit'}
+                  onChange={(e) => setManualReservationForm((current) => ({ ...current, blockDate: e.target.checked }))}
+                />
+                <span>
+                  <strong>Bloquear esta data no calendário</strong>
+                  <small>
+                    {manualReservationForm.paymentStatus === 'paid'
+                      ? 'Reservas pagas sempre bloqueiam a data.'
+                      : manualReservationForm.paymentStatus === 'manual-deposit'
+                        ? 'Reservas com sinal recebido sempre bloqueiam a data.'
+                        : 'Ative quando quiser segurar a data mesmo com pagamento pendente.'}
+                  </small>
+                </span>
+              </label>
+
+              <label className="manual-note-field">
+                <span>Observação</span>
+                <textarea
+                  rows={3}
+                  value={manualReservationForm.manualNote}
+                  onChange={(e) => setManualReservationForm((current) => ({ ...current, manualNote: e.target.value }))}
+                  placeholder="Ex.: Cliente acertou pelo WhatsApp e vai quitar o restante no dia do evento."
+                />
+              </label>
+
+              <div className="manual-reservation-total">
+                <span>Aluguel <strong>{money(manualBasePrice)}</strong></span>
+                <span>Adicionais <strong>{money(manualExtrasTotal)}</strong></span>
+                {manualReservationForm.paymentStatus === 'manual-deposit' && (
+                  <span>Sinal <strong>{money(Number(manualReservationForm.amountPaid || 0))}</strong></span>
+                )}
+                <span className="manual-grand-total">Total <strong>{money(manualTotal)}</strong></span>
+              </div>
+
+              {manualReservationError && (
+                <div className="manual-reservation-error">{manualReservationError}</div>
+              )}
+
+              <div className="manual-reservation-actions">
+                <button
+                  className="cancel"
+                  disabled={manualReservationBusy}
+                  onClick={() => setManualReservationOpen(false)}
+                >
+                  Cancelar
+                </button>
+                <button
+                  className="confirm"
+                  disabled={manualReservationBusy}
+                  onClick={async () => {
+                    if (manualReservationForm.name.trim().length < 3) {
+                      setManualReservationError('Informe o nome do cliente.')
+                      return
+                    }
+                    if (manualReservationForm.phone.replace(/\D/g, '').length < 10) {
+                      setManualReservationError('Informe um telefone válido.')
+                      return
+                    }
+                    if (!manualReservationForm.dateISO) {
+                      setManualReservationError('Escolha a data da reserva.')
+                      return
+                    }
+                    if (!Number.isFinite(manualBasePrice) || manualBasePrice <= 0) {
+                      setManualReservationError('Informe o valor do aluguel.')
+                      return
+                    }
+                    if (
+                      manualReservationForm.paymentStatus === 'manual-deposit' &&
+                      (
+                        !Number.isFinite(Number(manualReservationForm.amountPaid)) ||
+                        Number(manualReservationForm.amountPaid) <= 0 ||
+                        Number(manualReservationForm.amountPaid) >= manualTotal
+                      )
+                    ) {
+                      setManualReservationError('Informe um sinal maior que zero e menor que o valor total.')
+                      return
+                    }
+
+                    const extrasPayload = activeExtras
+                      .map((extra) => ({
+                        id: extra.id,
+                        quantity: Math.max(
+                          0,
+                          Math.min(100, Math.floor(Number(manualReservationForm.extras?.[extra.id] || 0))),
+                        ),
+                      }))
+                      .filter((item) => item.quantity > 0)
+
+                    setManualReservationBusy(true)
+                    setManualReservationError('')
+                    try {
+                      const saved = await api.createManualReservation({
+                        customer: {
+                          name: manualReservationForm.name.trim(),
+                          phone: manualReservationForm.phone.trim(),
+                          cpf: manualReservationForm.cpf.trim(),
+                        },
+                        dateISO: manualReservationForm.dateISO,
+                        period: manualReservationForm.period,
+                        basePrice: manualBasePrice,
+                        paymentStatus: manualReservationForm.paymentStatus,
+                        paymentMethod: manualReservationForm.paymentMethod,
+                        amountPaid: Number(manualReservationForm.amountPaid || 0),
+                        blockDate: manualReservationForm.blockDate,
+                        manualNote: manualReservationForm.manualNote.trim(),
+                        extras: extrasPayload,
+                      })
+
+                      setReservations((current) => [saved, ...current])
+                      setManualReservationOpen(false)
+                      setManualReservationForm({
+                        name: '',
+                        phone: '',
+                        cpf: '',
+                        dateISO: '',
+                        period: '12h',
+                        basePrice: '',
+                        paymentStatus: 'paid',
+                        paymentMethod: 'pix',
+                        amountPaid: '',
+                        blockDate: true,
+                        manualNote: '',
+                        extras: {},
+                      })
+                      setAdminError('Reserva manual registrada com sucesso.')
+                    } catch (error) {
+                      setManualReservationError(error.message || 'Não foi possível criar a reserva manual.')
+                    } finally {
+                      setManualReservationBusy(false)
+                    }
+                  }}
+                >
+                  <CheckCircle2 size={16} />
+                  {manualReservationBusy ? 'Salvando...' : 'Registrar reserva'}
+                </button>
+              </div>
+            </div>
+          </div>
+        </div>,
+        document.body,
+      )}
+
       {resetOpen && createPortal(
         <div
           className="reset-data-backdrop"

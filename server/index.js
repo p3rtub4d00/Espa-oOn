@@ -2094,6 +2094,35 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
+async function reportDemoEvent(type, eventId) {
+  if (!MASTER_LICENSE_CONFIGURED) return false
+  try {
+    const response = await fetch(MASTER_API_URL + '/api/license/demo-events', {
+      method: 'POST', headers: {
+        'content-type': 'application/json', 'x-club-id': MASTER_CLUB_ID, 'x-license-key': MASTER_LICENSE_KEY,
+      },
+      body: JSON.stringify({ type, eventId }), signal: AbortSignal.timeout(5000),
+    })
+    return response.ok
+  } catch { return false }
+}
+
+const demoEventLimiter = rateLimit({ windowMs: 60000, limit: 120, standardHeaders: 'draft-7', legacyHeaders: false, message: { error: 'Muitos eventos de demonstração.' } })
+
+app.post('/api/demo/events', demoEventLimiter, async (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store')
+  try {
+    const { type, eventId } = req.body || {}
+    if (!['visit', 'admin_open', 'contact_click'].includes(type) || typeof eventId !== 'string' || !/^[A-Za-z0-9-]{8,80}$/.test(eventId)) {
+      return res.status(400).json({ error: 'Evento de demonstração inválido.' })
+    }
+    const license = await checkMasterLicense()
+    if (!license.demoMode) return res.status(403).json({ error: 'Métricas disponíveis somente para demonstração.' })
+    const recorded = await reportDemoEvent(type, eventId)
+    res.status(recorded ? 200 : 202).json({ recorded })
+  } catch (error) { next(error) }
+})
+
 app.get('/api/license', async (req, res, next) => {
   try {
     const license = await checkMasterLicense({ force: req.query?.force === '1' })
@@ -3027,6 +3056,7 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
       )
 
       await notifyPaidReservationPush(savedReservation, 'Nova reserva confirmada')
+      void reportDemoEvent('reservation_completed', reservationId)
 
       return res.json({
         paid: true,

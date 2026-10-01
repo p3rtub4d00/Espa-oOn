@@ -1,3 +1,4 @@
+import { trackDemoEvent } from './data/demo-analytics'
 import PrivacyPage from './components/PrivacyPage'
 import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
@@ -222,6 +223,12 @@ function App() {
       active = false
     }
   }, [])
+
+  useEffect(() => {
+    if (siteReady && licenseStatus.demoMode === true) {
+      void trackDemoEvent(adminOpen ? 'admin_open' : 'visit')
+    }
+  }, [siteReady, licenseStatus.demoMode, adminOpen])
 
   useEffect(() => {
     const refresh = () => {
@@ -586,6 +593,7 @@ function App() {
             <div className="demo-sales-actions">
             <a
               className="demo-sales-button"
+              onClick={() => { void trackDemoEvent('contact_click') }}
               href={'https://wa.me/5569999695779?text=' + encodeURIComponent('Olá! Testei a demonstração do ClubeOn e gostaria de mais informações para usar no meu clube.')}
               target="_blank"
               rel="noopener noreferrer"

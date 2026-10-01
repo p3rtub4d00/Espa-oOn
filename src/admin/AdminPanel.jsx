@@ -93,7 +93,14 @@ function paymentStatusLabel(status, paymentMethod = '', holdUntil = null) {
 
 function isActiveReservation(reservation) {
   return reservation?.reservationStatus !== 'cancelled' &&
-    ['paid', 'confirmed-asaas', 'manual-review'].includes(reservation?.paymentStatus)
+    (
+      ['paid', 'confirmed-asaas', 'manual-review'].includes(reservation?.paymentStatus) ||
+      (
+        reservation?.source === 'manual' &&
+        reservation?.manualBlockDate === true &&
+        ['manual-pending', 'manual-deposit'].includes(reservation?.paymentStatus)
+      )
+    )
 }
 
 function normalizeWhatsAppNumber(phone = '') {
@@ -3012,6 +3019,43 @@ export default function AdminPanel({
                   </strong>
                 </div>
               </div>
+
+              {selectedReservation.source === 'manual' && (
+                <div className="manual-reservation-detail">
+                  <div>
+                    <span>Origem</span>
+                    <strong>Reserva manual</strong>
+                  </div>
+                  <div>
+                    <span>Forma de pagamento</span>
+                    <strong>
+                      {selectedReservation.paymentMethod === 'pix'
+                        ? 'Pix'
+                        : selectedReservation.paymentMethod === 'cash'
+                          ? 'Dinheiro'
+                          : selectedReservation.paymentMethod === 'card'
+                            ? 'Cartão'
+                            : selectedReservation.paymentMethod === 'transfer'
+                              ? 'Transferência'
+                              : 'Outro'}
+                    </strong>
+                  </div>
+                  <div>
+                    <span>Valor recebido</span>
+                    <strong>{money(selectedReservation.amountPaid || 0)}</strong>
+                  </div>
+                  <div>
+                    <span>Data bloqueada</span>
+                    <strong>{selectedReservation.manualBlockDate ? 'Sim' : 'Não'}</strong>
+                  </div>
+                  {selectedReservation.manualNote && (
+                    <div className="manual-reservation-detail-note">
+                      <span>Observação</span>
+                      <strong>{selectedReservation.manualNote}</strong>
+                    </div>
+                  )}
+                </div>
+              )}
 
               <div className="reservation-detail-grid">
                 <div>

@@ -70,6 +70,9 @@ function formatPhone(value) {
 export default function BookingFlow({ dateISO, settings = loadSettings(), onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
+  const [startTime, setStartTime] = useState(
+    settings?.rentalStartTimes?.['12h']?.[0] || '08:00',
+  )
   const [copied, setCopied] = useState(false)
   const [contractOpen, setContractOpen] = useState(false)
   const [signedContract, setSignedContract] = useState(null)
@@ -105,6 +108,28 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   }, [dateISO])
 
   const price = getPriceForDate(dateISO, period, liveSettings)
+  const availableStartTimes =
+    Array.isArray(liveSettings.rentalStartTimes?.[period]) &&
+    liveSettings.rentalStartTimes[period].length
+      ? liveSettings.rentalStartTimes[period]
+      : ['08:00']
+
+  const endSlot = useMemo(() => {
+    const [hour, minute] = String(startTime || '08:00').split(':').map(Number)
+    const duration = period === '24h' ? 24 : 12
+    const start = new Date(dateISO + 'T00:00:00')
+    start.setHours(hour, minute, 0, 0)
+    const end = new Date(start.getTime() + duration * 60 * 60 * 1000)
+
+    return {
+      endTime:
+        String(end.getHours()).padStart(2, '0') +
+        ':' +
+        String(end.getMinutes()).padStart(2, '0'),
+      nextDay: end.toDateString() !== start.toDateString(),
+    }
+  }, [dateISO, period, startTime])
+
   const activeExtras = (Array.isArray(liveSettings.extras) ? liveSettings.extras : [])
     .filter((item) => item?.active === true)
 
@@ -139,12 +164,19 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
     () => 'ESP-' + dateISO.replaceAll('-', '') + '-' + Math.floor(100000 + Math.random() * 900000),
     [dateISO],
   )
+
+  useEffect(() => {
+    if (!availableStartTimes.includes(startTime)) {
+      setStartTime(availableStartTimes[0] || '08:00')
+    }
+  }, [period, liveSettings.rentalStartTimes, startTime])
   const draftReservation = {
     id: reservationId,
     day: parsedDate.getDate(),
     date: dateLabel,
     dateISO,
     period,
+    startTime,
     basePrice: price,
     extrasTotal,
     extras: selectedExtrasList,
@@ -470,7 +502,15 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 ].map(([value, title, description]) => (
                   <button
                     className={period === value ? 'period-card selected' : 'period-card'}
-                    onClick={() => setPeriod(value)}
+                    onClick={() => {
+                      setPeriod(value)
+                      const nextTimes =
+                        Array.isArray(liveSettings.rentalStartTimes?.[value]) &&
+                        liveSettings.rentalStartTimes[value].length
+                          ? liveSettings.rentalStartTimes[value]
+                          : ['08:00']
+                      setStartTime(nextTimes[0])
+                    }}
                     key={value}
                   >
                     <span className="period-icon"><Clock3 /></span>
@@ -482,6 +522,32 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                     <i>{period === value && <Check size={15} />}</i>
                   </button>
                 ))}
+              </div>
+
+              <div className="booking-time-choice">
+                <div className="booking-time-choice-head">
+                  <Clock3 size={18} />
+                  <span>
+                    <strong>Horário de entrada</strong>
+                    <small>Escolha um dos horários disponibilizados pelo estabelecimento.</small>
+                  </span>
+                </div>
+
+                <div className="booking-time-options">
+                  {availableStartTimes.map((time) => (
+                    <button
+                      type="button"
+                      key={time}
+                      className={startTime === time ? 'selected' : ''}
+                      onClick={() => setStartTime(time)}
+                    >
+                      <strong>{time}</strong>
+                      <small>
+                        saída {endSlot.endTime}{endSlot.nextDay ? ' do dia seguinte' : ''}
+                      </small>
+                    </button>
+                  ))}
+                </div>
               </div>
 
               {activeExtras.length > 0 && (
@@ -684,6 +750,13 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
               <div className="booking-summary">
                 <div><span>Data</span><strong>{dateLabel}</strong></div>
                 <div><span>Período</span><strong>{period === '12h' ? '12 horas' : '24 horas'}</strong></div>
+                <div>
+                  <span>Horário</span>
+                  <strong>
+                    {signedContract?.startTime || startTime} às {signedContract?.endTime || endSlot.endTime}
+                    {signedContract?.endDateISO && signedContract.endDateISO !== dateISO ? ' • dia seguinte' : ''}
+                  </strong>
+                </div>
                 <div><span>Responsável</span><strong>{form.name}</strong></div>
                 <div><span>Total</span><strong className="summary-price">{money(lockedPrice)}</strong></div>
               </div>

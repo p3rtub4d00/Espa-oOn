@@ -11,6 +11,8 @@ import { api } from './data/api'
 import {
   ArrowRight,
   CalendarDays,
+  LayoutDashboard,
+  ExternalLink,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -524,6 +526,19 @@ function App() {
                 <button className="btn-secondary" onClick={() => scrollTo('galeria')}>
                   Conhecer o espaço
                 </button>
+                {siteReady && licenseStatus.demoMode === true && (
+                  <a
+                    className="btn-demo-admin"
+                    href="/admin"
+                    target="_blank"
+                    rel="noopener noreferrer"
+                    aria-label="Conheça o painel do administrador (abre em nova aba)"
+                  >
+                    <LayoutDashboard size={19} aria-hidden="true" />
+                    Conheça o painel do administrador
+                    <ExternalLink size={16} aria-hidden="true" />
+                  </a>
+                )}
               </div>
             </div>
 

@@ -33,6 +33,10 @@ export function createReceiptPdf(reservation, contract, establishmentName = '') 
     ['Cliente', reservation.customer?.name || '-'],
     ['Data da locação', reservation.date || '-'],
     ['Período', reservation.period || '-'],
+    ['Horário', reservation.startTime
+      ? reservation.startTime + ' às ' + (reservation.endTime || '-') +
+        (reservation.endDateISO && reservation.endDateISO !== reservation.dateISO ? ' • dia seguinte' : '')
+      : '-'],
     ['Aluguel do espaço', money(reservation.basePrice || contract?.basePrice || reservation.price)],
     ...(Array.isArray(reservation.extras) && reservation.extras.length
       ? reservation.extras.map((item) => [
@@ -92,6 +96,10 @@ export function createContractPdf(contract, establishmentName = '') {
     ['CPF', contract.customer?.cpf || '-'],
     ['Data', contract.reservationDate || '-'],
     ['Período', contract.period || '-'],
+    ['Horário', contract.startTime
+      ? contract.startTime + ' às ' + (contract.endTime || '-') +
+        (contract.endDateISO && contract.endDateISO !== contract.reservationDateISO ? ' • dia seguinte' : '')
+      : '-'],
     ['Aluguel do espaço', money(contract.basePrice || contract.price)],
     ...(Array.isArray(contract.extras) && contract.extras.length
       ? contract.extras.map((item) => [
@@ -181,6 +189,10 @@ export function buildPaymentMessage(reservation, contract, establishmentName = '
     'Reserva: ' + reservation.id,
     'Data: ' + reservation.date,
     'Período: ' + reservation.period,
+    'Horário: ' + (reservation.startTime
+      ? reservation.startTime + ' às ' + (reservation.endTime || '-') +
+        (reservation.endDateISO && reservation.endDateISO !== reservation.dateISO ? ' • dia seguinte' : '')
+      : '-'),
     'Valor: ' + money(reservation.price),
     'Contrato: ' + (contract?.id || reservation.contractId || '-'),
     '',

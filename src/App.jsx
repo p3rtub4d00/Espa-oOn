@@ -13,6 +13,7 @@ import {
   CalendarDays,
   LayoutDashboard,
   ExternalLink,
+  MessageCircle,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -586,6 +587,27 @@ function App() {
             <span><strong>Visita agendada</strong>Conheça antes de reservar</span>
           </div>
         </section>
+
+        {siteReady && licenseStatus.demoMode === true && (
+          <section className="demo-sales-contact" aria-labelledby="demo-sales-title">
+            <div className="demo-sales-copy">
+              <span className="demo-sales-kicker">ClubeOn para o seu clube</span>
+              <h2 id="demo-sales-title">Gostou do sistema?</h2>
+              <p>Fale com nossa equipe e saiba como levar as reservas online para o seu clube.</p>
+            </div>
+            <a
+              className="demo-sales-button"
+              href={'https://wa.me/5569999695779?text=' + encodeURIComponent('Olá! Testei a demonstração do ClubeOn e gostaria de mais informações para usar no meu clube.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Fale com nossa equipe pelo WhatsApp (69) 99969-5779 (abre em nova aba)"
+            >
+              <MessageCircle size={23} aria-hidden="true" />
+              <span><strong>Quero saber mais</strong><small>(69) 99969-5779</small></span>
+              <ArrowRight size={19} aria-hidden="true" />
+            </a>
+          </section>
+        )}
 
         <section className="section amenities-section" id="estrutura">
           <div className="section-heading">

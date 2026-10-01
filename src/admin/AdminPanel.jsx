@@ -946,18 +946,18 @@ export default function AdminPanel({
               <div className="table-head reservations-head"><span>Cliente</span><span>Data</span><span>Período</span><span>Valor</span><span>Status</span><span>Ações</span></div>
               {reservations.map((r) => (
                 <div className="table-row" key={r.id}>
-                  <span>
+                  <span data-label="Cliente">
                     <strong>{r.customer?.name || 'Cliente'}</strong>
                     <small>{r.customer?.phone || r.id}</small>
                     {r.source === 'manual' && <small className="manual-reservation-badge">Reserva manual</small>}
                   </span>
-                  <span>
+                  <span data-label="Data">
                     {r.date}
                     {r.startTime && <small>{r.startTime} às {r.endTime || '-'}</small>}
                   </span>
-                  <span>{r.period}</span>
-                  <span>{money(r.price)}</span>
-                  <span>
+                  <span data-label="Período">{r.period}</span>
+                  <span data-label="Valor">{money(r.price)}</span>
+                  <span data-label="Status">
                     <i className={
                       r.reservationStatus === 'cancelled'
                         ? 'visit-status rejected'
@@ -976,7 +976,7 @@ export default function AdminPanel({
                         : paymentStatusLabel(r.paymentStatus, r.paymentMethod, r.holdUntil)}
                     </i>
                   </span>
-                  <span className="reservation-row-actions">
+                  <span className="reservation-row-actions" data-label="Ações">
                     {r.reservationStatus === 'cancelled' ? (
                       r.cancellation?.refundStatus === 'pending' ? (
                         <button
@@ -1166,18 +1166,18 @@ export default function AdminPanel({
                 </div>
                 {revenueData.reservations.map((reservation) => (
                   <div className="table-row" key={reservation.id}>
-                    <span>
+                    <span data-label="Cliente">
                       <strong>{reservation.customer?.name || 'Cliente'}</strong>
                       <small>{reservation.customer?.phone || '-'}</small>
                     </span>
-                    <span>{reservation.id}</span>
-                    <span>
+                    <span data-label="Reserva">{reservation.id}</span>
+                    <span data-label="Pago em">
                       {reservation.paidAt
                         ? new Date(reservation.paidAt).toLocaleString('pt-BR')
                         : '-'}
                     </span>
-                    <span>{reservation.date || '-'}</span>
-                    <span><strong>{money(reservation.price)}</strong></span>
+                    <span data-label="Data locação">{reservation.date || '-'}</span>
+                    <span data-label="Valor"><strong>{money(reservation.price)}</strong></span>
                   </div>
                 ))}
               </div>

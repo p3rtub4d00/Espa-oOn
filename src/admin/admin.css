@@ -4810,9 +4810,48 @@
 }
 
 @media (max-width: 700px) {
+  .manual-reservation-backdrop {
+    padding: 8px;
+    align-items: stretch;
+    justify-items: stretch;
+    overflow: hidden;
+  }
+
+  .manual-reservation-modal {
+    width: 100%;
+    max-width: none;
+    height: 100%;
+    max-height: none;
+    min-width: 0;
+    border-radius: 14px;
+  }
+
+  .manual-reservation-body,
+  .manual-reservation-top,
+  .manual-reservation-grid,
+  .manual-reservation-grid label,
+  .manual-reservation-grid input,
+  .manual-reservation-grid select,
+  .manual-note-field,
+  .manual-note-field textarea,
+  .manual-reservation-extras,
+  .manual-extra-row,
+  .manual-reservation-total {
+    min-width: 0;
+    box-sizing: border-box;
+  }
+
   .manual-reservation-grid,
   .manual-reservation-detail {
-    grid-template-columns: 1fr;
+    grid-template-columns: minmax(0, 1fr);
+  }
+
+  .manual-reservation-grid input,
+  .manual-reservation-grid select,
+  .manual-note-field textarea {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
   }
 
   .manual-reservation-open {
@@ -4822,6 +4861,17 @@
   .reservations-title {
     align-items: stretch;
     flex-direction: column;
+  }
+
+  .manual-extra-row {
+    align-items: flex-start;
+    flex-direction: column;
+  }
+
+  .manual-extra-row input {
+    width: 100%;
+    max-width: 120px;
+    box-sizing: border-box;
   }
 
   .manual-reservation-actions {

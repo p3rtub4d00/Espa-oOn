@@ -527,19 +527,7 @@ function App() {
                 <button className="btn-secondary" onClick={() => scrollTo('galeria')}>
                   Conhecer o espaço
                 </button>
-                {siteReady && licenseStatus.demoMode === true && (
-                  <a
-                    className="btn-demo-admin"
-                    href="/admin"
-                    target="_blank"
-                    rel="noopener noreferrer"
-                    aria-label="Conheça o painel do administrador (abre em nova aba)"
-                  >
-                    <LayoutDashboard size={19} aria-hidden="true" />
-                    Conheça o painel do administrador
-                    <ExternalLink size={16} aria-hidden="true" />
-                  </a>
-                )}
+
               </div>
             </div>
 
@@ -595,6 +583,7 @@ function App() {
               <h2 id="demo-sales-title">Gostou do sistema?</h2>
               <p>Fale com nossa equipe e saiba como levar as reservas online para o seu clube.</p>
             </div>
+            <div className="demo-sales-actions">
             <a
               className="demo-sales-button"
               href={'https://wa.me/5569999695779?text=' + encodeURIComponent('Olá! Testei a demonstração do ClubeOn e gostaria de mais informações para usar no meu clube.')}
@@ -606,6 +595,18 @@ function App() {
               <span><strong>Quero saber mais</strong><small>(69) 99969-5779</small></span>
               <ArrowRight size={19} aria-hidden="true" />
             </a>
+              <a
+                className="btn-demo-admin"
+                href="/admin"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Conheça o painel do administrador (abre em nova aba)"
+              >
+                <LayoutDashboard size={19} aria-hidden="true" />
+                Conheça o painel do administrador
+                <ExternalLink size={16} aria-hidden="true" />
+              </a>
+            </div>
           </section>
         )}
 

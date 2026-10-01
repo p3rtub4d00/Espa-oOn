@@ -65,3 +65,9 @@ Os testes usam dados fictícios e servidores HTTP apenas em loopback. Não conec
 Ao alterar dependências, use `npm install` para atualizar o `package.json` e o `package-lock.json` juntos; inclua ambos no Pull Request. CI e deploy usam `npm ci`, que falha quando esses arquivos estão inconsistentes.
 
 No Render, se o serviço foi criado manualmente, atualize o **Build Command** para `npm ci --include=dev && npm run build`. Mantenha o **Start Command** como `npm start` e Auto-Deploy desativado.
+
+## Um serviço e um banco por clube
+
+Para cadastrar e entregar um novo clube, consulte [PROVISIONING.md](https://github.com/p3rtub4d00/admespacoon/blob/main/PROVISIONING.md) no Admin Master. Use um banco exclusivo, um JWT_SECRET exclusivo e as credenciais de licença geradas no cadastro. Não clone o banco do piloto.
+
+Na inicialização, bancos ainda sem identidade são vinculados ao `MASTER_CLUB_ID` configurado. Um banco já vinculado a outro clube é recusado antes de qualquer migração. Confira o ID e a URI do banco antes do primeiro deploy; essa proteção não detecta cópias antigas sem identidade. O clube envia ao Master apenas indicadores de configuração, sem credenciais de banco/pagamento nem dados de reservas.

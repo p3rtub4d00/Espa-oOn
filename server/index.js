@@ -1,3 +1,4 @@
+import { bindDeploymentDatabase } from './deployment-identity.js'
 import express from 'express'
 import mongoose from 'mongoose'
 import cookieParser from 'cookie-parser'
@@ -306,6 +307,11 @@ const dateLockSchema = new mongoose.Schema(
   },
   { timestamps: true },
 )
+
+const DeploymentIdentity = mongoose.model('DeploymentIdentity', new mongoose.Schema({
+  _id: { type: String, default: 'main' },
+  clubId: { type: String, required: true },
+}, { timestamps: true }))
 
 const Reservation = mongoose.model('Reservation', reservationSchema)
 const Contract = mongoose.model('Contract', contractSchema)
@@ -879,12 +885,22 @@ async function checkMasterLicense({ force = false } = {}) {
   const timeout = setTimeout(() => controller.abort(), 12000)
 
   try {
+    const setupHeaders = {}
+    if (mongoose.connection.readyState === 1) {
+      const settings = await currentSettings()
+      setupHeaders['x-club-setup'] = Buffer.from(JSON.stringify({
+        establishmentConfigured: settings.onboarding?.establishmentConfigured === true,
+        pricesConfigured: settings.onboarding?.pricesConfigured === true,
+        asaasConfigured: Boolean(ASAAS_API_KEY?.startsWith('$aact_prod_') && ASAAS_WEBHOOK_TOKEN),
+      })).toString('base64url')
+    }
     const response = await fetch(MASTER_API_URL + '/api/license/status', {
       method: 'GET',
       headers: {
         'x-club-id': MASTER_CLUB_ID,
         'x-license-key': MASTER_LICENSE_KEY,
         'user-agent': 'EspacoOn-License-Agent/1.0',
+        ...setupHeaders,
       },
       signal: controller.signal,
     })
@@ -2306,6 +2322,7 @@ app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res
       { upsert: true, new: true },
     ).lean()
 
+    if (MASTER_LICENSE_CONFIGURED) await checkMasterLicense({ force: true })
     res.json(settings)
   } catch (error) {
     next(error)
@@ -4863,7 +4880,13 @@ async function start() {
       connectTimeoutMS: 10000,
       maxPoolSize: 10,
     })
+    if (MASTER_LICENSE_CONFIGURED) {
+      await bindDeploymentDatabase(DeploymentIdentity, MASTER_CLUB_ID, {
+        verifyLicense: () => checkMasterLicense({ force: true }),
+      })
+    }
     await migrateProductionData()
+    if (MASTER_LICENSE_CONFIGURED) await checkMasterLicense({ force: true })
 
     console.log('Banco de dados conectado.')
     app.listen(PORT, '0.0.0.0', () => {

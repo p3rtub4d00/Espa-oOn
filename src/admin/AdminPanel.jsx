@@ -149,7 +149,7 @@ function openWhatsAppConfirmation(visit, date, time) {
   const message = [
     'Olá, ' + visit.name + '!',
     '',
-    'Sua visita ao EspaçoOn foi confirmada.',
+    'Sua visita ao ClubeOn foi confirmada.',
     'Data: ' + formattedDate,
     'Horário: ' + time,
     '',
@@ -171,7 +171,7 @@ function openWhatsAppVisitProposal(visit, date, time, ownerMessage = '') {
   const message = [
     'Olá, ' + visit.name + '!',
     '',
-    'Recebemos sua solicitação de visita ao EspaçoOn.',
+    'Recebemos sua solicitação de visita ao ClubeOn.',
     'Gostaríamos de sugerir outro horário:',
     'Data: ' + formattedDate,
     'Horário: ' + time,
@@ -195,7 +195,7 @@ function openWhatsAppVisitRejection(visit, reason) {
   const message = [
     'Olá, ' + visit.name + '!',
     '',
-    'Sobre sua solicitação de visita ao EspaçoOn, infelizmente não conseguiremos atender neste momento.',
+    'Sobre sua solicitação de visita ao ClubeOn, infelizmente não conseguiremos atender neste momento.',
     '',
     'Motivo: ' + reason,
     '',
@@ -214,7 +214,7 @@ export default function AdminPanel({
   onInstall,
   appInstalled = false,
   initialBranding = {},
-  initialBrandName = 'EspaçoOn',
+  initialBrandName = 'ClubeOn',
   onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
@@ -520,7 +520,7 @@ export default function AdminPanel({
   }, [reservations])
 
   const currentBranding = settings.branding || initialBranding || {}
-  const currentBrandName = settings.establishment?.name || initialBrandName || 'EspaçoOn'
+  const currentBrandName = settings.establishment?.name || initialBrandName || 'ClubeOn'
 
   const establishmentSetupComplete = Boolean(
     settings.onboarding?.establishmentConfigured === true
@@ -556,7 +556,7 @@ export default function AdminPanel({
         oauthWindow.opener = null
         oauthWindow.location.replace(result.authorizationUrl)
         setPaymentConfigMessage(
-          'O Mercado Pago foi aberto no navegador. Conclua a autorização e depois volte ao EspaçoOn.'
+          'O Mercado Pago foi aberto no navegador. Conclua a autorização e depois volte ao ClubeOn.'
         )
       } else {
         setPaymentConfigMessage(
@@ -572,9 +572,9 @@ export default function AdminPanel({
   }
 
   const adminThemeStyle = {
-    '--brand-primary': currentBranding.primaryColor || '#0f3554',
-    '--brand-secondary': currentBranding.secondaryColor || '#1f8efa',
-    '--brand-accent': currentBranding.accentColor || '#53b9ff',
+    '--brand-primary': currentBranding.primaryColor || '#1f2937',
+    '--brand-secondary': currentBranding.secondaryColor || '#1769ff',
+    '--brand-accent': currentBranding.accentColor || '#76d900',
   }
 
   return (
@@ -675,7 +675,7 @@ export default function AdminPanel({
         {!appInstalled && (
           <button className="admin-install-app" onClick={onInstall}>
             <Download size={17} />
-            Instalar EspaçoOn
+            Instalar ClubeOn
           </button>
         )}
 
@@ -727,7 +727,7 @@ export default function AdminPanel({
                   <div>
                     <span>Configuração inicial</span>
                     <strong>Prepare seu clube para receber reservas</strong>
-                    <p>Conclua estas três etapas para deixar o EspaçoOn pronto para seus clientes.</p>
+                    <p>Conclua estas três etapas para deixar o ClubeOn pronto para seus clientes.</p>
                   </div>
                   <div className="club-setup-progress">
                     {[mercadoPagoSetupComplete, establishmentSetupComplete, pricesSetupComplete].filter(Boolean).length}/3
@@ -795,7 +795,7 @@ export default function AdminPanel({
                         ? 'Este ambiente está em demonstração e não processa pagamentos reais.'
                         : paymentConfig.mercadoPagoConnected
                           ? 'Sua conta está autorizada e pronta para receber as novas reservas.'
-                          : 'Entre na sua própria conta Mercado Pago e autorize o EspaçoOn. Sua senha não é compartilhada conosco.'}
+                          : 'Entre na sua própria conta Mercado Pago e autorize o ClubeOn. Sua senha não é compartilhada conosco.'}
                     </p>
                   </div>
                 </div>
@@ -806,7 +806,7 @@ export default function AdminPanel({
                       className="payment-home-secondary"
                       disabled={paymentConfigBusy}
                       onClick={async () => {
-                        if (!confirm('Desconectar sua conta Mercado Pago do EspaçoOn?')) return
+                        if (!confirm('Desconectar sua conta Mercado Pago do ClubeOn?')) return
                         setPaymentConfigBusy(true)
                         setPaymentConfigMessage('')
                         try {
@@ -1795,7 +1795,7 @@ export default function AdminPanel({
                       },
                     }))
                   }}
-                  placeholder="Ex.: EspaçoOn"
+                  placeholder="Ex.: ClubeOn"
                 />
                 {establishmentMissing.name && <small className="field-error-text">Preencha o nome do espaço.</small>}
               </label>
@@ -2108,9 +2108,9 @@ export default function AdminPanel({
 
             <div className="branding-colors">
               {[
-                ['Cor principal', 'primaryColor', '#0f3554'],
-                ['Cor secundária', 'secondaryColor', '#1f8efa'],
-                ['Cor de destaque', 'accentColor', '#53b9ff'],
+                ['Cor principal', 'primaryColor', '#1f2937'],
+                ['Cor secundária', 'secondaryColor', '#1769ff'],
+                ['Cor de destaque', 'accentColor', '#76d900'],
               ].map(([label, key, fallback]) => (
                 <label key={key}>
                   <span>{label}</span>
@@ -2173,9 +2173,9 @@ export default function AdminPanel({
                     ...current,
                     branding: {
                       ...(current.branding || {}),
-                      primaryColor: '#0f3554',
-                      secondaryColor: '#1f8efa',
-                      accentColor: '#53b9ff',
+                      primaryColor: '#1f2937',
+                      secondaryColor: '#1769ff',
+                      accentColor: '#76d900',
                     },
                   }))
                 }}
@@ -2285,7 +2285,7 @@ export default function AdminPanel({
                   </strong>
                   <span>
                     {pushSubscription
-                      ? 'O EspaçoOn pode avisar sobre novas visitas e reservas pagas.'
+                      ? 'O ClubeOn pode avisar sobre novas visitas e reservas pagas.'
                       : 'Autorize uma vez para receber avisos mesmo com o painel fechado.'}
                   </span>
                 </div>
@@ -2580,7 +2580,7 @@ export default function AdminPanel({
               <strong>Como usar no celular</strong>
               <span>
                 Android/Chrome: toque em “Ativar neste dispositivo” e permita as notificações.
-                No iPhone, adicione o EspaçoOn à Tela de Início pelo Safari e depois abra o painel pelo ícone instalado.
+                No iPhone, adicione o ClubeOn à Tela de Início pelo Safari e depois abra o painel pelo ícone instalado.
                 Os lembretes de reserva usam o horário de Porto Velho (RO).
               </span>
             </div>
@@ -2595,7 +2595,7 @@ export default function AdminPanel({
                 <span>Zona de segurança</span>
                 <h2>Apagar todos os dados do site</h2>
                 <p>
-                  Remove os dados operacionais do EspaçoOn, incluindo reservas, pagamentos,
+                  Remove os dados operacionais do ClubeOn, incluindo reservas, pagamentos,
                   contratos, visitas, bloqueios e informações relacionadas.
                 </p>
               </div>
@@ -2990,7 +2990,7 @@ export default function AdminPanel({
                 <ShieldAlert />
                 <p>
                   Esta operação não pode ser desfeita. Todos os dados operacionais armazenados
-                  pelo EspaçoOn serão removidos.
+                  pelo ClubeOn serão removidos.
                 </p>
               </div>
 

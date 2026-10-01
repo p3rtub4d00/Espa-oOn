@@ -235,6 +235,9 @@ export default function AdminPanel({
   const [revenueLoading, setRevenueLoading] = useState(false)
   const [revenueError, setRevenueError] = useState('')
   const [resetOpen, setResetOpen] = useState(false)
+  const [passwordChange, setPasswordChange] = useState({ current: '', next: '', confirmation: '' })
+  const [passwordChangeBusy, setPasswordChangeBusy] = useState(false)
+  const [passwordChangeMessage, setPasswordChangeMessage] = useState('')
   const [resetPassword, setResetPassword] = useState('')
   const [resetConfirmation, setResetConfirmation] = useState('')
   const [resetLoading, setResetLoading] = useState(false)
@@ -2588,29 +2591,114 @@ export default function AdminPanel({
         )}
 
         {active === 'system' && (
-          <section className="admin-card large danger-zone">
-            <div className="danger-zone-header">
-              <div className="danger-zone-icon"><ShieldAlert /></div>
-              <div>
-                <span>Zona de segurança</span>
-                <h2>Apagar todos os dados do site</h2>
-                <p>
-                  Remove os dados operacionais do ClubeOn, incluindo reservas, pagamentos,
-                  contratos, visitas, bloqueios e informações relacionadas.
-                </p>
-              </div>
-            </div>
+          <div className="admin-system-stack">
+            {!paymentConfig?.demoMode && (
+              <section className="admin-card admin-password-card">
+                <div className="admin-card-title">
+                  <div>
+                    <span>Segurança do painel</span>
+                    <strong>Alterar senha administrativa</strong>
+                  </div>
+                  <KeyRound />
+                </div>
 
-            <button className="danger-reset-button" onClick={() => {
-              setResetPassword('')
-              setResetConfirmation('')
-              setResetError('')
-              setResetOpen(true)
-            }}>
-              <Trash2 size={17} />
-              Apagar todos os dados
-            </button>
-          </section>
+                <p className="admin-password-help">
+                  Use a senha criada no primeiro acesso. A nova senha passa a valer imediatamente.
+                </p>
+
+                <div className="admin-password-grid">
+                  <label>
+                    <span>Senha atual</span>
+                    <input
+                      type="password"
+                      autoComplete="current-password"
+                      value={passwordChange.current}
+                      onChange={(e) => setPasswordChange((current) => ({ ...current, current: e.target.value }))}
+                    />
+                  </label>
+                  <label>
+                    <span>Nova senha</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={passwordChange.next}
+                      onChange={(e) => setPasswordChange((current) => ({ ...current, next: e.target.value }))}
+                      placeholder="Mínimo 8 caracteres"
+                    />
+                  </label>
+                  <label>
+                    <span>Confirmar nova senha</span>
+                    <input
+                      type="password"
+                      autoComplete="new-password"
+                      value={passwordChange.confirmation}
+                      onChange={(e) => setPasswordChange((current) => ({ ...current, confirmation: e.target.value }))}
+                    />
+                  </label>
+                </div>
+
+                {passwordChangeMessage && <div className="admin-demo-note">{passwordChangeMessage}</div>}
+
+                <button
+                  className="admin-password-save"
+                  disabled={passwordChangeBusy}
+                  onClick={async () => {
+                    setPasswordChangeMessage('')
+                    if (passwordChange.next.length < 8) {
+                      setPasswordChangeMessage('A nova senha precisa ter pelo menos 8 caracteres.')
+                      return
+                    }
+                    if (passwordChange.next !== passwordChange.confirmation) {
+                      setPasswordChangeMessage('As senhas não conferem.')
+                      return
+                    }
+
+                    setPasswordChangeBusy(true)
+                    try {
+                      await api.changeAdminPassword(
+                        passwordChange.current,
+                        passwordChange.next,
+                        passwordChange.confirmation,
+                      )
+                      setPasswordChange({ current: '', next: '', confirmation: '' })
+                      setPasswordChangeMessage('Senha alterada com sucesso.')
+                    } catch (error) {
+                      setPasswordChangeMessage(error.message || 'Não foi possível alterar a senha.')
+                    } finally {
+                      setPasswordChangeBusy(false)
+                    }
+                  }}
+                >
+                  <KeyRound size={16} />
+                  {passwordChangeBusy ? 'Salvando...' : 'Alterar senha'}
+                </button>
+              </section>
+            )}
+
+            <section className="admin-card large danger-zone">
+              <div className="danger-zone-header">
+                <div className="danger-zone-icon"><ShieldAlert /></div>
+                <div>
+                  <span>Zona de segurança</span>
+                  <h2>Apagar todos os dados do site</h2>
+                  <p>
+                    Remove os dados operacionais do ClubeOn, incluindo reservas, pagamentos,
+                    contratos, visitas, bloqueios e informações relacionadas.
+                  </p>
+                </div>
+              </div>
+
+              <button className="danger-reset-button" onClick={() => {
+                setResetPassword('')
+                setResetConfirmation('')
+                setResetError('')
+                setResetOpen(true)
+              }}>
+                <Trash2 size={17} />
+                Apagar todos os dados
+              </button>
+            </section>
+          </div>
         )}
 
       </main>

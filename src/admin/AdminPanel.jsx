@@ -628,7 +628,7 @@ export default function AdminPanel({
             {menuGroups.map((group) => {
               const GroupIcon = group.icon
               const groupActive = group.items.some(([id]) => id === active)
-              const expanded = openMenuGroup === group.id || groupActive
+              const expanded = openMenuGroup === group.id
 
               return (
                 <div className={groupActive ? 'admin-nav-group active' : 'admin-nav-group'} key={group.id}>
@@ -655,6 +655,7 @@ export default function AdminPanel({
                           className={active === id ? 'active' : ''}
                           onClick={() => {
                             setActive(id)
+                            setOpenMenuGroup(group.id)
                             setMobileMenuOpen(false)
                           }}
                           key={id}

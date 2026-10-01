@@ -156,6 +156,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       reservationDate: reservation.date,
       reservationDateISO: reservation.dateISO,
       period: reservation.period,
+      startTime: reservation.startTime,
       basePrice: reservation.basePrice,
       extrasTotal: reservation.extrasTotal,
       extras: Array.isArray(reservation.extras) ? reservation.extras : [],
@@ -225,6 +226,14 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <div><span>CPF</span><strong>{maskCpf(reservation.customer?.cpf)}</strong></div>
                 <div><span>Data da locação</span><strong>{reservation.date}</strong></div>
                 <div><span>Período</span><strong>{reservation.period}</strong></div>
+                <div>
+                  <span>Horário</span>
+                  <strong>
+                    {reservation.startTime || '-'}
+                    {reservation.endTime ? ' às ' + reservation.endTime : ''}
+                    {reservation.endDateISO && reservation.endDateISO !== reservation.dateISO ? ' • dia seguinte' : ''}
+                  </strong>
+                </div>
                 <div><span>Valor total</span><strong>R$ {Number(reservation.price).toFixed(2).replace('.', ',')}</strong></div>
                 <div><span>Reserva</span><strong>{reservation.id}</strong></div>
               </div>

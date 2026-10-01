@@ -130,3 +130,13 @@ A página `/privacidade` é pública. Configure o responsável e o canal de cont
 ### Cláusula de limpeza
 
 Novos contratos incluem a obrigação do locador de entregar o clube limpo e organizado e do locatário de devolvê-lo limpo e organizado ao final da locação. O texto é apresentado antes do aceite, salvo no contrato, incluído na verificação do hash e reproduzido no PDF. Contratos antigos não recebem a cláusula retroativamente e continuam com seu hash original. Após o deploy, atualize abas abertas antes de novas assinaturas. A cláusula não cria taxa de limpeza ou multa automática.
+
+### Indicadores da demonstração
+
+O Master apresenta “Acessos à demonstração” na visão geral: visitas, acessos ao painel, cliques no WhatsApp e reservas simuladas concluídas, com períodos de hoje, últimos 7 dias e mês atual (horário de Manaus). O quadro soma os clubes atualmente em demonstração e não cancelados/excluídos. Atualize pelo botão do quadro. A coleta começa após o deploy e não recupera acessos antigos.
+
+A página pública usa um identificador aleatório em sessionStorage por aba e respeita Do Not Track/Global Privacy Control. Visitas e ações são deduplicadas por sessão/aba, tipo e dia; não são pessoas únicas. Conclusões de reservas são informadas pelo servidor e deduplicadas por reserva. Nomes, CPF, telefone, assinatura, IP, referer e user-agent não são armazenados na coleção de métricas. O Master armazena somente clube, tipo, dia, horários e uma chave HMAC. Os registros expiram após 90 dias por índice TTL; backups podem conservar cópias conforme a política existente. A documentação de privacidade informa essa coleta.
+
+O endpoint público não aceita eventos de conclusão. O envio ao Master usa a licença apenas no servidor; o Master valida novamente que o clube está em demonstração. As consultas de métricas exigem sessão Master. A coleta é auxiliar: bloqueios de navegador, indisponibilidade/reinício dos servidores, bots e testes próprios podem afetar os números. Falhas de métricas não interrompem reservas nem navegação.
+
+Publicação: deploy primeiro do Master e depois do EspaçoOn/piloto. Não exige novas variáveis de ambiente.

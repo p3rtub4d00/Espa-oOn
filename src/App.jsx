@@ -1,3 +1,4 @@
+import PrivacyPage from './components/PrivacyPage'
 import { useEffect, useMemo, useState } from 'react'
 import BookingFlow from './components/BookingFlow'
 import VisitScheduler from './components/VisitScheduler'
@@ -943,6 +944,7 @@ function App() {
       )}
 
       <footer>
+        <a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a>
         <a className="brand footer-brand" href="#inicio" aria-label={brandName}>
           <BrandLogo
             className="brand-logo-site"
@@ -970,4 +972,6 @@ function App() {
   )
 }
 
-export default App
+export default function Root() {
+  return window.location.pathname === '/privacidade' ? <PrivacyPage /> : <App />
+}

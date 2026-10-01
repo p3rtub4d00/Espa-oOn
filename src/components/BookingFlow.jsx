@@ -725,6 +725,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 </label>
               </div>
 
+              <p className="privacy-notice">Seus dados serão usados para preparar a reserva, o contrato e o pagamento. Nome, CPF e telefone identificam o contratante; o e-mail é opcional. Saiba como usamos e guardamos as informações na <a href="/privacidade" target="_blank" rel="noreferrer">Política de Privacidade</a>.</p>
               {errors.server && <p className="booking-server-error">{errors.server}</p>}
 
               <div className="booking-actions">

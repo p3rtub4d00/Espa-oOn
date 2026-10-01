@@ -166,6 +166,7 @@ export default function VisitScheduler({ onClose }) {
                 </span>
               </div>
 
+              <p className="privacy-notice">Usamos seu nome, contato e horário sugerido para atender e responder ao pedido de visita. Consulte a <a href="/privacidade" target="_blank" rel="noreferrer">Política de Privacidade</a> e o canal para solicitações sobre seus dados.</p>
               {errors.submit && <small className="visit-submit-error">{errors.submit}</small>}
               <button className="visit-submit" onClick={submit} disabled={saving}>
                 {saving ? 'Enviando...' : 'Enviar solicitação de visita'}

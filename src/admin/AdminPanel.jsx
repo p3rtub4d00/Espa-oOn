@@ -931,6 +931,10 @@ export default function AdminPanel({
                 className="manual-reservation-open"
                 onClick={() => {
                   setManualReservationError('')
+                  setManualReservationForm((current) => ({
+                    ...current,
+                    startTime: rentalStartTimes[current.period]?.[0] || '08:00',
+                  }))
                   setManualReservationOpen(true)
                 }}
               >

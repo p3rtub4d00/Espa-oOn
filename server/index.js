@@ -3762,6 +3762,8 @@ app.post('/api/admin/reservations/manual', requireAdmin, publicWriteLimiter, asy
 })
 
 app.post('/api/admin/reservations/:id/manual-paid', requireAdmin, publicWriteLimiter, async (req, res, next) => {
+  let createdLock = false
+
   try {
     const id = textValue(req.params.id, 60)
     const reservation = await Reservation.findOne({ id }).lean()
@@ -3792,6 +3794,7 @@ app.post('/api/admin/reservations/:id/manual-paid', requireAdmin, publicWriteLim
           status: 'paid',
           expiresAt: null,
         })
+        createdLock = true
       } catch (error) {
         if (error?.code === 11000) {
           return res.status(409).json({
@@ -3827,7 +3830,13 @@ app.post('/api/admin/reservations/:id/manual-paid', requireAdmin, publicWriteLim
     ).lean()
 
     if (!saved) {
-      await DateLock.deleteOne({ _id: reservation.dateISO, reservationId: reservation.id, status: 'paid' }).catch(() => {})
+      if (createdLock) {
+        await DateLock.deleteOne({
+          _id: reservation.dateISO,
+          reservationId: reservation.id,
+          status: 'paid',
+        }).catch(() => {})
+      }
       return res.status(409).json({ error: 'A reserva foi alterada por outra operação.' })
     }
 
@@ -4000,10 +4009,12 @@ app.post('/api/admin/reservations/:id/cancel', requireAdmin, async (req, res, ne
     if (!saved) return res.status(409).json({ error: 'A reserva já foi alterada.' })
 
     await Promise.all([
-      Contract.updateOne(
-        { id: reservation.contractId },
-        { $set: { status: 'cancelled', cancellation } },
-      ),
+      reservation.contractId
+        ? Contract.updateOne(
+            { id: reservation.contractId },
+            { $set: { status: 'cancelled', cancellation } },
+          )
+        : Promise.resolve(),
       DateLock.deleteOne({
         _id: reservation.dateISO,
         reservationId: reservation.id,

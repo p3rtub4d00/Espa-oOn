@@ -281,6 +281,7 @@ export default function AdminPanel({
   const [pushSubscription, setPushSubscription] = useState(null)
   const [pushBusy, setPushBusy] = useState(false)
   const [pushMessage, setPushMessage] = useState('')
+  const [pushPromptOpen, setPushPromptOpen] = useState(false)
   const [mobileMenuOpen, setMobileMenuOpen] = useState(false)
   const [brandingUploadBusy, setBrandingUploadBusy] = useState(false)
   const [paymentConfig, setPaymentConfig] = useState(null)
@@ -391,8 +392,6 @@ export default function AdminPanel({
   }, [])
 
   useEffect(() => {
-    if (active !== 'notifications') return
-
     let alive = true
 
     const loadPush = async () => {
@@ -401,10 +400,27 @@ export default function AdminPanel({
         if (!alive) return
         setPushStatus(status)
 
-        if ('serviceWorker' in navigator && 'PushManager' in window) {
+        if (
+          'serviceWorker' in navigator &&
+          'PushManager' in window &&
+          'Notification' in window
+        ) {
           const registration = await navigator.serviceWorker.ready
           const subscription = await registration.pushManager.getSubscription()
-          if (alive) setPushSubscription(subscription)
+          if (!alive) return
+
+          setPushSubscription(subscription)
+
+          const dismissedThisSession =
+            window.sessionStorage.getItem('clubeon-push-prompt-dismissed') === '1'
+
+          if (
+            !subscription &&
+            Notification.permission !== 'denied' &&
+            !dismissedThisSession
+          ) {
+            setPushPromptOpen(true)
+          }
         }
       } catch (error) {
         if (alive) setPushMessage(error.message || 'Não foi possível carregar as notificações.')
@@ -416,7 +432,52 @@ export default function AdminPanel({
     return () => {
       alive = false
     }
-  }, [active])
+  }, [])
+
+  const activatePushOnDevice = async () => {
+    setPushBusy(true)
+    setPushMessage('')
+
+    try {
+      if (
+        !('serviceWorker' in navigator) ||
+        !('PushManager' in window) ||
+        !('Notification' in window)
+      ) {
+        throw new Error('Este navegador não oferece suporte a notificações Push.')
+      }
+
+      const permission = await Notification.requestPermission()
+      if (permission !== 'granted') {
+        throw new Error('A permissão de notificações não foi autorizada.')
+      }
+
+      const registration = await navigator.serviceWorker.ready
+      let subscription = await registration.pushManager.getSubscription()
+
+      if (!subscription) {
+        subscription = await registration.pushManager.subscribe({
+          userVisibleOnly: true,
+          applicationServerKey: urlBase64ToUint8Array(pushStatus.publicKey),
+        })
+      }
+
+      await api.subscribePush(subscription.toJSON())
+      setPushSubscription(subscription)
+      setPushPromptOpen(false)
+      window.sessionStorage.removeItem('clubeon-push-prompt-dismissed')
+
+      const status = await api.pushStatus()
+      setPushStatus(status)
+      setPushMessage('Notificações ativadas neste dispositivo.')
+      return true
+    } catch (error) {
+      setPushMessage(error.message || 'Não foi possível ativar as notificações.')
+      return false
+    } finally {
+      setPushBusy(false)
+    }
+  }
 
   const prices = settings.prices
   const extras = Array.isArray(settings.extras) ? settings.extras : []
@@ -2299,46 +2360,7 @@ export default function AdminPanel({
                   <button
                     className="push-enable-button"
                     disabled={pushBusy || !pushStatus?.publicKey}
-                    onClick={async () => {
-                      setPushBusy(true)
-                      setPushMessage('')
-
-                      try {
-                        if (
-                          !('serviceWorker' in navigator) ||
-                          !('PushManager' in window) ||
-                          !('Notification' in window)
-                        ) {
-                          throw new Error('Este navegador não oferece suporte a notificações Push.')
-                        }
-
-                        const permission = await Notification.requestPermission()
-                        if (permission !== 'granted') {
-                          throw new Error('A permissão de notificações não foi autorizada.')
-                        }
-
-                        const registration = await navigator.serviceWorker.ready
-                        let subscription = await registration.pushManager.getSubscription()
-
-                        if (!subscription) {
-                          subscription = await registration.pushManager.subscribe({
-                            userVisibleOnly: true,
-                            applicationServerKey: urlBase64ToUint8Array(pushStatus.publicKey),
-                          })
-                        }
-
-                        await api.subscribePush(subscription.toJSON())
-                        setPushSubscription(subscription)
-
-                        const status = await api.pushStatus()
-                        setPushStatus(status)
-                        setPushMessage('Notificações ativadas neste dispositivo.')
-                      } catch (error) {
-                        setPushMessage(error.message || 'Não foi possível ativar as notificações.')
-                      } finally {
-                        setPushBusy(false)
-                      }
-                    }}
+                    onClick={activatePushOnDevice}
                   >
                     <BellRing size={17} />
                     {pushBusy ? 'Ativando...' : 'Ativar neste dispositivo'}
@@ -2702,6 +2724,51 @@ export default function AdminPanel({
         )}
 
       </main>
+
+      {pushPromptOpen && !pushSubscription && createPortal(
+        <div className="push-onboarding-backdrop" role="dialog" aria-modal="true" aria-label="Ativar notificações">
+          <div className="push-onboarding-card">
+            <div className="push-onboarding-icon">
+              <BellRing size={28} />
+            </div>
+            <div className="push-onboarding-copy">
+              <span>Não perca nenhuma reserva</span>
+              <h2>Ative as notificações do ClubeOn</h2>
+              <p>
+                Receba avisos de reservas pagas, novas visitas e lembretes importantes mesmo com o painel fechado.
+              </p>
+            </div>
+
+            {pushMessage && <div className="push-onboarding-message">{pushMessage}</div>}
+
+            <div className="push-onboarding-actions">
+              <button
+                className="primary"
+                disabled={pushBusy || !pushStatus?.publicKey}
+                onClick={activatePushOnDevice}
+              >
+                <BellRing size={17} />
+                {pushBusy ? 'Ativando...' : 'Ativar notificações'}
+              </button>
+              <button
+                className="secondary"
+                disabled={pushBusy}
+                onClick={() => {
+                  window.sessionStorage.setItem('clubeon-push-prompt-dismissed', '1')
+                  setPushPromptOpen(false)
+                }}
+              >
+                Agora não
+              </button>
+            </div>
+
+            <small>
+              Você poderá ativar depois em Configurações → Notificações.
+            </small>
+          </div>
+        </div>,
+        document.body,
+      )}
 
       {manualReservationOpen && createPortal(
         <div

@@ -4971,3 +4971,396 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Mobile admin hardening v2 */
+@media (max-width: 680px) {
+  html,
+  body,
+  #root {
+    max-width: 100%;
+    overflow-x: hidden;
+  }
+
+  .admin-shell,
+  .admin-main,
+  .admin-card,
+  .admin-card.large,
+  .admin-grid,
+  .admin-stats,
+  .admin-table,
+  .revenue-table,
+  .contracts-table,
+  .visit-admin-list,
+  .price-settings,
+  .establishment-grid,
+  .branding-settings,
+  .push-settings,
+  .content-manager,
+  .gallery-admin-grid,
+  .amenities-admin-grid {
+    width: 100%;
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-main {
+    padding: 14px 12px 28px;
+  }
+
+  .admin-mobile-menu-button {
+    margin-bottom: 12px;
+  }
+
+  .admin-header {
+    margin-bottom: 16px;
+    align-items: center;
+    gap: 10px;
+  }
+
+  .admin-header h1 {
+    font-size: 24px;
+    line-height: 1.1;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-user {
+    max-width: 42px;
+  }
+
+  .admin-card {
+    padding: 14px 12px;
+    border-radius: 14px;
+  }
+
+  .admin-card.large {
+    min-height: 0;
+  }
+
+  .admin-card-title {
+    align-items: stretch;
+    flex-direction: column;
+    gap: 10px;
+  }
+
+  .admin-card-title > button,
+  .admin-card-title .manual-reservation-open,
+  .revenue-month-picker {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-stats {
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+  }
+
+  .admin-stats article {
+    min-width: 0;
+    padding: 14px;
+  }
+
+  .admin-stats article > strong {
+    overflow-wrap: anywhere;
+  }
+
+  .admin-grid {
+    gap: 12px;
+  }
+
+  /* Reservations, revenue and contracts become stacked cards instead of wide tables */
+  .admin-table {
+    display: grid;
+    gap: 10px;
+    overflow: visible;
+  }
+
+  .admin-table > .table-head {
+    display: none;
+  }
+
+  .admin-table > .table-row,
+  .reservations-head + .table-row,
+  .revenue-table .table-row,
+  .contracts-table .table-row {
+    min-width: 0 !important;
+    width: 100%;
+    padding: 12px;
+    display: grid;
+    grid-template-columns: 1fr !important;
+    gap: 0;
+    border: 1px solid rgba(15,53,84,.08);
+    border-radius: 12px;
+    background: #fff;
+    box-sizing: border-box;
+  }
+
+  .admin-table > .table-row > span,
+  .revenue-table .table-row > span,
+  .contracts-table .table-row > span {
+    min-width: 0;
+    padding: 9px 0;
+    display: grid;
+    grid-template-columns: minmax(92px, .65fr) minmax(0, 1fr);
+    align-items: start;
+    gap: 10px;
+    border-top: 1px solid rgba(15,53,84,.06);
+    text-align: right;
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .admin-table > .table-row > span:first-child,
+  .revenue-table .table-row > span:first-child,
+  .contracts-table .table-row > span:first-child {
+    padding-top: 0;
+    border-top: 0;
+  }
+
+  .admin-table > .table-row > span::before,
+  .revenue-table .table-row > span::before,
+  .contracts-table .table-row > span::before {
+    content: attr(data-label);
+    color: #85969e;
+    font-size: 8px;
+    font-weight: 900;
+    line-height: 1.35;
+    text-align: left;
+    text-transform: uppercase;
+    letter-spacing: .05em;
+  }
+
+  .admin-table > .table-row > span > strong,
+  .admin-table > .table-row > span > small,
+  .revenue-table .table-row > span > strong,
+  .revenue-table .table-row > span > small,
+  .contracts-table .table-row > span > strong,
+  .contracts-table .table-row > span > small {
+    min-width: 0;
+    justify-self: end;
+    max-width: 100%;
+    text-align: right;
+    overflow-wrap: anywhere;
+  }
+
+  .admin-table > .table-row > span > small,
+  .revenue-table .table-row > span > small,
+  .contracts-table .table-row > span > small {
+    grid-column: 2;
+  }
+
+  .reservation-row-actions,
+  .manual-reservation-row-actions {
+    width: 100%;
+    justify-content: flex-end;
+  }
+
+  .reservation-row-actions > button,
+  .reservation-row-actions .manual-reservation-row-actions,
+  .manual-reservation-row-actions > button,
+  .contracts-table .contract-view-button {
+    max-width: 100%;
+  }
+
+  .reservation-row-actions[data-label="Ações"] {
+    align-items: center;
+  }
+
+  .visit-status,
+  .status-ok {
+    justify-self: end;
+    max-width: 100%;
+    white-space: normal;
+    text-align: right;
+  }
+
+  .revenue-title {
+    flex-direction: column;
+  }
+
+  .revenue-month-picker {
+    display: grid;
+    gap: 5px;
+  }
+
+  .revenue-month-picker input {
+    width: 100%;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .revenue-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .revenue-table {
+    overflow: visible;
+  }
+
+  .revenue-table .table-row {
+    min-width: 0 !important;
+  }
+
+  /* Generic form safety */
+  .admin-main input,
+  .admin-main select,
+  .admin-main textarea,
+  .admin-main button {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .admin-main input,
+  .admin-main select,
+  .admin-main textarea {
+    min-width: 0;
+  }
+
+  .price-settings,
+  .establishment-grid,
+  .whatsapp-config-grid,
+  .branding-grid,
+  .branding-settings-grid,
+  .push-reminder-controls,
+  .notification-grid,
+  .extras-create-grid,
+  .extra-admin-main,
+  .rental-time-settings {
+    grid-template-columns: 1fr !important;
+  }
+
+  .establishment-wide,
+  .extra-description-field,
+  .manual-reservation-detail-note {
+    grid-column: auto !important;
+  }
+
+  /* Calendar remains fully usable without horizontal scroll */
+  .admin-calendar {
+    min-width: 0 !important;
+    width: 100%;
+    gap: 5px;
+  }
+
+  .admin-calendar button {
+    min-width: 0;
+    padding: 8px 3px;
+  }
+
+  .admin-calendar button b {
+    font-size: 11px;
+  }
+
+  .admin-calendar button small {
+    font-size: 7px;
+    line-height: 1.2;
+    overflow-wrap: anywhere;
+  }
+
+  .calendar-view-hint {
+    display: none;
+  }
+
+  /* Modals use the device viewport and never spill sideways */
+  .reservation-detail-backdrop,
+  .cancel-reservation-backdrop,
+  .reset-data-backdrop,
+  .admin-contract-backdrop,
+  .manual-reservation-backdrop {
+    padding: 8px;
+    overflow: hidden;
+  }
+
+  .reservation-detail-modal,
+  .cancel-reservation-modal,
+  .reset-data-modal,
+  .admin-contract-modal,
+  .manual-reservation-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+    min-width: 0;
+    box-sizing: border-box;
+    border-radius: 14px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .reservation-detail-body,
+  .cancel-reservation-body,
+  .reset-data-body,
+  .admin-contract-document,
+  .manual-reservation-body {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .reservation-detail-grid,
+  .admin-contract-meta {
+    grid-template-columns: 1fr !important;
+  }
+
+  .admin-contract-document,
+  .admin-contract-text,
+  .admin-contract-evidence,
+  .admin-contract-proof,
+  .admin-contract-note {
+    overflow-wrap: anywhere;
+    word-break: break-word;
+  }
+
+  .admin-contract-evidence strong,
+  .admin-contract-proof strong {
+    overflow-wrap: anywhere;
+    word-break: break-all;
+  }
+
+  /* Content/gallery cards */
+  .gallery-admin-grid,
+  .amenities-admin-grid,
+  .content-grid {
+    grid-template-columns: 1fr !important;
+  }
+
+  .gallery-admin-item,
+  .amenity-admin-item,
+  .content-item {
+    min-width: 0;
+    max-width: 100%;
+  }
+
+  .gallery-admin-item img,
+  .content-item img {
+    max-width: 100%;
+    height: auto;
+  }
+}
+
+@media (max-width: 390px) {
+  .admin-main {
+    padding-left: 9px;
+    padding-right: 9px;
+  }
+
+  .admin-card {
+    padding-left: 10px;
+    padding-right: 10px;
+  }
+
+  .admin-stats {
+    grid-template-columns: 1fr;
+  }
+
+  .admin-header h1 {
+    font-size: 22px;
+  }
+
+  .admin-table > .table-row > span,
+  .revenue-table .table-row > span,
+  .contracts-table .table-row > span {
+    grid-template-columns: 82px minmax(0, 1fr);
+  }
+}

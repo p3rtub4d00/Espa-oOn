@@ -1271,3 +1271,82 @@
     justify-content: flex-start;
   }
 }
+
+
+/* Reservation time choice */
+.booking-time-choice {
+  margin-top: 18px;
+  padding: 13px;
+  border: 1px solid rgba(15,53,84,.09);
+  border-radius: 12px;
+  background: #f8fbfd;
+}
+
+.booking-time-choice-head {
+  display: flex;
+  align-items: flex-start;
+  gap: 9px;
+}
+
+.booking-time-choice-head > svg {
+  margin-top: 1px;
+  color: var(--brand-secondary, #1f8efa);
+  flex: 0 0 auto;
+}
+
+.booking-time-choice-head strong,
+.booking-time-choice-head small {
+  display: block;
+}
+
+.booking-time-choice-head strong {
+  color: #294553;
+  font-size: 11px;
+}
+
+.booking-time-choice-head small {
+  margin-top: 3px;
+  color: #748892;
+  font-size: 9px;
+  line-height: 1.45;
+}
+
+.booking-time-options {
+  margin-top: 11px;
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 8px;
+}
+
+.booking-time-options button {
+  min-width: 0;
+  padding: 10px 11px;
+  display: grid;
+  gap: 3px;
+  border: 1px solid rgba(15,53,84,.10);
+  border-radius: 10px;
+  text-align: left;
+  color: #405c69;
+  background: #fff;
+}
+
+.booking-time-options button.selected {
+  border-color: color-mix(in srgb, var(--brand-secondary, #1f8efa) 45%, white);
+  background: color-mix(in srgb, var(--brand-secondary, #1f8efa) 7%, white);
+  box-shadow: 0 6px 18px rgba(31,142,250,.08);
+}
+
+.booking-time-options strong {
+  font-size: 12px;
+}
+
+.booking-time-options small {
+  color: #7d9099;
+  font-size: 8px;
+}
+
+@media (max-width: 640px) {
+  .booking-time-options {
+    grid-template-columns: 1fr;
+  }
+}

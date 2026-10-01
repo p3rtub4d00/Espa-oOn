@@ -440,6 +440,39 @@ async function sendPushNotification(payload, endpoint = null) {
   return { sent, failed }
 }
 
+async function notifyPaidReservationPush(reservation, title = 'Nova reserva confirmada') {
+  if (!reservation || reservation.pushPaidNotifiedAt) return { sent: 0, failed: 0 }
+
+  const settings = await currentSettings()
+  if (settings.notifications?.notifyPaidReservation === false) {
+    return { sent: 0, failed: 0 }
+  }
+
+  const result = await sendPushNotification({
+    title,
+    body:
+      (reservation.customer?.name || 'Cliente') +
+      ' • ' +
+      (reservation.date || displayDate(reservation.dateISO)) +
+      ' • ' +
+      Number(reservation.price || 0).toLocaleString('pt-BR', {
+        style: 'currency',
+        currency: 'BRL',
+      }),
+    url: '/admin',
+    tag: 'reservation-' + reservation.id,
+  })
+
+  if (result.sent > 0) {
+    await Reservation.updateOne(
+      { id: reservation.id, pushPaidNotifiedAt: null },
+      { $set: { pushPaidNotifiedAt: new Date() } },
+    )
+  }
+
+  return result
+}
+
 function portoVelhoNowParts(date = new Date()) {
   const formatter = new Intl.DateTimeFormat('en-CA', {
     timeZone: 'America/Porto_Velho',
@@ -1441,35 +1474,7 @@ async function markPaymentReceived(reservation, payment, eventName = 'PAYMENT_RE
     { new: true },
   ).lean()
 
-  if (!savedReservation.pushPaidNotifiedAt) {
-    const settings = await currentSettings()
-    if (settings.notifications?.notifyPaidReservation !== false) {
-      const title = 'Reserva paga'
-      const body =
-        (savedReservation.customer?.name || 'Cliente') +
-        ' • ' +
-        (savedReservation.date || displayDate(savedReservation.dateISO)) +
-        ' • ' +
-        Number(savedReservation.price || 0).toLocaleString('pt-BR', {
-          style: 'currency',
-          currency: 'BRL',
-        })
-
-      const result = await sendPushNotification({
-        title,
-        body,
-        url: '/admin',
-        tag: 'reservation-' + savedReservation.id,
-      })
-
-      if (result.sent > 0) {
-        await Reservation.updateOne(
-          { id: savedReservation.id, pushPaidNotifiedAt: null },
-          { $set: { pushPaidNotifiedAt: new Date() } },
-        )
-      }
-    }
-  }
+  await notifyPaidReservationPush(savedReservation, 'Reserva paga')
 
   console.log('Pagamento processado:', eventName, reservation.id, payment?.id)
   return { reservation: savedReservation, contract: savedContract }
@@ -2583,32 +2588,7 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
         },
       )
 
-      if (!savedReservation.pushPaidNotifiedAt) {
-        const settings = await currentSettings()
-        if (settings.notifications?.notifyPaidReservation !== false) {
-          const result = await sendPushNotification({
-            title: 'Nova reserva confirmada',
-            body:
-              (savedReservation.customer?.name || 'Cliente') +
-              ' • ' +
-              (savedReservation.date || displayDate(savedReservation.dateISO)) +
-              ' • ' +
-              Number(savedReservation.price || 0).toLocaleString('pt-BR', {
-                style: 'currency',
-                currency: 'BRL',
-              }),
-            url: '/admin',
-            tag: 'reservation-' + savedReservation.id,
-          })
-
-          if (result.sent > 0) {
-            await Reservation.updateOne(
-              { id: savedReservation.id, pushPaidNotifiedAt: null },
-              { $set: { pushPaidNotifiedAt: new Date() } },
-            )
-          }
-        }
-      }
+      await notifyPaidReservationPush(savedReservation, 'Nova reserva confirmada')
 
       return res.json({
         paid: true,
@@ -3779,6 +3759,10 @@ app.post('/api/admin/reservations/manual', requireAdmin, publicWriteLimiter, asy
       holdUntil: null,
     })
 
+    if (paymentStatusInput === 'paid') {
+      await notifyPaidReservationPush(reservation.toObject(), 'Reserva manual confirmada')
+    }
+
     res.status(201).json(reservation.toObject())
   } catch (error) {
     if (createdLock && reservationId) {
@@ -3866,6 +3850,8 @@ app.post('/api/admin/reservations/:id/manual-paid', requireAdmin, publicWriteLim
       }
       return res.status(409).json({ error: 'A reserva foi alterada por outra operação.' })
     }
+
+    await notifyPaidReservationPush(saved, 'Reserva manual paga')
 
     res.json(saved)
   } catch (error) {

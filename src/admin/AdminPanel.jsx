@@ -947,7 +947,10 @@ export default function AdminPanel({
                     <small>{r.customer?.phone || r.id}</small>
                     {r.source === 'manual' && <small className="manual-reservation-badge">Reserva manual</small>}
                   </span>
-                  <span>{r.date}</span>
+                  <span>
+                    {r.date}
+                    {r.startTime && <small>{r.startTime} às {r.endTime || '-'}</small>}
+                  </span>
                   <span>{r.period}</span>
                   <span>{money(r.price)}</span>
                   <span>
@@ -3190,6 +3193,17 @@ export default function AdminPanel({
                 <div>
                   <span>Período</span>
                   <strong>{selectedReservation.period || '-'}</strong>
+                </div>
+                <div>
+                  <span>Horário</span>
+                  <strong>
+                    {selectedReservation.startTime
+                      ? selectedReservation.startTime + ' às ' + (selectedReservation.endTime || '-') +
+                        (selectedReservation.endDateISO && selectedReservation.endDateISO !== selectedReservation.dateISO
+                          ? ' • dia seguinte'
+                          : '')
+                      : '-'}
+                  </strong>
                 </div>
                 <div>
                   <span>Valor</span>

@@ -40,6 +40,11 @@ export const api = {
       body: JSON.stringify({ password }),
     }),
   adminLogout: () => request('/api/admin/logout', { method: 'POST' }),
+  changeAdminPassword: (currentPassword, newPassword, confirmation) =>
+    request('/api/admin/password/change', {
+      method: 'POST',
+      body: JSON.stringify({ currentPassword, newPassword, confirmation }),
+    }),
   paymentConfig: () => request('/api/payments/config'),
   paymentProviderStatus: () => request('/api/admin/payment-provider'),
   connectMercadoPago: () =>

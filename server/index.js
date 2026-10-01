@@ -19,7 +19,6 @@ const rootDir = path.resolve(__dirname, '..')
 const app = express()
 const PORT = process.env.PORT || 10000
 const MONGODB_URI = process.env.MONGODB_URI
-const ADMIN_PASSWORD = process.env.ADMIN_PASSWORD
 const JWT_SECRET = process.env.JWT_SECRET
 const ASAAS_API_KEY = process.env.ASAAS_API_KEY
 const ASAAS_ENV = String(process.env.ASAAS_ENV || 'production').toLowerCase()
@@ -900,14 +899,10 @@ function validateProductionConfig() {
   const warnings = []
 
   if (!MONGODB_URI) errors.push('MONGODB_URI')
-  if (!ADMIN_PASSWORD) errors.push('ADMIN_PASSWORD')
   if (!JWT_SECRET) errors.push('JWT_SECRET')
   if (!ASAAS_API_KEY || !ASAAS_API_KEY.startsWith('$aact_prod_')) errors.push('ASAAS_API_KEY de produção')
   if (ASAAS_ENV !== 'production') errors.push('ASAAS_ENV=production')
 
-  if (ADMIN_PASSWORD && ADMIN_PASSWORD.length < 10) {
-    warnings.push('ADMIN_PASSWORD deveria ter pelo menos 10 caracteres')
-  }
   if (JWT_SECRET && JWT_SECRET.length < 32) {
     warnings.push('JWT_SECRET deveria ter pelo menos 32 caracteres')
   }
@@ -1763,37 +1758,33 @@ async function cleanupExpiredLocks() {
 
 async function verifyAdminPasswordAgainstMaster(password, license = null) {
   if (license?.demoMode) {
-    return { valid: true, configured: false, demoMode: true, legacyFallback: false }
+    return { valid: true, configured: false, demoMode: true }
   }
 
-  let masterResult = null
+  if (!MASTER_LICENSE_CONFIGURED) {
+    throw Object.assign(
+      new Error('Autenticação central do ClubeOn não configurada neste estabelecimento.'),
+      { statusCode: 503 },
+    )
+  }
 
-  if (MASTER_LICENSE_CONFIGURED) {
-    try {
-      masterResult = await masterBillingRequest('/api/license/admin-auth/verify', {
-        method: 'POST',
-        body: { password: String(password || '') },
-      })
+  try {
+    const masterResult = await masterBillingRequest('/api/license/admin-auth/verify', {
+      method: 'POST',
+      body: { password: String(password || '') },
+    })
 
-      if (masterResult.valid === true) {
-        return {
-          valid: true,
-          configured: masterResult.configured === true,
-          demoMode: false,
-          legacyFallback: false,
-        }
-      }
-    } catch (error) {
-      console.warn('Falha ao validar senha pelo Master; fallback temporário será considerado:', error?.message || error)
+    return {
+      valid: masterResult.valid === true,
+      configured: masterResult.configured === true,
+      demoMode: false,
     }
-  }
-
-  const legacyValid = Boolean(ADMIN_PASSWORD) && secureEqual(password, ADMIN_PASSWORD)
-  return {
-    valid: legacyValid,
-    configured: masterResult?.configured === true,
-    demoMode: false,
-    legacyFallback: legacyValid,
+  } catch (error) {
+    console.error('Falha ao validar senha administrativa no Master:', error?.message || error)
+    throw Object.assign(
+      new Error('Não foi possível validar o acesso administrativo agora. Tente novamente em instantes.'),
+      { statusCode: Number(error?.statusCode) >= 400 && Number(error?.statusCode) < 500 ? error.statusCode : 503 },
+    )
   }
 }
 
@@ -1937,7 +1928,6 @@ app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
       ok: true,
       demoMode: license.demoMode === true,
       passwordConfigured: auth.configured,
-      legacyFallback: auth.legacyFallback === true,
     })
   } catch (error) {
     next(error)

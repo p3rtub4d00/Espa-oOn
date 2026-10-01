@@ -16,7 +16,7 @@ function addWrappedText(doc, text, x, y, width, lineHeight = 6) {
 export function createReceiptPdf(reservation, contract, establishmentName = '') {
   const doc = new jsPDF()
   const paidAt = reservation.paidAt ? new Date(reservation.paidAt).toLocaleString('pt-BR') : '-'
-  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
+  const spaceName = establishmentName || contract?.establishmentName || 'ClubeOn'
 
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
@@ -78,7 +78,7 @@ export function createReceiptPdf(reservation, contract, establishmentName = '') 
 
 export function createContractPdf(contract, establishmentName = '') {
   const doc = new jsPDF()
-  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
+  const spaceName = establishmentName || contract?.establishmentName || 'ClubeOn'
   doc.setFont('helvetica', 'bold')
   doc.setFontSize(18)
   doc.text(spaceName, 20, 20)
@@ -181,7 +181,7 @@ export function normalizeWhatsApp(phone = '') {
 }
 
 export function buildPaymentMessage(reservation, contract, establishmentName = '') {
-  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
+  const spaceName = establishmentName || contract?.establishmentName || 'ClubeOn'
   return [
     'Olá, ' + (reservation.customer?.name || 'cliente') + '!',
     '',
@@ -201,7 +201,7 @@ export function buildPaymentMessage(reservation, contract, establishmentName = '
 }
 
 export async function sharePaymentDocuments(reservation, contract, establishmentName = '') {
-  const spaceName = establishmentName || contract?.establishmentName || 'EspaçoOn'
+  const spaceName = establishmentName || contract?.establishmentName || 'ClubeOn'
   const receiptDoc = createReceiptPdf(reservation, contract, spaceName)
   const contractDoc = createContractPdf(contract, spaceName)
   const receiptName = 'comprovante-' + reservation.id + '.pdf'

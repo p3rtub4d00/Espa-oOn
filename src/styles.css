@@ -2260,3 +2260,51 @@ footer {
     align-items: flex-start;
   }
 }
+
+
+/* Mobile layout hardening */
+@media (max-width: 680px) {
+  html,
+  body,
+  #root,
+  .app-shell,
+  .page-shell,
+  main,
+  section {
+    max-width: 100%;
+  }
+
+  html,
+  body,
+  #root {
+    overflow-x: hidden;
+  }
+
+  img,
+  video,
+  canvas,
+  svg {
+    max-width: 100%;
+  }
+
+  input,
+  select,
+  textarea,
+  button {
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .container,
+  .section-inner,
+  .hero-inner,
+  .booking-section,
+  .gallery-section,
+  .amenities-section,
+  .pricing-section,
+  .contact-section {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+}

@@ -126,3 +126,7 @@ Use um cluster/projeto Atlas separado do banco principal. Quando configurado, o 
 ## Privacidade
 
 A página `/privacidade` é pública. Configure o responsável e o canal de contato em Dados do estabelecimento. O roteiro de guarda e atendimento está em [PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md).
+
+### Cláusula de limpeza
+
+Novos contratos incluem a obrigação do locador de entregar o clube limpo e organizado e do locatário de devolvê-lo limpo e organizado ao final da locação. O texto é apresentado antes do aceite, salvo no contrato, incluído na verificação do hash e reproduzido no PDF. Contratos antigos não recebem a cláusula retroativamente e continuam com seu hash original. Após o deploy, atualize abas abertas antes de novas assinaturas. A cláusula não cria taxa de limpeza ou multa automática.

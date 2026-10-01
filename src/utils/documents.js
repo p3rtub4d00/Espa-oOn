@@ -134,6 +134,10 @@ export function createContractPdf(contract, establishmentName = '') {
     ['6. Assinatura eletrônica.', 'O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.'],
   ]
 
+  if (contract.cleaningClauseText) {
+    clauses.push(['7. Limpeza e devolução do espaço.', contract.cleaningClauseText])
+  }
+
   clauses.forEach(([title, body]) => {
     if (y > 250) {
       doc.addPage()

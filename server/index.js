@@ -465,6 +465,7 @@ async function notifyPaidReservationPush(reservation, title = 'Nova reserva conf
       (reservation.customer?.name || 'Cliente') +
       ' • ' +
       (reservation.date || displayDate(reservation.dateISO)) +
+      (reservation.startTime ? ' às ' + reservation.startTime : '') +
       ' • ' +
       Number(reservation.price || 0).toLocaleString('pt-BR', {
         style: 'currency',
@@ -547,6 +548,7 @@ async function processReservationReminders() {
             (reservation.customer?.name || 'Cliente') +
             ' • ' +
             displayDate(reservation.dateISO) +
+            (reservation.startTime ? ' às ' + reservation.startTime : '') +
             ' • ' +
             (reservation.period || ''),
           url: '/admin',

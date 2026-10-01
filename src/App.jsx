@@ -109,7 +109,7 @@ function App() {
   const [adminAuthenticated, setAdminAuthenticated] = useState(false)
   const [adminSessionChecked, setAdminSessionChecked] = useState(false)
   const [siteSettings, setSiteSettings] = useState(loadSettings)
-  const brandName = siteSettings.establishment?.name || 'EspaçoOn'
+  const brandName = siteSettings.establishment?.name || 'ClubeOn'
   const brandSettings = siteSettings.branding || {}
   const [reservedDates, setReservedDates] = useState(new Set())
   const [pendingDates, setPendingDates] = useState(new Set())
@@ -138,9 +138,9 @@ function App() {
 
   useEffect(() => {
     const root = document.documentElement
-    root.style.setProperty('--brand-primary', brandSettings.primaryColor || '#0f3554')
-    root.style.setProperty('--brand-secondary', brandSettings.secondaryColor || '#1f8efa')
-    root.style.setProperty('--brand-accent', brandSettings.accentColor || '#53b9ff')
+    root.style.setProperty('--brand-primary', brandSettings.primaryColor || '#1f2937')
+    root.style.setProperty('--brand-secondary', brandSettings.secondaryColor || '#1769ff')
+    root.style.setProperty('--brand-accent', brandSettings.accentColor || '#76d900')
     document.title = brandName + ' | Reserva online'
   }, [
     brandName,
@@ -783,7 +783,7 @@ function App() {
           <div className="section location-layout">
             <div className="location-copy">
               <span className="section-kicker">Localização</span>
-              <h2>{siteSettings.establishment?.name || 'EspaçoOn'}</h2>
+              <h2>{siteSettings.establishment?.name || 'ClubeOn'}</h2>
               <p>
                 {siteSettings.establishment?.locationNote ||
                   'Confira o endereço e trace a melhor rota até o espaço.'}
@@ -963,7 +963,7 @@ function App() {
             : 'Locação de espaço de lazer • Reserva online'}
         </p>
         <span>
-          © {new Date().getFullYear()} {siteSettings.establishment?.name || 'EspaçoOn'}
+          © {new Date().getFullYear()} {siteSettings.establishment?.name || 'ClubeOn'}
         </span>
       </footer>
     </div>

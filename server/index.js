@@ -102,6 +102,9 @@ const reservationSchema = new mongoose.Schema(
     date: String,
     dateISO: { type: String, index: true },
     period: String,
+    startTime: String,
+    endTime: String,
+    endDateISO: String,
     basePrice: Number,
     extrasTotal: Number,
     extras: [mongoose.Schema.Types.Mixed],
@@ -161,6 +164,9 @@ const contractSchema = new mongoose.Schema(
     reservationDate: String,
     reservationDateISO: String,
     period: String,
+    startTime: String,
+    endTime: String,
+    endDateISO: String,
     basePrice: Number,
     extrasTotal: Number,
     extras: [mongoose.Schema.Types.Mixed],
@@ -224,6 +230,7 @@ const settingsSchema = new mongoose.Schema(
     blockedDates: [String],
     specialDates: [mongoose.Schema.Types.Mixed],
     rentalHours: mongoose.Schema.Types.Mixed,
+    rentalStartTimes: mongoose.Schema.Types.Mixed,
     gallery: [String],
     amenities: [mongoose.Schema.Types.Mixed],
     extras: [mongoose.Schema.Types.Mixed],
@@ -321,6 +328,10 @@ const DEFAULT_SETTINGS = {
   rentalHours: {
     '12h': '08:00 às 20:00',
     '24h': '08:00 às 08:00 do dia seguinte',
+  },
+  rentalStartTimes: {
+    '12h': ['08:00'],
+    '24h': ['08:00'],
   },
   gallery: [
     'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=85',
@@ -569,9 +580,11 @@ async function processReservationReminders() {
             (reservation.customer?.name || 'Cliente') +
             ' • ' +
             (reservation.period || '') +
-            (settings.rentalHours?.[reservation.period]
-              ? ' • ' + settings.rentalHours[reservation.period]
-              : ''),
+            (reservation.startTime
+              ? ' • ' + reservation.startTime + ' às ' + (reservation.endTime || '')
+              : settings.rentalHours?.[reservation.period]
+                ? ' • ' + settings.rentalHours[reservation.period]
+                : ''),
           url: '/admin',
           tag: 'reservation-same-day-' + reservation.id,
         })
@@ -845,6 +858,15 @@ function contractHash(contract) {
     contract.extrasTotal !== undefined ||
     (Array.isArray(contract.extras) && contract.extras.length > 0)
 
+  if (contract.startTime || contract.endTime || contract.endDateISO) {
+    canonicalParts.push(
+      'TIME_V1',
+      contract.startTime || '',
+      contract.endTime || '',
+      contract.endDateISO || '',
+    )
+  }
+
   if (hasExtrasSnapshot) {
     canonicalParts.push(
       'EXTRAS_V1',
@@ -1068,6 +1090,29 @@ function sanitizeSettingsUpdate(body = {}) {
       const error = new Error('Horários de locação inválidos.')
       error.statusCode = 400
       throw error
+    }
+  }
+
+  if (body.rentalStartTimes !== undefined) {
+    const normalizeTimes = (values) => {
+      if (!Array.isArray(values) || values.length === 0 || values.length > 24) {
+        const error = new Error('Lista de horários disponíveis inválida.')
+        error.statusCode = 400
+        throw error
+      }
+
+      const normalized = [...new Set(values.map((value) => textValue(value, 5)))]
+      if (normalized.some((value) => !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(value))) {
+        const error = new Error('Existe um horário disponível inválido.')
+        error.statusCode = 400
+        throw error
+      }
+      return normalized.sort()
+    }
+
+    update.rentalStartTimes = {
+      '12h': normalizeTimes(body.rentalStartTimes?.['12h']),
+      '24h': normalizeTimes(body.rentalStartTimes?.['24h']),
     }
   }
 
@@ -1330,6 +1375,32 @@ function selectedExtrasForContract(settings, requestedExtras) {
 
   const extrasTotal = Math.round(extras.reduce((sum, item) => sum + item.subtotal, 0) * 100) / 100
   return { extras, extrasTotal }
+}
+
+function allowedStartTimes(settings, period) {
+  const configured = settings?.rentalStartTimes?.[period]
+  if (Array.isArray(configured) && configured.length) return configured
+  return ['08:00']
+}
+
+function reservationTimeSlot(dateISO, period, startTime) {
+  if (!/^\d{4}-\d{2}-\d{2}$/.test(String(dateISO || '')) || !/^(?:[01]\d|2[0-3]):[0-5]\d$/.test(String(startTime || ''))) {
+    const error = new Error('Data ou horário da reserva inválido.')
+    error.statusCode = 400
+    throw error
+  }
+
+  const durationHours = period === '24h' ? 24 : 12
+  const [hour, minute] = startTime.split(':').map(Number)
+  const start = new Date(dateISO + 'T00:00:00Z')
+  start.setUTCHours(hour, minute, 0, 0)
+  const end = new Date(start.getTime() + durationHours * 60 * 60 * 1000)
+
+  return {
+    startTime,
+    endTime: String(end.getUTCHours()).padStart(2, '0') + ':' + String(end.getUTCMinutes()).padStart(2, '0'),
+    endDateISO: end.toISOString().slice(0, 10),
+  }
 }
 
 async function acquireDateLock(dateISO, reservationId) {
@@ -1987,6 +2058,13 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
     if (existing) return res.status(200).json(existing)
 
     const settings = await currentSettings()
+    const configuredStartTimes = allowedStartTimes(settings, payload.period)
+    const requestedStartTime = textValue(payload.startTime || configuredStartTimes[0], 5)
+    if (!configuredStartTimes.includes(requestedStartTime)) {
+      return res.status(400).json({ error: 'O horário de entrada selecionado não está disponível para este período.' })
+    }
+    const timeSlot = reservationTimeSlot(reservationDateISO, payload.period, requestedStartTime)
+
     const basePrice = priceForDate(reservationDateISO, payload.period, settings)
     const selectedExtras = selectedExtrasForContract(settings, payload.extras)
     const price = Math.round((basePrice + selectedExtras.extrasTotal) * 100) / 100
@@ -2007,6 +2085,9 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       reservationDate: displayDate(reservationDateISO),
       reservationDateISO,
       period: payload.period,
+      startTime: timeSlot.startTime,
+      endTime: timeSlot.endTime,
+      endDateISO: timeSlot.endDateISO,
       basePrice,
       extrasTotal: selectedExtras.extrasTotal,
       extras: selectedExtras.extras,
@@ -2118,6 +2199,9 @@ app.post('/api/payments/mercadopago/checkout', requireBookingLicense, paymentLim
           date: contract.reservationDate || displayDate(contractDateISO),
           dateISO: contractDateISO,
           period: contract.period,
+          startTime: contract.startTime || '',
+          endTime: contract.endTime || '',
+          endDateISO: contract.endDateISO || '',
           basePrice: Number(contract.basePrice || serverPrice),
           extrasTotal: Number(contract.extrasTotal || 0),
           extras: Array.isArray(contract.extras) ? contract.extras : [],
@@ -2394,6 +2478,9 @@ app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter
           date: contract.reservationDate || displayDate(contractDateISO),
           dateISO: contractDateISO,
           period: contract.period,
+          startTime: contract.startTime || '',
+          endTime: contract.endTime || '',
+          endDateISO: contract.endDateISO || '',
           basePrice: Number(contract.basePrice || serverPrice),
           extrasTotal: Number(contract.extrasTotal || 0),
           extras: Array.isArray(contract.extras) ? contract.extras : [],
@@ -2541,6 +2628,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             date: contract.reservationDate || displayDate(contractDateISO),
             dateISO: contractDateISO,
             period: contract.period,
+            startTime: contract.startTime || '',
+            endTime: contract.endTime || '',
+            endDateISO: contract.endDateISO || '',
             basePrice: Number(contract.basePrice || serverPrice),
             extrasTotal: Number(contract.extrasTotal || 0),
             extras: Array.isArray(contract.extras) ? contract.extras : [],
@@ -2658,6 +2748,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             date: contract.reservationDate || displayDate(contractDateISO),
             dateISO: contractDateISO,
             period: contract.period,
+            startTime: contract.startTime || '',
+            endTime: contract.endTime || '',
+            endDateISO: contract.endDateISO || '',
             basePrice: Number(contract.basePrice || serverPrice),
             extrasTotal: Number(contract.extrasTotal || 0),
             extras: Array.isArray(contract.extras) ? contract.extras : [],
@@ -2747,6 +2840,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
             date: contract.reservationDate || displayDate(contractDateISO),
             dateISO: contractDateISO,
             period: contract.period,
+            startTime: contract.startTime || '',
+            endTime: contract.endTime || '',
+            endDateISO: contract.endDateISO || '',
             basePrice: Number(contract.basePrice || serverPrice),
             extrasTotal: Number(contract.extrasTotal || 0),
             extras: Array.isArray(contract.extras) ? contract.extras : [],
@@ -2790,6 +2886,9 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
           date: contract.reservationDate || displayDate(contractDateISO),
           dateISO: contractDateISO,
           period: contract.period,
+          startTime: contract.startTime || '',
+          endTime: contract.endTime || '',
+          endDateISO: contract.endDateISO || '',
           basePrice: Number(contract.basePrice || serverPrice),
           extrasTotal: Number(contract.extrasTotal || 0),
           extras: Array.isArray(contract.extras) ? contract.extras : [],
@@ -3668,6 +3767,13 @@ app.post('/api/admin/reservations/manual', requireAdmin, publicWriteLimiter, asy
     }
 
     const settings = await currentSettings()
+    const configuredStartTimes = allowedStartTimes(settings, period)
+    const startTime = textValue(payload.startTime || configuredStartTimes[0], 5)
+    if (!configuredStartTimes.includes(startTime)) {
+      return res.status(400).json({ error: 'O horário de entrada selecionado não está disponível para este período.' })
+    }
+    const timeSlot = reservationTimeSlot(dateISO, period, startTime)
+
     const selectedExtras = selectedExtrasForContract(settings, payload.extras)
     const totalPrice = Math.round((basePrice + selectedExtras.extrasTotal) * 100) / 100
 
@@ -3736,6 +3842,9 @@ app.post('/api/admin/reservations/manual', requireAdmin, publicWriteLimiter, asy
       date: displayDate(dateISO),
       dateISO,
       period,
+      startTime: timeSlot.startTime,
+      endTime: timeSlot.endTime,
+      endDateISO: timeSlot.endDateISO,
       basePrice,
       extrasTotal: selectedExtras.extrasTotal,
       extras: selectedExtras.extras,

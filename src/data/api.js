@@ -100,6 +100,10 @@ export const api = {
     }),
   deletePendingReservation: (id) =>
     request('/api/admin/reservations/' + encodeURIComponent(id), { method: 'DELETE' }),
+  markManualReservationPaid: (id) =>
+    request('/api/admin/reservations/' + encodeURIComponent(id) + '/manual-paid', {
+      method: 'POST',
+    }),
   cancelPaidReservation: (id, reason, refundAmount) =>
     request('/api/admin/reservations/' + encodeURIComponent(id) + '/cancel', {
       method: 'POST',

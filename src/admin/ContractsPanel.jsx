@@ -78,14 +78,14 @@ export default function ContractsPanel() {
 
             {contracts.map((contract) => (
               <div className="table-row" key={contract.id}>
-                <span>
+                <span data-label="Cliente">
                   <strong>{contract.customer?.name || 'Cliente'}</strong>
                   <small>{contract.customer?.phone || ''}</small>
                 </span>
-                <span>{contract.id}</span>
-                <span>{contract.reservationId}</span>
-                <span>{new Date(contract.signedAt).toLocaleString('pt-BR')}</span>
-                <span>
+                <span data-label="Contrato">{contract.id}</span>
+                <span data-label="Reserva">{contract.reservationId}</span>
+                <span data-label="Assinado em">{new Date(contract.signedAt).toLocaleString('pt-BR')}</span>
+                <span data-label="Ação">
                   <button className="contract-view-button" onClick={() => setSelected(contract)}>
                     <Eye size={15} />
                     Visualizar

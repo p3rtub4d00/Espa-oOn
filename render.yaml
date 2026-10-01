@@ -20,3 +20,10 @@ services:
         value: production
       - key: ASAAS_WEBHOOK_TOKEN
         sync: false
+
+      - key: BACKUP_MONGODB_URI
+        sync: false
+      - key: BACKUP_RETENTION_DAYS
+        value: 14
+      - key: BACKUP_INTERVAL_HOURS
+        value: 24

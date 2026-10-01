@@ -33,7 +33,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [cancellationPolicyText, setCancellationPolicyText] = useState('')
   const [policyLoading, setPolicyLoading] = useState(true)
   const [policyLoadError, setPolicyLoadError] = useState('')
-  const [establishmentName, setEstablishmentName] = useState('EspaçoOn')
+  const [establishmentName, setEstablishmentName] = useState('ClubeOn')
 
   const contractId = useMemo(
     () => 'CTR-' + reservation.id.replace('ESP-', ''),
@@ -243,7 +243,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <span>Contrato de locação</span>
                 <h2>Locação temporária do espaço de lazer</h2>
                 <p>
-                  Documento eletrônico gerado a partir dos dados informados na reserva e registrado no EspaçoOn.
+                  Documento eletrônico gerado a partir dos dados informados na reserva e registrado no ClubeOn.
                 </p>
               </div>
 
@@ -383,7 +383,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
             <span>Contrato assinado</span>
             <h2>Documento registrado com sucesso.</h2>
             <p>
-              A assinatura e as evidências do documento foram registradas no servidor do EspaçoOn.
+              A assinatura e as evidências do documento foram registradas no servidor do ClubeOn.
             </p>
 
             <div className="contract-proof">
@@ -441,7 +441,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
               {verifyLoading
                 ? 'Consultando o registro no servidor.'
                 : verifyResult?.valid
-                  ? 'O identificador e o hash correspondem ao contrato armazenado no EspaçoOn.'
+                  ? 'O identificador e o hash correspondem ao contrato armazenado no ClubeOn.'
                   : verifyResult?.error || 'Não foi possível confirmar o registro.'}
             </p>
             <dl>

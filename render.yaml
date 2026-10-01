@@ -6,7 +6,7 @@ services:
     branch: main
     buildCommand: npm install && npm run build
     startCommand: npm start
-    autoDeploy: true
+    autoDeploy: false
     envVars:
       - key: NODE_ENV
         value: production

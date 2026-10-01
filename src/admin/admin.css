@@ -5364,3 +5364,90 @@
     grid-template-columns: 82px minmax(0, 1fr);
   }
 }
+
+
+/* Compact grouped admin navigation */
+.admin-nav-primary,
+.admin-nav-groups,
+.admin-nav-group,
+.admin-nav-submenu {
+  display: grid;
+  gap: 5px;
+}
+
+.admin-nav-groups {
+  margin-top: 4px;
+}
+
+.admin-nav-group-toggle {
+  position: relative;
+}
+
+.admin-nav-chevron {
+  margin-left: auto;
+  transition: transform .2s ease;
+  opacity: .72;
+}
+
+.admin-nav-chevron.open {
+  transform: rotate(180deg);
+}
+
+.admin-nav-submenu {
+  margin: 2px 0 4px 13px;
+  padding-left: 10px;
+  border-left: 1px solid rgba(255,255,255,.10);
+}
+
+.admin-sidebar nav .admin-nav-submenu button {
+  min-height: 38px;
+  padding-left: 10px;
+  color: #a9c0d2;
+  font-size: 11px;
+}
+
+.admin-sidebar nav .admin-nav-submenu button.active {
+  color: #fff;
+  background: color-mix(in srgb, var(--brand-secondary) 20%, transparent);
+}
+
+@media (max-width: 680px) {
+  .admin-sidebar {
+    width: min(78vw, 286px);
+    padding: 14px 12px;
+  }
+
+  .admin-brand {
+    padding-bottom: 12px;
+  }
+
+  .admin-sidebar nav {
+    gap: 4px;
+  }
+
+  .admin-nav-primary,
+  .admin-nav-groups {
+    gap: 4px;
+  }
+
+  .admin-sidebar nav > .admin-nav-primary > button,
+  .admin-sidebar nav .admin-nav-group-toggle {
+    min-height: 42px;
+  }
+
+  .admin-nav-submenu {
+    gap: 3px;
+    margin-left: 10px;
+    padding-left: 8px;
+  }
+
+  .admin-sidebar nav .admin-nav-submenu button {
+    min-height: 36px;
+    font-size: 10px;
+  }
+
+  .admin-install-app,
+  .admin-back {
+    min-height: 40px;
+  }
+}

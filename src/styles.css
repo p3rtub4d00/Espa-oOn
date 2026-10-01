@@ -2347,3 +2347,75 @@ footer {
 .btn-demo-admin svg {
   flex-shrink: 0;
 }
+
+.demo-sales-contact {
+  width: min(1160px, 90%);
+  margin: 32px auto 12px;
+  padding: 28px 32px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 28px;
+  border: 1px solid #dbe9f5;
+  border-radius: 22px;
+  background: linear-gradient(120deg, #f1f8ff, #fff);
+  box-shadow: 0 12px 32px rgba(23, 43, 69, .06);
+}
+
+.demo-sales-kicker {
+  display: block;
+  margin-bottom: 8px;
+  color: #2366a8;
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: .08em;
+  text-transform: uppercase;
+}
+
+.demo-sales-copy h2 {
+  margin: 0 0 8px;
+  color: #172b45;
+  font-size: clamp(24px, 3vw, 30px);
+  letter-spacing: -.03em;
+}
+
+.demo-sales-copy p {
+  margin: 0;
+  max-width: 560px;
+  color: #52677b;
+  line-height: 1.6;
+}
+
+.demo-sales-button {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 14px;
+  flex-shrink: 0;
+  padding: 15px 20px;
+  border-radius: 14px;
+  background: #137a45;
+  color: #fff;
+  transition: background .2s ease;
+}
+
+.demo-sales-button strong,
+.demo-sales-button small {
+  display: block;
+}
+
+.demo-sales-button strong { font-size: 15px; }
+.demo-sales-button small { margin-top: 4px; font-size: 13px; }
+.demo-sales-button svg { flex-shrink: 0; }
+.demo-sales-button:hover { background: #0e6237; }
+.demo-sales-button:focus-visible { outline: 3px solid #2366a8; outline-offset: 4px; }
+
+@media (max-width: 680px) {
+  .demo-sales-contact {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 20px;
+    padding: 24px;
+  }
+  .demo-sales-button { width: 100%; }
+}

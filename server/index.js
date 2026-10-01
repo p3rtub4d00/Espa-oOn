@@ -3761,6 +3761,82 @@ app.post('/api/admin/reservations/manual', requireAdmin, publicWriteLimiter, asy
   }
 })
 
+app.post('/api/admin/reservations/:id/manual-paid', requireAdmin, publicWriteLimiter, async (req, res, next) => {
+  try {
+    const id = textValue(req.params.id, 60)
+    const reservation = await Reservation.findOne({ id }).lean()
+
+    if (!reservation) return res.status(404).json({ error: 'Reserva não encontrada.' })
+    if (reservation.source !== 'manual' || reservation.paymentProvider !== 'manual') {
+      return res.status(409).json({ error: 'Esta ação é exclusiva para reservas manuais.' })
+    }
+    if (!['manual-pending', 'manual-deposit'].includes(reservation.paymentStatus)) {
+      return res.status(409).json({ error: 'Esta reserva manual não está pendente de pagamento.' })
+    }
+    if (reservation.reservationStatus === 'cancelled') {
+      return res.status(409).json({ error: 'Esta reserva foi cancelada.' })
+    }
+
+    const existingLock = await DateLock.findById(reservation.dateISO).lean()
+    if (existingLock && existingLock.reservationId !== reservation.id) {
+      return res.status(409).json({
+        error: 'A data foi ocupada por outra reserva. Não é possível marcar este registro como pago.',
+      })
+    }
+
+    if (!existingLock) {
+      try {
+        await DateLock.create({
+          _id: reservation.dateISO,
+          reservationId: reservation.id,
+          status: 'paid',
+          expiresAt: null,
+        })
+      } catch (error) {
+        if (error?.code === 11000) {
+          return res.status(409).json({
+            error: 'A data acabou de ser ocupada por outra reserva.',
+          })
+        }
+        throw error
+      }
+    } else {
+      await DateLock.updateOne(
+        { _id: reservation.dateISO, reservationId: reservation.id },
+        { $set: { status: 'paid', expiresAt: null } },
+      )
+    }
+
+    const paidAt = new Date()
+    const saved = await Reservation.findOneAndUpdate(
+      {
+        id: reservation.id,
+        paymentStatus: { $in: ['manual-pending', 'manual-deposit'] },
+      },
+      {
+        $set: {
+          paymentStatus: 'paid',
+          providerStatus: 'MANUAL_PAID',
+          amountPaid: Number(reservation.price || 0),
+          paidAt,
+          manualBlockDate: true,
+          reservationStatus: 'active',
+        },
+      },
+      { new: true },
+    ).lean()
+
+    if (!saved) {
+      await DateLock.deleteOne({ _id: reservation.dateISO, reservationId: reservation.id, status: 'paid' }).catch(() => {})
+      return res.status(409).json({ error: 'A reserva foi alterada por outra operação.' })
+    }
+
+    res.json(saved)
+  } catch (error) {
+    next(error)
+  }
+})
+
 app.get('/api/admin/reservations', requireAdmin, async (_req, res, next) => {
   try {
     res.json(await Reservation.find().sort({ createdAt: -1 }).lean())

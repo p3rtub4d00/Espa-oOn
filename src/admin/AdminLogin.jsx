@@ -16,7 +16,7 @@ const dateBR = (value) => {
 export default function AdminLogin({
   onAuthenticated,
   onBack,
-  name = 'EspaçoOn',
+  name = 'ClubeOn',
   branding = {},
   demoMode = false,
 }) {
@@ -39,7 +39,7 @@ export default function AdminLogin({
 
       if (!billingData.cpfCnpjConfigured) {
         setPix(null)
-        setError('O CPF/CNPJ do responsável ainda não foi cadastrado. Entre em contato com o suporte do EspaçoOn.')
+        setError('O CPF/CNPJ do responsável ainda não foi cadastrado. Entre em contato com o suporte do ClubeOn.')
         return
       }
 
@@ -123,9 +123,9 @@ export default function AdminLogin({
     <div
       className="admin-login-shell"
       style={{
-        '--brand-primary': branding.primaryColor || '#0f3554',
-        '--brand-secondary': branding.secondaryColor || '#1f8efa',
-        '--brand-accent': branding.accentColor || '#53b9ff',
+        '--brand-primary': branding.primaryColor || '#1f2937',
+        '--brand-secondary': branding.secondaryColor || '#1769ff',
+        '--brand-accent': branding.accentColor || '#76d900',
       }}
     >
       <div className={`admin-login-card ${billingMode ? 'admin-billing-card' : ''}`}>
@@ -191,7 +191,7 @@ export default function AdminLogin({
             </div>
 
             <div className="admin-login-copy">
-              <span>Assinatura EspaçoOn</span>
+              <span>Assinatura ClubeOn</span>
               <h1>{paidDetected ? 'Pagamento confirmado.' : 'Mensalidade pendente.'}</h1>
               <p>
                 {paidDetected
@@ -222,7 +222,7 @@ export default function AdminLogin({
 
                 {pix?.encodedImage && (
                   <div className="billing-qr">
-                    <img src={'data:image/png;base64,' + pix.encodedImage} alt="QR Code Pix da mensalidade EspaçoOn" />
+                    <img src={'data:image/png;base64,' + pix.encodedImage} alt="QR Code Pix da mensalidade ClubeOn" />
                     <strong>Escaneie para pagar via Pix</strong>
                     <span>A liberação é automática após a confirmação do Asaas.</span>
                   </div>

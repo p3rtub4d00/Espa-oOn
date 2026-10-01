@@ -599,8 +599,8 @@ export default function AdminPanel({
   const showSetupChecklist = Boolean(
     paymentConfig &&
     paymentConfig.demoMode !== true &&
-    paymentConfig.paymentProvider === 'mercadopago' &&
-    !(establishmentSetupComplete && pricesSetupComplete && mercadoPagoSetupComplete)
+    !(establishmentSetupComplete && pricesSetupComplete &&
+      (paymentConfig.paymentProvider !== 'mercadopago' || mercadoPagoSetupComplete))
   )
 
   const startMercadoPagoConnection = async () => {
@@ -791,15 +791,15 @@ export default function AdminPanel({
                   <div>
                     <span>Configuração inicial</span>
                     <strong>Prepare seu clube para receber reservas</strong>
-                    <p>Conclua estas três etapas para deixar o ClubeOn pronto para seus clientes.</p>
+                    <p>Preencha os dados e os valores para deixar o ClubeOn pronto para seus clientes.</p>
                   </div>
                   <div className="club-setup-progress">
-                    {[mercadoPagoSetupComplete, establishmentSetupComplete, pricesSetupComplete].filter(Boolean).length}/3
+                    {[establishmentSetupComplete, pricesSetupComplete, ...(paymentConfig?.paymentProvider === 'mercadopago' ? [mercadoPagoSetupComplete] : [])].filter(Boolean).length}/{paymentConfig?.paymentProvider === 'mercadopago' ? 3 : 2}
                   </div>
                 </div>
 
                 <div className="club-setup-list">
-                  <article className={mercadoPagoSetupComplete ? 'done' : ''}>
+                  {paymentConfig?.paymentProvider === 'mercadopago' && <article className={mercadoPagoSetupComplete ? 'done' : ''}>
                     <CheckCircle2 size={18} />
                     <div>
                       <strong>Conectar Mercado Pago</strong>
@@ -810,7 +810,7 @@ export default function AdminPanel({
                         {paymentConfigBusy ? 'Abrindo...' : 'Conectar'}
                       </button>
                     )}
-                  </article>
+                  </article>}
 
                   <article className={establishmentSetupComplete ? 'done' : ''}>
                     <CheckCircle2 size={18} />

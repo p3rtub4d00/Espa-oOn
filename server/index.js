@@ -120,15 +120,24 @@ const reservationSchema = new mongoose.Schema(
     asaasStatus: String,
     paymentProvider: {
       type: String,
-      enum: ['asaas', 'mercadopago', 'demo'],
+      enum: ['asaas', 'mercadopago', 'demo', 'manual'],
       default: 'asaas',
       index: true,
     },
     paymentMethod: {
       type: String,
-      enum: ['pix', 'card', 'demo'],
+      enum: ['pix', 'card', 'demo', 'cash', 'transfer', 'other'],
       default: 'pix',
     },
+    source: {
+      type: String,
+      enum: ['online', 'manual'],
+      default: 'online',
+      index: true,
+    },
+    amountPaid: { type: Number, default: 0 },
+    manualNote: String,
+    manualBlockDate: Boolean,
     providerCustomerId: String,
     providerPaymentId: { type: String, index: true },
     providerCheckoutUrl: String,
@@ -3613,6 +3622,145 @@ app.post('/api/admin/reset-data', requireAdmin, loginLimiter, async (req, res, n
   }
 })
 
+app.post('/api/admin/reservations/manual', requireAdmin, publicWriteLimiter, async (req, res, next) => {
+  let createdLock = false
+  let reservationId = ''
+
+  try {
+    const payload = req.body || {}
+    const customer = {
+      name: textValue(payload.customer?.name, 120),
+      cpf: textValue(payload.customer?.cpf, 20),
+      phone: textValue(payload.customer?.phone, 30),
+      email: textValue(payload.customer?.email, 160),
+      address: textValue(payload.customer?.address, 250),
+    }
+    const dateISO = textValue(payload.dateISO, 10)
+    const period = textValue(payload.period, 10)
+    const basePrice = Math.round(Number(payload.basePrice || 0) * 100) / 100
+    const paymentStatusInput = textValue(payload.paymentStatus, 30)
+    const paymentMethod = textValue(payload.paymentMethod, 20)
+    const blockDate = payload.blockDate === true
+    const manualNote = textValue(payload.manualNote, 1000)
+    const requestedAmountPaid = Math.round(Number(payload.amountPaid || 0) * 100) / 100
+
+    if (customer.name.length < 3 || !isValidPhone(customer.phone)) {
+      return res.status(400).json({ error: 'Informe nome e telefone válidos do cliente.' })
+    }
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(dateISO) || !isValidPeriod(period)) {
+      return res.status(400).json({ error: 'Informe uma data e um período válidos.' })
+    }
+    if (!Number.isFinite(basePrice) || basePrice <= 0 || basePrice > 1000000) {
+      return res.status(400).json({ error: 'Valor do aluguel inválido.' })
+    }
+    if (!['paid', 'manual-pending', 'manual-deposit'].includes(paymentStatusInput)) {
+      return res.status(400).json({ error: 'Status de pagamento manual inválido.' })
+    }
+    if (!['pix', 'card', 'cash', 'transfer', 'other'].includes(paymentMethod)) {
+      return res.status(400).json({ error: 'Forma de pagamento manual inválida.' })
+    }
+
+    const settings = await currentSettings()
+    const selectedExtras = selectedExtrasForContract(settings, payload.extras)
+    const totalPrice = Math.round((basePrice + selectedExtras.extrasTotal) * 100) / 100
+
+    let amountPaid = 0
+    if (paymentStatusInput === 'paid') amountPaid = totalPrice
+    if (paymentStatusInput === 'manual-deposit') {
+      if (
+        !Number.isFinite(requestedAmountPaid) ||
+        requestedAmountPaid <= 0 ||
+        requestedAmountPaid >= totalPrice
+      ) {
+        return res.status(400).json({
+          error: 'Informe um valor de sinal maior que zero e menor que o total da reserva.',
+        })
+      }
+      amountPaid = requestedAmountPaid
+    }
+
+    reservationId =
+      'MAN-' +
+      dateISO.replaceAll('-', '') +
+      '-' +
+      crypto.randomBytes(3).toString('hex').toUpperCase()
+
+    const existingLock = await DateLock.findById(dateISO).lean()
+    if (existingLock) {
+      const expired =
+        existingLock.status === 'pending' &&
+        existingLock.expiresAt &&
+        new Date(existingLock.expiresAt) <= new Date()
+
+      if (expired) {
+        const previousReservation = await Reservation.findOne({ id: existingLock.reservationId }).lean()
+        if (previousReservation) await resolveExpiredPayment(previousReservation)
+      }
+
+      const refreshedLock = await DateLock.findById(dateISO).lean()
+      if (refreshedLock) {
+        return res.status(409).json({
+          error: 'Esta data já possui uma reserva ou pagamento em andamento.',
+        })
+      }
+    }
+
+    const shouldLock = paymentStatusInput === 'paid' || blockDate || paymentStatusInput === 'manual-deposit'
+    if (shouldLock) {
+      try {
+        await DateLock.create({
+          _id: dateISO,
+          reservationId,
+          status: paymentStatusInput === 'paid' ? 'paid' : 'confirmed',
+          expiresAt: null,
+        })
+        createdLock = true
+      } catch (error) {
+        if (error?.code === 11000) {
+          return res.status(409).json({ error: 'Esta data acabou de ser ocupada por outra reserva.' })
+        }
+        throw error
+      }
+    }
+
+    const reservation = await Reservation.create({
+      id: reservationId,
+      day: Number(dateISO.slice(-2)),
+      date: displayDate(dateISO),
+      dateISO,
+      period,
+      basePrice,
+      extrasTotal: selectedExtras.extrasTotal,
+      extras: selectedExtras.extras,
+      price: totalPrice,
+      customer,
+      paymentStatus: paymentStatusInput,
+      paymentProvider: 'manual',
+      paymentMethod,
+      source: 'manual',
+      amountPaid,
+      manualNote,
+      manualBlockDate: shouldLock,
+      paidAt: paymentStatusInput === 'paid' ? new Date() : null,
+      providerStatus:
+        paymentStatusInput === 'paid'
+          ? 'MANUAL_PAID'
+          : paymentStatusInput === 'manual-deposit'
+            ? 'MANUAL_DEPOSIT'
+            : 'MANUAL_PENDING',
+      reservationStatus: shouldLock ? 'active' : 'pending-payment',
+      holdUntil: null,
+    })
+
+    res.status(201).json(reservation.toObject())
+  } catch (error) {
+    if (createdLock && reservationId) {
+      await DateLock.deleteOne({ reservationId }).catch(() => {})
+    }
+    next(error)
+  }
+})
+
 app.get('/api/admin/reservations', requireAdmin, async (_req, res, next) => {
   try {
     res.json(await Reservation.find().sort({ createdAt: -1 }).lean())
@@ -3630,7 +3778,7 @@ app.delete('/api/admin/reservations/:id', requireAdmin, async (req, res, next) =
       return res.status(404).json({ error: 'Reserva não encontrada.' })
     }
 
-    if (!['pending-asaas', 'pending-mercadopago', 'expired', 'cancelled', 'awaiting-payment'].includes(reservation.paymentStatus)) {
+    if (!['pending-asaas', 'pending-mercadopago', 'expired', 'cancelled', 'awaiting-payment', 'manual-pending', 'manual-deposit'].includes(reservation.paymentStatus)) {
       return res.status(409).json({
         error: 'Somente tentativas pendentes, expiradas ou canceladas podem ser excluídas por esta opção.',
       })

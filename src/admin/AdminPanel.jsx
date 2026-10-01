@@ -698,7 +698,11 @@ export default function AdminPanel({
         <header className="admin-header">
           <div>
             <span>Painel administrativo</span>
-            <h1>{menu.find(([id]) => id === active)?.[1]}</h1>
+            <h1>{
+              primaryMenu.find(([id]) => id === active)?.[1] ||
+              menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] ||
+              'Painel'
+            }</h1>
           </div>
           <div className="admin-user">
             <div>AD</div>

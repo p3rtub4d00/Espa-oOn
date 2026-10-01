@@ -15,6 +15,7 @@ import {
   ListPlus,
   ChevronLeft,
   ChevronRight,
+  ChevronDown,
   X,
   Phone,
   FileText,
@@ -38,22 +39,46 @@ import { loadSettings } from '../data/settings'
 import { api } from '../data/api'
 import './admin.css'
 
-const menu = [
+const primaryMenu = [
   ['overview', 'Visão geral', Gauge],
   ['calendar', 'Agenda', CalendarDays],
   ['reservations', 'Reservas', WalletCards],
-  ['revenue', 'Faturamento', BarChart3],
-  ['visits', 'Visitas', CalendarCheck2],
-  ['contracts', 'Contratos', FileCheck2],
-  ['gallery', 'Galeria', Images],
-  ['amenities', 'Estrutura', ListPlus],
-  ['extras', 'Adicionais', ListPlus],
-  ['prices', 'Preços', CircleDollarSign],
-  ['establishment', 'Estabelecimento', Building2],
-  ['branding', 'Marca', Palette],
-  ['policies', 'Cancelamento', FileText],
-  ['notifications', 'Notificações', BellRing],
-  ['system', 'Dados', ShieldAlert],
+]
+
+const menuGroups = [
+  {
+    id: 'financial',
+    label: 'Financeiro',
+    icon: BarChart3,
+    items: [
+      ['revenue', 'Faturamento', BarChart3],
+    ],
+  },
+  {
+    id: 'space',
+    label: 'Espaço',
+    icon: Building2,
+    items: [
+      ['visits', 'Visitas', CalendarCheck2],
+      ['contracts', 'Contratos', FileCheck2],
+      ['gallery', 'Galeria', Images],
+      ['amenities', 'Estrutura', ListPlus],
+      ['extras', 'Adicionais', ListPlus],
+    ],
+  },
+  {
+    id: 'settings',
+    label: 'Configurações',
+    icon: Settings2,
+    items: [
+      ['prices', 'Preços', CircleDollarSign],
+      ['establishment', 'Estabelecimento', Building2],
+      ['branding', 'Marca', Palette],
+      ['policies', 'Cancelamento', FileText],
+      ['notifications', 'Notificações', BellRing],
+      ['system', 'Dados', ShieldAlert],
+    ],
+  },
 ]
 
 function money(value) {
@@ -193,6 +218,7 @@ export default function AdminPanel({
   onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
+  const [openMenuGroup, setOpenMenuGroup] = useState('')
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
   const [settings, setSettings] = useState(loadSettings)
@@ -582,19 +608,67 @@ export default function AdminPanel({
         </div>
 
         <nav>
-          {menu.map(([id, label, Icon]) => (
-            <button
-              className={active === id ? 'active' : ''}
-              onClick={() => {
-                setActive(id)
-                setMobileMenuOpen(false)
-              }}
-              key={id}
-            >
-              <Icon size={18} />
-              <span>{label}</span>
-            </button>
-          ))}
+          <div className="admin-nav-primary">
+            {primaryMenu.map(([id, label, Icon]) => (
+              <button
+                className={active === id ? 'active' : ''}
+                onClick={() => {
+                  setActive(id)
+                  setMobileMenuOpen(false)
+                }}
+                key={id}
+              >
+                <Icon size={18} />
+                <span>{label}</span>
+              </button>
+            ))}
+          </div>
+
+          <div className="admin-nav-groups">
+            {menuGroups.map((group) => {
+              const GroupIcon = group.icon
+              const groupActive = group.items.some(([id]) => id === active)
+              const expanded = openMenuGroup === group.id || groupActive
+
+              return (
+                <div className={groupActive ? 'admin-nav-group active' : 'admin-nav-group'} key={group.id}>
+                  <button
+                    type="button"
+                    className={groupActive ? 'admin-nav-group-toggle active' : 'admin-nav-group-toggle'}
+                    onClick={() =>
+                      setOpenMenuGroup((current) => current === group.id ? '' : group.id)
+                    }
+                    aria-expanded={expanded}
+                  >
+                    <GroupIcon size={18} />
+                    <span>{group.label}</span>
+                    <ChevronDown
+                      className={expanded ? 'admin-nav-chevron open' : 'admin-nav-chevron'}
+                      size={16}
+                    />
+                  </button>
+
+                  {expanded && (
+                    <div className="admin-nav-submenu">
+                      {group.items.map(([id, label, Icon]) => (
+                        <button
+                          className={active === id ? 'active' : ''}
+                          onClick={() => {
+                            setActive(id)
+                            setMobileMenuOpen(false)
+                          }}
+                          key={id}
+                        >
+                          <Icon size={16} />
+                          <span>{label}</span>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )
+            })}
+          </div>
         </nav>
 
         {!appInstalled && (

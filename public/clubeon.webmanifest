@@ -1,0 +1,30 @@
+{
+  "name": "ClubeOn Admin",
+  "short_name": "ClubeOn",
+  "description": "Painel administrativo do ClubeOn",
+  "start_url": "/admin",
+  "scope": "/",
+  "display": "standalone",
+  "background_color": "#1f2937",
+  "theme_color": "#1f2937",
+  "icons": [
+    {
+      "src": "/clubeon-icon.svg?v=2",
+      "sizes": "192x192",
+      "type": "image/svg+xml",
+      "purpose": "any"
+    },
+    {
+      "src": "/clubeon-icon.svg?v=2",
+      "sizes": "512x512",
+      "type": "image/svg+xml",
+      "purpose": "any maskable"
+    }
+  ],
+  "id": "/admin",
+  "display_override": [
+    "window-controls-overlay",
+    "standalone",
+    "minimal-ui"
+  ]
+}

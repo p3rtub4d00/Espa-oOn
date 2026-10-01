@@ -358,7 +358,7 @@ const DEFAULT_SETTINGS = {
     text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
   },
   establishment: {
-    name: 'EspaçoOn',
+    name: 'ClubeOn',
     ownerName: '',
     phone: '',
     address: '',
@@ -369,9 +369,9 @@ const DEFAULT_SETTINGS = {
   },
   branding: {
     logoUrl: '',
-    primaryColor: '#0f3554',
-    secondaryColor: '#1f8efa',
-    accentColor: '#53b9ff',
+    primaryColor: '#1f2937',
+    secondaryColor: '#1769ff',
+    accentColor: '#76d900',
   },
   onboarding: {
     establishmentConfigured: false,
@@ -748,7 +748,7 @@ async function requireActiveLicense(req, res, next) {
 
     if (!license.active || billingBlocked) {
       return res.status(423).json({
-        error: 'Mensalidade do EspaçoOn pendente. Regularize a assinatura para continuar.',
+        error: 'Mensalidade do ClubeOn pendente. Regularize a assinatura para continuar.',
         code: 'LICENSE_SUSPENDED',
       })
     }
@@ -1878,7 +1878,7 @@ app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
     const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
     if (!license.demoMode && (!license.active || billingBlocked)) {
       return res.status(423).json({
-        error: 'Mensalidade do EspaçoOn pendente. Regularize a assinatura para acessar o painel.',
+        error: 'Mensalidade do ClubeOn pendente. Regularize a assinatura para acessar o painel.',
         code: 'LICENSE_SUSPENDED',
       })
     }
@@ -2097,7 +2097,7 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       customer,
       signedAt,
       signature,
-      establishmentName: textValue(settings.establishment?.name || 'EspaçoOn', 120),
+      establishmentName: textValue(settings.establishment?.name || 'ClubeOn', 120),
       cancellationPolicyText,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
@@ -2180,7 +2180,7 @@ app.post('/api/payments/mercadopago/checkout', requireBookingLicense, paymentLim
         amount: serverPrice,
         externalReference: reservationId,
         payerEmail: contract.customer.email,
-        description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
+        description: 'Reserva ClubeOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
         successUrl: returnBase + '&result=success',
         pendingUrl: returnBase + '&result=pending',
         failureUrl: returnBase + '&result=failure',
@@ -2303,7 +2303,7 @@ app.get('/api/payments/mercadopago/checkout/return', async (req, res) => {
           { $set: { paymentStatus: 'awaiting-payment', status: 'signed-awaiting-payment' } },
         )
         finalStatus = 'failure'
-        message = 'O pagamento não foi aprovado. Volte ao EspaçoOn para tentar novamente.'
+        message = 'O pagamento não foi aprovado. Volte ao ClubeOn para tentar novamente.'
       } else if (payment?.found) {
         await Reservation.updateOne(
           { id: reservation.id, paymentStatus: { $ne: 'paid' } },
@@ -2316,7 +2316,7 @@ app.get('/api/payments/mercadopago/checkout/return', async (req, res) => {
           },
         )
         finalStatus = payment.status || 'pending'
-        message = 'O pagamento está sendo processado. O EspaçoOn continuará verificando automaticamente.'
+        message = 'O pagamento está sendo processado. O ClubeOn continuará verificando automaticamente.'
       }
     }
   } catch (error) {
@@ -2338,18 +2338,18 @@ app.get('/api/payments/mercadopago/checkout/return', async (req, res) => {
 <head>
   <meta charset="utf-8">
   <meta name="viewport" content="width=device-width,initial-scale=1">
-  <title>Pagamento EspaçoOn</title>
+  <title>Pagamento ClubeOn</title>
   <style>
     body{margin:0;font-family:Arial,sans-serif;background:#f3f7fb;color:#16384b;display:grid;min-height:100vh;place-items:center}
     main{width:min(520px,calc(100% - 32px));padding:28px;border-radius:20px;background:white;box-shadow:0 18px 55px rgba(22,56,75,.12);text-align:center}
-    h1{font-size:22px;margin:0 0 10px}p{color:#667f8b;line-height:1.55}a{display:inline-block;margin-top:14px;padding:13px 18px;border-radius:11px;background:#1f8efa;color:white;text-decoration:none;font-weight:700}
+    h1{font-size:22px;margin:0 0 10px}p{color:#667f8b;line-height:1.55}a{display:inline-block;margin-top:14px;padding:13px 18px;border-radius:11px;background:#1769ff;color:white;text-decoration:none;font-weight:700}
   </style>
 </head>
 <body>
   <main>
     <h1>Retorno do Mercado Pago</h1>
     <p>${safeMessage}</p>
-    <a href="/?paymentReturn=${encodeURIComponent(finalStatus)}&reservationId=${encodeURIComponent(reservationId)}">Voltar ao EspaçoOn</a>
+    <a href="/?paymentReturn=${encodeURIComponent(finalStatus)}&reservationId=${encodeURIComponent(reservationId)}">Voltar ao ClubeOn</a>
   </main>
   <script>
     (function () {
@@ -2452,7 +2452,7 @@ app.post('/api/payments/mercadopago/card', requireBookingLicense, paymentLimiter
         amount: serverPrice,
         externalReference: reservationId,
         payerEmail: contract.customer.email,
-        description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
+        description: 'Reserva ClubeOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
         token,
         paymentMethodId,
         paymentTypeId,
@@ -2732,7 +2732,7 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
           amount: serverPrice,
           externalReference: reservationId,
           payerEmail: contract.customer.email,
-          description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
+          description: 'Reserva ClubeOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
         },
       })
 
@@ -2827,7 +2827,7 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
         billingType: 'PIX',
         value: serverPrice,
         dueDate,
-        description: 'Reserva EspaçoOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
+        description: 'Reserva ClubeOn - ' + displayDate(contractDateISO) + ' - ' + contract.period,
         externalReference: reservationId,
       },
     })
@@ -3586,7 +3586,7 @@ app.post('/api/admin/push/test-background', requireAdmin, async (req, res, next)
         await sendPushNotification(
           {
             title: 'Teste em segundo plano',
-            body: 'O EspaçoOn conseguiu notificar você com o app fechado.',
+            body: 'O ClubeOn conseguiu notificar você com o app fechado.',
             url: '/admin',
             tag: 'espacoon-background-test-' + Date.now(),
           },
@@ -3606,7 +3606,7 @@ app.post('/api/admin/push/test', requireAdmin, async (req, res, next) => {
     const endpoint = textValue(req.body?.endpoint, 2000) || null
     const result = await sendPushNotification(
       {
-        title: 'EspaçoOn',
+        title: 'ClubeOn',
         body: 'As notificações estão funcionando neste dispositivo.',
         url: '/admin',
         tag: 'espacoon-test',
@@ -4453,6 +4453,25 @@ async function migrateProductionData() {
 
   const settings = await Settings.findOne({ key: 'main' }).lean()
   if (settings) {
+    const brandMigration = {}
+
+    if (settings.establishment?.name === 'EspaçoOn') {
+      brandMigration['establishment.name'] = 'ClubeOn'
+    }
+    if (settings.branding?.primaryColor === '#0f3554') {
+      brandMigration['branding.primaryColor'] = '#1f2937'
+    }
+    if (settings.branding?.secondaryColor === '#1f8efa') {
+      brandMigration['branding.secondaryColor'] = '#1769ff'
+    }
+    if (settings.branding?.accentColor === '#53b9ff') {
+      brandMigration['branding.accentColor'] = '#76d900'
+    }
+
+    if (Object.keys(brandMigration).length) {
+      await Settings.updateOne({ key: 'main' }, { $set: brandMigration })
+    }
+
     const migratedBlockedDates = new Set(settings.blockedDates || [])
     for (const day of settings.blockedDays || []) {
       migratedBlockedDates.add('2026-10-' + String(day).padStart(2, '0'))
@@ -4546,11 +4565,11 @@ async function start() {
 
     console.log('Banco de dados conectado.')
     app.listen(PORT, '0.0.0.0', () => {
-      console.log('EspaçoOn em produção na porta ' + PORT)
+      console.log('ClubeOn em produção na porta ' + PORT)
       startReservationReminderScheduler()
     })
   } catch (error) {
-    console.error('Falha ao iniciar o EspaçoOn:', error?.message || error)
+    console.error('Falha ao iniciar o ClubeOn:', error?.message || error)
     process.exit(1)
   }
 }

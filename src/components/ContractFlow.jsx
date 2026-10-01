@@ -40,6 +40,32 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
     [reservation.id],
   )
 
+  const reservationSchedule = useMemo(() => {
+    const startTime = reservation.startTime || '08:00'
+    if (reservation.endTime) {
+      return {
+        startTime,
+        endTime: reservation.endTime,
+        nextDay: reservation.endDateISO && reservation.endDateISO !== reservation.dateISO,
+      }
+    }
+
+    const [hour, minute] = startTime.split(':').map(Number)
+    const start = new Date(reservation.dateISO + 'T00:00:00')
+    start.setHours(hour, minute, 0, 0)
+    const duration = reservation.period === '24h' ? 24 : 12
+    const end = new Date(start.getTime() + duration * 60 * 60 * 1000)
+
+    return {
+      startTime,
+      endTime:
+        String(end.getHours()).padStart(2, '0') +
+        ':' +
+        String(end.getMinutes()).padStart(2, '0'),
+      nextDay: end.toDateString() !== start.toDateString(),
+    }
+  }, [reservation.startTime, reservation.endTime, reservation.endDateISO, reservation.dateISO, reservation.period])
+
   useEffect(() => {
     let active = true
     api.getSettings()
@@ -229,9 +255,8 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <div>
                   <span>Horário</span>
                   <strong>
-                    {reservation.startTime || '-'}
-                    {reservation.endTime ? ' às ' + reservation.endTime : ''}
-                    {reservation.endDateISO && reservation.endDateISO !== reservation.dateISO ? ' • dia seguinte' : ''}
+                    {reservationSchedule.startTime} às {reservationSchedule.endTime}
+                    {reservationSchedule.nextDay ? ' • dia seguinte' : ''}
                   </strong>
                 </div>
                 <div><span>Valor total</span><strong>R$ {Number(reservation.price).toFixed(2).replace('.', ',')}</strong></div>

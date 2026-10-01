@@ -258,7 +258,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       const delivery = await sharePaymentDocuments(
         result.reservation,
         result.contract,
-        liveSettings.establishment?.name || result.contract?.establishmentName || 'EspaçoOn',
+        liveSettings.establishment?.name || result.contract?.establishmentName || 'ClubeOn',
       )
       setDeliveryStatus(delivery.method)
     } catch {
@@ -453,7 +453,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
       const result = await sharePaymentDocuments(
         paidReservation,
         signedContract,
-        liveSettings.establishment?.name || signedContract?.establishmentName || 'EspaçoOn',
+        liveSettings.establishment?.name || signedContract?.establishmentName || 'ClubeOn',
       )
       setDeliveryStatus(result.method)
     } catch {

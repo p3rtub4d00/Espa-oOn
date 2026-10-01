@@ -1993,6 +1993,18 @@ export default function AdminPanel({
               </label>
             </div>
 
+            <div className="establishment-form-grid">
+              {[
+                ['Responsável pelo tratamento dos dados (nome ou razão social)', 'controllerName', 'text'],
+                ['E-mail para solicitações sobre dados pessoais', 'contactEmail', 'email'],
+                ['Telefone para solicitações sobre dados pessoais', 'contactPhone', 'tel'],
+              ].map(([label, key, type]) => <label key={key}>
+                <span>{label}</span><input type={type} value={settings.privacy?.[key] || ''}
+                  onChange={event => updateSettingsDraft(current => ({ ...current, privacy: { ...(current.privacy || {}), [key]: event.target.value } }))} />
+              </label>)}
+            </div>
+            <p className="privacy-settings-note">Privacidade: informe o responsável e ao menos um canal de atendimento. Se o telefone específico ficar vazio, será usado o contato do estabelecimento. Salve em “Salvar dados”. <a href="/privacidade" target="_blank" rel="noreferrer">Ver política pública</a>.</p>
+
             <div className="establishment-actions">
               <button
                 onClick={async () => {

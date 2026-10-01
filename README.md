@@ -122,3 +122,7 @@ BACKUP_INTERVAL_HOURS=24
 ```
 
 Use um cluster/projeto Atlas separado do banco principal. Quando configurado, o serviço cria snapshots lógicos automaticamente e mantém a retenção definida. O endpoint `/api/health` informa se o backup está configurado e a data do último snapshot concluído.
+
+## Privacidade
+
+A página `/privacidade` é pública. Configure o responsável e o canal de contato em Dados do estabelecimento. O roteiro de guarda e atendimento está em [PRIVACY_OPERATIONS.md](PRIVACY_OPERATIONS.md).

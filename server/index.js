@@ -1,3 +1,4 @@
+import { buildPrivacyPolicy, sanitizePrivacyConfig } from './privacy.js'
 import { bindDeploymentDatabase } from './deployment-identity.js'
 import express from 'express'
 import mongoose from 'mongoose'
@@ -250,6 +251,7 @@ const settingsSchema = new mongoose.Schema(
     cancellationPolicy: {
       text: String,
     },
+    privacy: { controllerName: String, contactEmail: String, contactPhone: String },
     establishment: {
       name: String,
       ownerName: String,
@@ -892,6 +894,7 @@ async function checkMasterLicense({ force = false } = {}) {
         establishmentConfigured: settings.onboarding?.establishmentConfigured === true,
         pricesConfigured: settings.onboarding?.pricesConfigured === true,
         asaasConfigured: Boolean(ASAAS_API_KEY?.startsWith('$aact_prod_') && ASAAS_WEBHOOK_TOKEN),
+        privacyConfigured: buildPrivacyPolicy({ config: settings.privacy, establishment: settings.establishment }).configured,
       })).toString('base64url')
     }
     const response = await fetch(MASTER_API_URL + '/api/license/status', {
@@ -1260,6 +1263,7 @@ async function currentSettings() {
 
 function sanitizeSettingsUpdate(body = {}) {
   const update = {}
+  if (body.privacy !== undefined) update.privacy = sanitizePrivacyConfig(body.privacy)
 
   if (body.prices !== undefined) {
     const keys = ['weekday12', 'weekday24', 'weekend12', 'weekend24', 'sunday12', 'sunday24']
@@ -2054,6 +2058,20 @@ async function masterBillingRequest(pathname, options = {}) {
 
   return data
 }
+
+app.get('/api/privacy', async (_req, res, next) => {
+  try {
+    const settings = await currentSettings()
+    res.setHeader('Cache-Control', 'no-store')
+    res.json(buildPrivacyPolicy({ config: settings.privacy, establishment: settings.establishment, platformUrl: MASTER_API_URL }))
+  } catch (error) { next(error) }
+})
+
+// Responses with personal or administrative data must not be cached.
+app.use(['/api/admin', '/api/contracts', '/api/reservations', '/api/payments'], (_req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store')
+  next()
+})
 
 app.get('/api/health', (_req, res) => {
   res.json({
@@ -3791,17 +3809,17 @@ app.get('/api/contracts/:id/qr', lookupLimiter, async (req, res, next) => {
     })
 
     res.setHeader('Content-Type', 'image/png')
-    res.setHeader('Cache-Control', 'private, max-age=3600')
+    res.setHeader('Cache-Control', 'no-store')
     res.send(png)
   } catch (error) {
     next(error)
   }
 })
 
-app.get('/api/reservations/:code', lookupLimiter, async (req, res, next) => {
+app.post('/api/reservations/lookup', lookupLimiter, async (req, res, next) => {
   try {
-    const code = textValue(req.params.code, 60).toUpperCase()
-    const cpf = onlyDigits(req.query.cpf)
+    const code = textValue(req.body?.code, 60).toUpperCase()
+    const cpf = onlyDigits(req.body?.cpf)
 
     if (!isValidId(code, 'ESP') || !isValidCpf(cpf)) {
       return res.status(400).json({ error: 'Código da reserva ou CPF inválido.' })

@@ -89,7 +89,7 @@ export const api = {
     request('/api/payments/asaas/' + encodeURIComponent(reservationId) + '/status'),
 
   lookupReservation: (code, cpf) =>
-    request('/api/reservations/' + encodeURIComponent(code) + '?cpf=' + encodeURIComponent(cpf)),
+    request('/api/reservations/lookup', { method: 'POST', body: JSON.stringify({ code, cpf }) }),
 
   createVisit: (visit) =>
     request('/api/visits', {

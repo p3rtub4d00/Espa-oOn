@@ -107,3 +107,18 @@ O projeto está configurado para funcionar como **Web Service Node** no Render u
 Build Command: npm install && npm run build
 Start Command: npm start
 ```
+
+
+## Backup automático
+
+O serviço suporta backup lógico diário para um banco MongoDB separado.
+
+Variáveis:
+
+```
+BACKUP_MONGODB_URI=
+BACKUP_RETENTION_DAYS=14
+BACKUP_INTERVAL_HOURS=24
+```
+
+Use um cluster/projeto Atlas separado do banco principal. Quando configurado, o serviço cria snapshots lógicos automaticamente e mantém a retenção definida. O endpoint `/api/health` informa se o backup está configurado e a data do último snapshot concluído.

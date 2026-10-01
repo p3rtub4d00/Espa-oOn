@@ -1015,7 +1015,8 @@ footer p {
     display: grid;
   }
 
-  .hero-actions button {
+  .hero-actions button,
+  .hero-actions a {
     width: 100%;
   }
 
@@ -2316,4 +2317,33 @@ footer {
     max-width: 100%;
     box-sizing: border-box;
   }
+}
+
+/* Public shortcut available only while the licensed club is in demo mode. */
+.btn-demo-admin {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 9px;
+  padding: 14px 18px;
+  border: 1px solid rgba(255, 255, 255, .65);
+  border-radius: 13px;
+  background: #fff;
+  color: #172b45;
+  font-weight: 800;
+  text-align: center;
+  transition: background .2s ease;
+}
+
+.btn-demo-admin:hover {
+  background: #e8f4ff;
+}
+
+.btn-demo-admin:focus-visible {
+  outline: 3px solid #fff;
+  outline-offset: 4px;
+}
+
+.btn-demo-admin svg {
+  flex-shrink: 0;
 }

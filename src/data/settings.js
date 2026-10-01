@@ -43,7 +43,7 @@ export const DEFAULT_SETTINGS = {
     text: 'Cancelamentos devem ser solicitados ao proprietário. A existência e o valor de eventual reembolso dependem da antecedência, das condições da reserva e da política informada pelo estabelecimento. Todo cancelamento e eventual valor devolvido serão registrados no sistema.',
   },
   establishment: {
-    name: 'EspaçoOn',
+    name: 'ClubeOn',
     ownerName: '',
     phone: '',
     address: '',
@@ -54,9 +54,9 @@ export const DEFAULT_SETTINGS = {
   },
   branding: {
     logoUrl: '',
-    primaryColor: '#0f3554',
-    secondaryColor: '#1f8efa',
-    accentColor: '#53b9ff',
+    primaryColor: '#1f2937',
+    secondaryColor: '#1769ff',
+    accentColor: '#76d900',
   },
   onboarding: {
     establishmentConfigured: false,

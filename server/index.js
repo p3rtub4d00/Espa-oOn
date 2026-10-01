@@ -2583,6 +2583,33 @@ app.post('/api/payments/asaas/pix', requireBookingLicense, paymentLimiter, async
         },
       )
 
+      if (!savedReservation.pushPaidNotifiedAt) {
+        const settings = await currentSettings()
+        if (settings.notifications?.notifyPaidReservation !== false) {
+          const result = await sendPushNotification({
+            title: 'Nova reserva confirmada',
+            body:
+              (savedReservation.customer?.name || 'Cliente') +
+              ' • ' +
+              (savedReservation.date || displayDate(savedReservation.dateISO)) +
+              ' • ' +
+              Number(savedReservation.price || 0).toLocaleString('pt-BR', {
+                style: 'currency',
+                currency: 'BRL',
+              }),
+            url: '/admin',
+            tag: 'reservation-' + savedReservation.id,
+          })
+
+          if (result.sent > 0) {
+            await Reservation.updateOne(
+              { id: savedReservation.id, pushPaidNotifiedAt: null },
+              { $set: { pushPaidNotifiedAt: new Date() } },
+            )
+          }
+        }
+      }
+
       return res.json({
         paid: true,
         demo: true,

@@ -1,3 +1,4 @@
+import { CLEANING_CLAUSE_TEXT } from '../shared/contract-terms.js'
 import { buildPrivacyPolicy, sanitizePrivacyConfig } from './privacy.js'
 import { bindDeploymentDatabase } from './deployment-identity.js'
 import express from 'express'
@@ -191,6 +192,7 @@ const contractSchema = new mongoose.Schema(
     paymentStatus: { type: String, default: 'awaiting-payment' },
     paidAt: Date,
     cancellationPolicyText: String,
+    cleaningClauseText: String,
     establishmentName: String,
     cancellation: mongoose.Schema.Types.Mixed,
   },
@@ -1131,6 +1133,10 @@ function contractHash(contract) {
 
   if (contract.cancellationPolicyText) {
     canonicalParts.push(contract.cancellationPolicyText)
+  }
+
+  if (contract.cleaningClauseText) {
+    canonicalParts.push('CLEANING_V1', contract.cleaningClauseText)
   }
 
   return crypto.createHash('sha256').update(canonicalParts.join('|')).digest('hex').toUpperCase()
@@ -2293,7 +2299,7 @@ app.get('/api/settings', async (_req, res, next) => {
     const settings = await Settings.findOne({ key: 'main' }).lean()
     const source = settings || DEFAULT_SETTINGS
     const { notifications, ...publicSettings } = source
-    res.json(publicSettings)
+    res.json({ ...publicSettings, contractTerms: { cleaningClauseText: CLEANING_CLAUSE_TEXT } })
   } catch (error) {
     next(error)
   }
@@ -2416,6 +2422,10 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       })
     }
 
+    if (payload.cleaningClauseText !== CLEANING_CLAUSE_TEXT) {
+      return res.status(409).json({ error: 'O contrato foi atualizado com a cláusula de limpeza. Atualize a página e leia o contrato antes de assinar.' })
+    }
+
     const contractRecord = {
       id: payload.id,
       reservationId: payload.reservationId,
@@ -2434,6 +2444,7 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       signature,
       establishmentName: textValue(settings.establishment?.name || 'ClubeOn', 120),
       cancellationPolicyText,
+      cleaningClauseText: CLEANING_CLAUSE_TEXT,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
     }

@@ -31,6 +31,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [saving, setSaving] = useState(false)
   const [saveError, setSaveError] = useState('')
   const [cancellationPolicyText, setCancellationPolicyText] = useState('')
+  const [cleaningClauseText, setCleaningClauseText] = useState('')
   const [policyLoading, setPolicyLoading] = useState(true)
   const [policyLoadError, setPolicyLoadError] = useState('')
   const [establishmentName, setEstablishmentName] = useState('ClubeOn')
@@ -77,6 +78,9 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
           throw new Error('A política de cancelamento ainda não foi configurada corretamente.')
         }
 
+        const cleaningText = String(settings?.contractTerms?.cleaningClauseText || '').trim()
+        if (!cleaningText) throw new Error('Não foi possível carregar a cláusula de limpeza. Atualize a página e tente novamente.')
+        setCleaningClauseText(cleaningText)
         setCancellationPolicyText(policyText)
         if (settings?.establishment?.name) {
           setEstablishmentName(settings.establishment.name)
@@ -169,7 +173,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   }
 
   const signContract = async () => {
-    if (!accepted || !hasSignature || saving || policyLoading || policyLoadError || !cancellationPolicyText) return
+    if (!accepted || !hasSignature || saving || policyLoading || policyLoadError || !cancellationPolicyText || !cleaningClauseText) return
     setSaving(true)
     setSaveError('')
 
@@ -192,6 +196,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       signature,
       establishmentName,
       cancellationPolicyText,
+      cleaningClauseText,
       status: 'signed-awaiting-payment',
       paymentStatus: 'awaiting-payment',
     }
@@ -317,6 +322,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                   a assinatura desenhada, a data e hora, o identificador do documento e um hash SHA-256
                   calculado no servidor para verificação de integridade.
                 </p>
+                <p><strong>7. Limpeza e devolução do espaço.</strong> {cleaningClauseText}</p>
               </div>
 
               <div className="contract-evidence">
@@ -357,11 +363,11 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
                 <input
                   type="checkbox"
                   checked={accepted}
-                  disabled={policyLoading || Boolean(policyLoadError) || !cancellationPolicyText}
+                  disabled={policyLoading || Boolean(policyLoadError) || !cancellationPolicyText || !cleaningClauseText}
                   onChange={(event) => setAccepted(event.target.checked)}
                 />
                 <span>
-                  Li o documento acima, inclusive a política de cancelamento e reembolso, concordo com seus termos
+                  Li o documento acima, inclusive a política de cancelamento e reembolso e a cláusula de limpeza, concordo com seus termos
                   e autorizo o registro da minha assinatura eletrônica.
                 </span>
               </label>

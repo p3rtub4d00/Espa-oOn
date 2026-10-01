@@ -1350,3 +1350,56 @@
     grid-template-columns: 1fr;
   }
 }
+
+
+/* Mobile booking flow hardening */
+@media (max-width: 640px) {
+  .booking-backdrop {
+    padding: 8px;
+    align-items: stretch;
+    overflow: hidden;
+  }
+
+  .booking-modal {
+    width: 100%;
+    max-width: 100%;
+    max-height: calc(100dvh - 16px);
+    min-width: 0;
+    border-radius: 14px;
+    overflow-x: hidden;
+    overflow-y: auto;
+  }
+
+  .booking-content,
+  .booking-step,
+  .booking-form,
+  .booking-summary,
+  .booking-extras,
+  .booking-time-choice,
+  .booking-selected-extras-summary {
+    min-width: 0;
+    max-width: 100%;
+    box-sizing: border-box;
+  }
+
+  .booking-form {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-form .full {
+    grid-column: auto;
+  }
+
+  .period-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .booking-progress {
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .booking-progress::-webkit-scrollbar {
+    display: none;
+  }
+}

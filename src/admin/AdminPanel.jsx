@@ -2180,7 +2180,7 @@ export default function AdminPanel({
                   }))
                 }}
               >
-                Restaurar cores padrão
+                Restaurar cores ClubeOn
               </button>
             </div>
           </section>

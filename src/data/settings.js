@@ -13,6 +13,10 @@ export const DEFAULT_SETTINGS = {
     '12h': '08:00 às 20:00',
     '24h': '08:00 às 08:00 do dia seguinte',
   },
+  rentalStartTimes: {
+    '12h': ['08:00'],
+    '24h': ['08:00'],
+  },
   gallery: [
     'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=85',
     'https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=1200&q=85',
@@ -65,6 +69,10 @@ export function loadSettings() {
     ...DEFAULT_SETTINGS,
     prices: { ...DEFAULT_SETTINGS.prices },
     rentalHours: { ...DEFAULT_SETTINGS.rentalHours },
+    rentalStartTimes: {
+      '12h': [...DEFAULT_SETTINGS.rentalStartTimes['12h']],
+      '24h': [...DEFAULT_SETTINGS.rentalStartTimes['24h']],
+    },
     blockedDates: [],
     specialDates: [],
     gallery: [...DEFAULT_SETTINGS.gallery],

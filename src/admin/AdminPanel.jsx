@@ -214,6 +214,7 @@ export default function AdminPanel({
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
   const [deletingReservationId, setDeletingReservationId] = useState('')
+  const [manualMarkingPaidId, setManualMarkingPaidId] = useState('')
   const [manualReservationOpen, setManualReservationOpen] = useState(false)
   const [manualReservationBusy, setManualReservationBusy] = useState(false)
   const [manualReservationError, setManualReservationError] = useState('')
@@ -1002,7 +1003,62 @@ export default function AdminPanel({
                         <X size={14} />
                         Cancelar
                       </button>
-                    ) : ['pending-asaas', 'pending-mercadopago', 'awaiting-payment', 'manual-pending', 'manual-deposit', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
+                    ) : r.source === 'manual' && ['manual-pending', 'manual-deposit'].includes(r.paymentStatus) ? (
+                      <div className="manual-reservation-row-actions">
+                        <button
+                          className="manual-mark-paid"
+                          disabled={manualMarkingPaidId === r.id}
+                          onClick={async () => {
+                            const confirmed = window.confirm(
+                              'Confirmar que o valor total desta reserva manual foi recebido?'
+                            )
+                            if (!confirmed) return
+
+                            setManualMarkingPaidId(r.id)
+                            setAdminError('')
+                            try {
+                              const saved = await api.markManualReservationPaid(r.id)
+                              setReservations((current) =>
+                                current.map((item) => item.id === saved.id ? saved : item)
+                              )
+                            } catch (error) {
+                              setAdminError(error.message || 'Não foi possível marcar a reserva como paga.')
+                            } finally {
+                              setManualMarkingPaidId('')
+                            }
+                          }}
+                        >
+                          <CheckCircle2 size={14} />
+                          {manualMarkingPaidId === r.id ? 'Salvando...' : 'Marcar pago'}
+                        </button>
+                        <button
+                          className="delete-pending-reservation"
+                          disabled={deletingReservationId === r.id}
+                          onClick={async () => {
+                            const confirmed = window.confirm(
+                              r.paymentStatus === 'manual-deposit'
+                                ? 'Excluir esta reserva com sinal registrado? A data será liberada.'
+                                : 'Excluir esta reserva manual pendente? A data será liberada quando estiver bloqueada.'
+                            )
+                            if (!confirmed) return
+
+                            setDeletingReservationId(r.id)
+                            setAdminError('')
+                            try {
+                              await api.deletePendingReservation(r.id)
+                              setReservations((current) => current.filter((item) => item.id !== r.id))
+                            } catch (error) {
+                              setAdminError(error.message || 'Não foi possível excluir a reserva.')
+                            } finally {
+                              setDeletingReservationId('')
+                            }
+                          }}
+                        >
+                          <Trash2 size={14} />
+                          {deletingReservationId === r.id ? 'Excluindo...' : 'Excluir'}
+                        </button>
+                      </div>
+                    ) : ['pending-asaas', 'pending-mercadopago', 'awaiting-payment', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
                       <button
                         className="delete-pending-reservation"
                         disabled={deletingReservationId === r.id}

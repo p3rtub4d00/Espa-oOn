@@ -117,7 +117,7 @@ export default function ContractsPanel() {
             <div className="admin-contract-document">
               <div className="admin-contract-heading">
                 <div>
-                  <span>{selected.establishmentName || 'EspaçoOn'}</span>
+                  <span>{selected.establishmentName || 'ClubeOn'}</span>
                   <h2>Contrato de locação do espaço de lazer</h2>
                 </div>
                 <i className={
@@ -174,7 +174,7 @@ export default function ContractsPanel() {
               )}
 
               <div className="admin-contract-text">
-                <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma {selected.establishmentName || 'EspaçoOn'}, na data e período informados acima.</p>
+                <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma {selected.establishmentName || 'ClubeOn'}, na data e período informados acima.</p>
                 <p><strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.</p>
                 <p><strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.</p>
                 <p><strong>4. Pagamento.</strong> O valor indicado neste documento é cobrado por meio eletrônico disponibilizado pelo estabelecimento, e a reserva é confirmada após a confirmação eletrônica do recebimento.</p>
@@ -229,7 +229,7 @@ export default function ContractsPanel() {
               <div className="admin-contract-note">
                 <ShieldCheck />
                 <span>
-                  Este painel exibe o registro eletrônico armazenado no servidor do EspaçoOn.
+                  Este painel exibe o registro eletrônico armazenado no servidor do ClubeOn.
                 </span>
               </div>
             </div>

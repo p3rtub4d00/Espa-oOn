@@ -93,6 +93,11 @@ export const api = {
     }),
 
   adminReservations: () => request('/api/admin/reservations'),
+  createManualReservation: (reservation) =>
+    request('/api/admin/reservations/manual', {
+      method: 'POST',
+      body: JSON.stringify(reservation),
+    }),
   deletePendingReservation: (id) =>
     request('/api/admin/reservations/' + encodeURIComponent(id), { method: 'DELETE' }),
   cancelPaidReservation: (id, reason, refundAmount) =>

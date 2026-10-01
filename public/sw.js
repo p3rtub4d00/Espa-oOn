@@ -12,15 +12,15 @@ self.addEventListener('push', (event) => {
   try {
     data = event.data ? event.data.json() : {}
   } catch {
-    data = { title: 'EspaçoOn', body: event.data ? event.data.text() : '' }
+    data = { title: 'ClubeOn', body: event.data ? event.data.text() : '' }
   }
 
-  const title = data.title || 'EspaçoOn'
+  const title = data.title || 'ClubeOn'
   const options = {
     body: data.body || 'Você recebeu uma nova notificação.',
-    icon: '/icon.svg',
-    badge: '/icon.svg',
-    tag: data.tag || 'espacoon-notification',
+    icon: '/clubeon-icon.svg?v=2',
+    badge: '/clubeon-icon.svg?v=2',
+    tag: data.tag || 'clubeon-notification',
     renotify: true,
     data: {
       url: data.url || '/admin',

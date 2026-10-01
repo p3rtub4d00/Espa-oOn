@@ -1,12 +1,12 @@
 {
-  "name": "EspaçoOn Admin",
-  "short_name": "EspaçoOn Admin",
-  "description": "Painel administrativo do EspaçoOn",
+  "name": "ClubeOn Admin",
+  "short_name": "ClubeOn Admin",
+  "description": "Painel administrativo do ClubeOn",
   "start_url": "/admin",
   "scope": "/",
   "display": "standalone",
-  "background_color": "#0f3554",
-  "theme_color": "#0f3554",
+  "background_color": "#1f2937",
+  "theme_color": "#1f2937",
   "icons": [
     {
       "src": "/icon.svg",

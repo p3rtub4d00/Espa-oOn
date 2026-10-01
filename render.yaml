@@ -4,7 +4,7 @@ services:
     runtime: node
     repo: https://github.com/p3rtub4d00/Espa-oOn
     branch: main
-    buildCommand: npm install && npm run build
+    buildCommand: npm ci --include=dev && npm run build
     startCommand: npm start
     autoDeploy: false
     envVars:

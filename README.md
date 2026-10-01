@@ -72,7 +72,7 @@ Eventos utilizados pelo sistema:
 ## Build e execução
 
 ```bash
-npm install
+npm ci --include=dev
 npm run build
 npm start
 ```
@@ -104,7 +104,7 @@ O Express serve o frontend compilado e a API no mesmo domínio.
 O projeto está configurado para funcionar como **Web Service Node** no Render usando:
 
 ```text
-Build Command: npm install && npm run build
+Build Command: npm ci --include=dev && npm run build
 Start Command: npm start
 ```
 

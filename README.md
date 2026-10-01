@@ -39,7 +39,6 @@ Configure no Render:
 
 ```env
 MONGODB_URI=
-ADMIN_PASSWORD=
 JWT_SECRET=
 ASAAS_API_KEY=
 ASAAS_ENV=production
@@ -48,7 +47,6 @@ ASAAS_WEBHOOK_TOKEN=
 
 Requisitos de segurança usados pelo backend:
 
-- `ADMIN_PASSWORD`: pelo menos 10 caracteres.
 - `JWT_SECRET`: pelo menos 32 caracteres.
 - `ASAAS_API_KEY`: chave de produção iniciando com `$aact_prod_`.
 - `ASAAS_WEBHOOK_TOKEN`: pelo menos 32 caracteres.

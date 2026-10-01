@@ -143,6 +143,17 @@ export default function ContractsPanel() {
                 <div><span>Telefone</span><strong>{selected.customer?.phone || '-'}</strong></div>
                 <div><span>Data da locação</span><strong>{selected.reservationDate || '-'}</strong></div>
                 <div><span>Período</span><strong>{selected.period || '-'}</strong></div>
+                <div>
+                  <span>Horário</span>
+                  <strong>
+                    {selected.startTime
+                      ? selected.startTime + ' às ' + (selected.endTime || '-') +
+                        (selected.endDateISO && selected.endDateISO !== selected.reservationDateISO
+                          ? ' • dia seguinte'
+                          : '')
+                      : '-'}
+                  </strong>
+                </div>
                 <div><span>Aluguel</span><strong>{money(selected.basePrice || selected.price)}</strong></div>
                 <div><span>Adicionais</span><strong>{money(selected.extrasTotal || 0)}</strong></div>
                 <div><span>Valor total</span><strong>{money(selected.price)}</strong></div>

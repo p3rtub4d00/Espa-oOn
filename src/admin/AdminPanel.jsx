@@ -82,6 +82,8 @@ function paymentStatusLabel(status, paymentMethod = '', holdUntil = null) {
     return (paymentMethod === 'card' ? 'Aguardando cartão' : 'Aguardando Pix') + remainingLabel
   }
   if (status === 'pending-asaas') return 'Aguardando Pix' + remainingLabel
+  if (status === 'manual-pending') return 'Reserva manual • pagamento pendente'
+  if (status === 'manual-deposit') return 'Reserva manual • sinal recebido'
   if (status === 'manual-review') return 'Conferência manual'
   if (status === 'refunded') return 'Estornado'
   if (status === 'cancelled') return 'Cancelado'
@@ -205,6 +207,23 @@ export default function AdminPanel({
   const [resetLoading, setResetLoading] = useState(false)
   const [resetError, setResetError] = useState('')
   const [deletingReservationId, setDeletingReservationId] = useState('')
+  const [manualReservationOpen, setManualReservationOpen] = useState(false)
+  const [manualReservationBusy, setManualReservationBusy] = useState(false)
+  const [manualReservationError, setManualReservationError] = useState('')
+  const [manualReservationForm, setManualReservationForm] = useState({
+    name: '',
+    phone: '',
+    cpf: '',
+    dateISO: '',
+    period: '12h',
+    basePrice: '',
+    paymentStatus: 'paid',
+    paymentMethod: 'pix',
+    amountPaid: '',
+    blockDate: true,
+    manualNote: '',
+    extras: {},
+  })
   const [cancellingReservation, setCancellingReservation] = useState(null)
   const [cancellationReason, setCancellationReason] = useState('')
   const [cancellationRefund, setCancellationRefund] = useState('0')
@@ -363,6 +382,13 @@ export default function AdminPanel({
 
   const prices = settings.prices
   const extras = Array.isArray(settings.extras) ? settings.extras : []
+  const activeExtras = extras.filter((item) => item?.active === true)
+  const manualExtrasTotal = activeExtras.reduce((sum, item) => {
+    const quantity = Math.max(0, Math.min(100, Math.floor(Number(manualReservationForm.extras?.[item.id] || 0))))
+    return sum + quantity * Number(item.price || 0)
+  }, 0)
+  const manualBasePrice = Number(manualReservationForm.basePrice || 0)
+  const manualTotal = Math.round((manualBasePrice + manualExtrasTotal) * 100) / 100
   const blockedDates = new Set(settings.blockedDates || [])
 
   const adminMonthDays = useMemo(() => {
@@ -882,14 +908,28 @@ export default function AdminPanel({
 
         {active === 'reservations' && (
           <section className="admin-card large">
-            <div className="admin-card-title">
+            <div className="admin-card-title reservations-title">
               <div><span>Gestão de reservas</span><strong>{reservations.length} registros</strong></div>
+              <button
+                className="manual-reservation-open"
+                onClick={() => {
+                  setManualReservationError('')
+                  setManualReservationOpen(true)
+                }}
+              >
+                <ListPlus size={16} />
+                Nova reserva manual
+              </button>
             </div>
             <div className="admin-table">
               <div className="table-head reservations-head"><span>Cliente</span><span>Data</span><span>Período</span><span>Valor</span><span>Status</span><span>Ações</span></div>
               {reservations.map((r) => (
                 <div className="table-row" key={r.id}>
-                  <span><strong>{r.customer?.name || 'Cliente'}</strong><small>{r.customer?.phone || r.id}</small></span>
+                  <span>
+                    <strong>{r.customer?.name || 'Cliente'}</strong>
+                    <small>{r.customer?.phone || r.id}</small>
+                    {r.source === 'manual' && <small className="manual-reservation-badge">Reserva manual</small>}
+                  </span>
                   <span>{r.date}</span>
                   <span>{r.period}</span>
                   <span>{money(r.price)}</span>
@@ -955,7 +995,7 @@ export default function AdminPanel({
                         <X size={14} />
                         Cancelar
                       </button>
-                    ) : ['pending-asaas', 'pending-mercadopago', 'awaiting-payment', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
+                    ) : ['pending-asaas', 'pending-mercadopago', 'awaiting-payment', 'manual-pending', 'manual-deposit', 'expired', 'cancelled'].includes(r.paymentStatus) ? (
                       <button
                         className="delete-pending-reservation"
                         disabled={deletingReservationId === r.id}

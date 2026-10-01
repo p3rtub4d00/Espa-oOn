@@ -2325,21 +2325,22 @@ footer {
   justify-content: center;
   gap: 9px;
   padding: 14px 18px;
-  border: 1px solid rgba(255, 255, 255, .65);
+  border: 1px solid #1455c0;
   border-radius: 13px;
-  background: #fff;
-  color: #172b45;
+  background: #1455c0;
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(20, 85, 192, .2);
   font-weight: 800;
   text-align: center;
   transition: background .2s ease;
 }
 
 .btn-demo-admin:hover {
-  background: #e8f4ff;
+  background: #10459d;
 }
 
 .btn-demo-admin:focus-visible {
-  outline: 3px solid #fff;
+  outline: 3px solid #1455c0;
   outline-offset: 4px;
 }
 
@@ -2429,7 +2430,7 @@ footer {
 }
 
 .demo-sales-actions .btn-demo-admin {
-  border-color: #d4e1ef;
+  border-color: #1455c0;
   font-size: 14px;
   line-height: 1.4;
 }

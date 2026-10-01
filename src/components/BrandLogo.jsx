@@ -1,13 +1,14 @@
 export default function BrandLogo({
   className = '',
   showAdmin = false,
-  name = 'EspaçoOn',
+  name = 'ClubeOn',
   logoUrl = '',
-  primaryColor = '#0f3554',
-  secondaryColor = '#1f8efa',
-  accentColor = '#53b9ff',
+  primaryColor = '#1f2937',
+  secondaryColor = '#1769ff',
+  accentColor = '#76d900',
 }) {
-  const accessibleName = name || 'EspaçoOn'
+  const accessibleName = name || 'ClubeOn'
+  const isClubeOn = accessibleName.trim().toLowerCase() === 'clubeon'
 
   if (logoUrl) {
     return (
@@ -32,49 +33,51 @@ export default function BrandLogo({
         aria-hidden="true"
       >
         <defs>
-          <linearGradient id="brandDeep" x1="10" y1="10" x2="105" y2="105" gradientUnits="userSpaceOnUse">
-            <stop offset="0" stopColor={primaryColor} />
-            <stop offset=".55" stopColor={secondaryColor} />
+          <linearGradient id="clubeOnCard" x1="24" y1="38" x2="86" y2="82" gradientUnits="userSpaceOnUse">
+            <stop offset="0" stopColor={secondaryColor} />
             <stop offset="1" stopColor={secondaryColor} />
           </linearGradient>
-          <linearGradient id="brandLight" x1="15" y1="55" x2="108" y2="90" gradientUnits="userSpaceOnUse">
+          <linearGradient id="clubeOnPower" x1="73" y1="68" x2="108" y2="103" gradientUnits="userSpaceOnUse">
             <stop offset="0" stopColor={accentColor} />
-            <stop offset="1" stopColor={secondaryColor} />
+            <stop offset="1" stopColor={accentColor} />
           </linearGradient>
         </defs>
 
-        <path
-          d="M61 5C34 5 13 25 13 52c0 22 13 39 31 48l17 14 15-14c10-5 18-12 24-21-12 7-26 10-39 7-19-4-32-20-32-39 0-18 12-33 29-39 9-3 19-3 28 0H61Z"
-          fill="url(#brandDeep)"
-        />
-        <path
-          d="M23 55c9 20 27 31 47 30 12 0 24-4 33-11-8 15-21 26-37 31l-6 8-11-9C34 96 24 84 18 70c-2-5-3-10-3-15 2 0 5 0 8 0Z"
-          fill="url(#brandLight)"
-        />
-        <path
-          d="M36 73c14 9 30 12 46 8 9-2 17-6 25-11-7 12-18 21-31 26-14 5-31 4-45-3 10-2 19-8 25-15-7 1-14-1-20-5Z"
-          fill={accentColor}
-          opacity=".92"
-        />
+        <rect x="16" y="18" width="78" height="82" rx="20" fill={primaryColor} />
+        <rect x="23" y="33" width="64" height="58" rx="13" fill="#ffffff" />
+        <rect x="27" y="41" width="56" height="18" rx="7" fill="url(#clubeOnCard)" />
+        <rect x="27" y="64" width="56" height="19" rx="7" fill={secondaryColor} opacity=".96" />
+        <rect x="34" y="70" width="20" height="6" rx="3" fill="#ffffff" opacity=".95" />
 
-        <g transform="translate(45 34)">
-          <rect x="0" y="8" width="42" height="33" rx="8" fill={primaryColor} />
-          <rect x="4" y="13" width="34" height="24" rx="5" fill={primaryColor} />
-          <rect x="9" y="0" width="5" height="13" rx="2.5" fill={secondaryColor} />
-          <rect x="28" y="0" width="5" height="13" rx="2.5" fill={secondaryColor} />
-          <path
-            d="m13 26 7 7 12-15"
-            fill="none"
-            stroke={secondaryColor}
-            strokeWidth="5"
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          />
-        </g>
+        <rect x="31" y="9" width="11" height="25" rx="5.5" fill={primaryColor} />
+        <rect x="68" y="9" width="11" height="25" rx="5.5" fill={primaryColor} />
+
+        <circle cx="86" cy="84" r="25" fill="#ffffff" />
+        <path
+          d="M86 64a20 20 0 1 0 14.2 5.9"
+          fill="none"
+          stroke="url(#clubeOnPower)"
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
+        <path
+          d="M86 58v25"
+          fill="none"
+          stroke={accentColor}
+          strokeWidth="9"
+          strokeLinecap="round"
+        />
       </svg>
 
-      <span className="brand-logo-word">
-        <span>{accessibleName}</span>
+      <span className={`brand-logo-word ${isClubeOn ? 'brand-logo-word-clubeon' : ''}`.trim()}>
+        {isClubeOn ? (
+          <span className="brand-logo-name">
+            <span className="brand-logo-clube">Clube</span>
+            <span className="brand-logo-on">On</span>
+          </span>
+        ) : (
+          <span>{accessibleName}</span>
+        )}
         {showAdmin && <small>Admin</small>}
       </span>
     </span>

@@ -637,6 +637,9 @@ let backupState = {
 
 async function ensureBackupConnection() {
   if (!BACKUP_MONGODB_URI) return null
+  if (BACKUP_MONGODB_URI === String(MONGODB_URI || '').trim()) {
+    throw new Error('BACKUP_MONGODB_URI deve apontar para um banco diferente do banco principal.')
+  }
   if (backupConnection?.readyState === 1) return backupConnection
 
   if (backupConnection) {
@@ -772,7 +775,12 @@ async function runDatabaseBackup({ force = false, reason = 'scheduled' } = {}) {
         await documentCollection.insertMany(batch, { ordered: false })
       }
 
-      summary.push({ name, count })
+      const indexes = await mongoose.connection.db.collection(name).indexes().catch(() => [])
+      summary.push({
+        name,
+        count,
+        indexes: indexes.map(({ v, ns, ...index }) => index),
+      })
     }
 
     const completedAt = new Date()

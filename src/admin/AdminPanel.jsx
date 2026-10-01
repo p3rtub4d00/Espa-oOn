@@ -224,6 +224,7 @@ export default function AdminPanel({
     cpf: '',
     dateISO: '',
     period: '12h',
+    startTime: '08:00',
     basePrice: '',
     paymentStatus: 'paid',
     paymentMethod: 'pix',
@@ -391,6 +392,14 @@ export default function AdminPanel({
   const prices = settings.prices
   const extras = Array.isArray(settings.extras) ? settings.extras : []
   const activeExtras = extras.filter((item) => item?.active === true)
+  const rentalStartTimes = {
+    '12h': Array.isArray(settings.rentalStartTimes?.['12h']) && settings.rentalStartTimes['12h'].length
+      ? settings.rentalStartTimes['12h']
+      : ['08:00'],
+    '24h': Array.isArray(settings.rentalStartTimes?.['24h']) && settings.rentalStartTimes['24h'].length
+      ? settings.rentalStartTimes['24h']
+      : ['08:00'],
+  }
   const manualExtrasTotal = activeExtras.reduce((sum, item) => {
     const quantity = Math.max(0, Math.min(100, Math.floor(Number(manualReservationForm.extras?.[item.id] || 0))))
     return sum + quantity * Number(item.price || 0)
@@ -1617,6 +1626,37 @@ export default function AdminPanel({
                 </label>
               ))}
             </div>
+            <div className="rental-time-settings">
+              <div className="rental-time-settings-head">
+                <strong>Horários de entrada disponíveis</strong>
+                <span>Separe os horários por vírgula. Ex.: 08:00, 18:00</span>
+              </div>
+
+              {['12h', '24h'].map((period) => (
+                <label key={period}>
+                  <span>{period === '12h' ? 'Reservas de 12 horas' : 'Reservas de 24 horas'}</span>
+                  <input
+                    value={(rentalStartTimes[period] || []).join(', ')}
+                    onChange={(e) => {
+                      const values = e.target.value
+                        .split(',')
+                        .map((value) => value.trim())
+                        .filter(Boolean)
+
+                      updateSettingsDraft((current) => ({
+                        ...current,
+                        rentalStartTimes: {
+                          ...(current.rentalStartTimes || {}),
+                          [period]: values,
+                        },
+                      }))
+                    }}
+                    placeholder="08:00, 18:00"
+                  />
+                </label>
+              ))}
+            </div>
+
             <div className="establishment-actions">
               <button
                 onClick={async () => {
@@ -2554,10 +2594,29 @@ export default function AdminPanel({
                   <span>Período</span>
                   <select
                     value={manualReservationForm.period}
-                    onChange={(e) => setManualReservationForm((current) => ({ ...current, period: e.target.value }))}
+                    onChange={(e) => {
+                      const period = e.target.value
+                      setManualReservationForm((current) => ({
+                        ...current,
+                        period,
+                        startTime: rentalStartTimes[period]?.[0] || '08:00',
+                      }))
+                    }}
                   >
                     <option value="12h">12 horas</option>
                     <option value="24h">24 horas</option>
+                  </select>
+                </label>
+
+                <label>
+                  <span>Horário de entrada</span>
+                  <select
+                    value={manualReservationForm.startTime}
+                    onChange={(e) => setManualReservationForm((current) => ({ ...current, startTime: e.target.value }))}
+                  >
+                    {(rentalStartTimes[manualReservationForm.period] || ['08:00']).map((time) => (
+                      <option value={time} key={time}>{time}</option>
+                    ))}
                   </select>
                 </label>
 
@@ -2772,6 +2831,7 @@ export default function AdminPanel({
                         },
                         dateISO: manualReservationForm.dateISO,
                         period: manualReservationForm.period,
+                        startTime: manualReservationForm.startTime,
                         basePrice: manualBasePrice,
                         paymentStatus: manualReservationForm.paymentStatus,
                         paymentMethod: manualReservationForm.paymentMethod,
@@ -2789,6 +2849,7 @@ export default function AdminPanel({
                         cpf: '',
                         dateISO: '',
                         period: '12h',
+                        startTime: rentalStartTimes['12h']?.[0] || '08:00',
                         basePrice: '',
                         paymentStatus: 'paid',
                         paymentMethod: 'pix',

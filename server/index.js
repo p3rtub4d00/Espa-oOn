@@ -1761,6 +1761,42 @@ async function cleanupExpiredLocks() {
   }
 }
 
+async function verifyAdminPasswordAgainstMaster(password, license = null) {
+  if (license?.demoMode) {
+    return { valid: true, configured: false, demoMode: true, legacyFallback: false }
+  }
+
+  let masterResult = null
+
+  if (MASTER_LICENSE_CONFIGURED) {
+    try {
+      masterResult = await masterBillingRequest('/api/license/admin-auth/verify', {
+        method: 'POST',
+        body: { password: String(password || '') },
+      })
+
+      if (masterResult.valid === true) {
+        return {
+          valid: true,
+          configured: masterResult.configured === true,
+          demoMode: false,
+          legacyFallback: false,
+        }
+      }
+    } catch (error) {
+      console.warn('Falha ao validar senha pelo Master; fallback temporário será considerado:', error?.message || error)
+    }
+  }
+
+  const legacyValid = Boolean(ADMIN_PASSWORD) && secureEqual(password, ADMIN_PASSWORD)
+  return {
+    valid: legacyValid,
+    configured: masterResult?.configured === true,
+    demoMode: false,
+    legacyFallback: legacyValid,
+  }
+}
+
 async function masterBillingRequest(pathname, options = {}) {
   if (!MASTER_LICENSE_CONFIGURED) {
     throw Object.assign(new Error('Licenciamento Master ainda não configurado.'), { statusCode: 503 })
@@ -1870,9 +1906,15 @@ app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
   try {
     const license = await checkMasterLicense({ force: true })
     const password = String(req.body?.password || '')
+    const auth = await verifyAdminPasswordAgainstMaster(password, license)
 
-    if (!license.demoMode && !secureEqual(password, ADMIN_PASSWORD)) {
-      return res.status(401).json({ error: 'Senha incorreta.' })
+    if (!auth.valid) {
+      return res.status(401).json({
+        error: auth.configured
+          ? 'Senha incorreta.'
+          : 'Primeiro acesso ainda não configurado. Solicite o link de acesso ao administrador do ClubeOn.',
+        code: auth.configured ? 'INVALID_PASSWORD' : 'FIRST_ACCESS_REQUIRED',
+      })
     }
 
     const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
@@ -1884,14 +1926,19 @@ app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
     }
 
     res.cookie('espacoon_admin', signAdminToken(), {
-    httpOnly: true,
-    sameSite: 'strict',
-    secure: true,
-    path: '/',
-    maxAge: 12 * 60 * 60 * 1000,
-  })
+      httpOnly: true,
+      sameSite: 'strict',
+      secure: true,
+      path: '/',
+      maxAge: 12 * 60 * 60 * 1000,
+    })
 
-    res.json({ ok: true })
+    res.json({
+      ok: true,
+      demoMode: license.demoMode === true,
+      passwordConfigured: auth.configured,
+      legacyFallback: auth.legacyFallback === true,
+    })
   } catch (error) {
     next(error)
   }
@@ -1899,6 +1946,39 @@ app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
 
 app.get('/api/admin/session', requireAdmin, requireActiveLicense, (_req, res) => {
   res.json({ authenticated: true })
+})
+
+app.post('/api/admin/password/change', requireAdmin, requireActiveLicense, loginLimiter, async (req, res, next) => {
+  try {
+    const license = await checkMasterLicense({ force: true })
+    if (license.demoMode) return res.status(409).json({ error: 'O modo demonstração não usa senha.' })
+
+    const currentPassword = String(req.body?.currentPassword || '')
+    const newPassword = String(req.body?.newPassword || '')
+    const confirmation = String(req.body?.confirmation || '')
+
+    if (newPassword.length < 8) {
+      return res.status(400).json({ error: 'A nova senha deve ter pelo menos 8 caracteres.' })
+    }
+    if (newPassword !== confirmation) {
+      return res.status(400).json({ error: 'As senhas não conferem.' })
+    }
+
+    const current = await verifyAdminPasswordAgainstMaster(currentPassword, license)
+    if (!current.valid) return res.status(401).json({ error: 'Senha atual incorreta.' })
+    if (!MASTER_LICENSE_CONFIGURED) {
+      return res.status(503).json({ error: 'Master ainda não configurado para alterar a senha.' })
+    }
+
+    const result = await masterBillingRequest('/api/license/admin-auth/change', {
+      method: 'POST',
+      body: { currentPassword, newPassword, confirmation },
+    })
+
+    res.json(result)
+  } catch (error) {
+    next(error)
+  }
 })
 
 app.get('/api/admin/payment-provider', requireAdmin, requireActiveLicense, async (_req, res, next) => {
@@ -3673,7 +3753,9 @@ app.post('/api/admin/reset-data', requireAdmin, loginLimiter, async (req, res, n
     const password = String(req.body?.password || '')
     const confirmation = textValue(req.body?.confirmation, 80)
 
-    if (!secureEqual(password, ADMIN_PASSWORD)) {
+    const license = await checkMasterLicense({ force: true })
+    const auth = await verifyAdminPasswordAgainstMaster(password, license)
+    if (!auth.valid) {
       return res.status(401).json({ error: 'Senha de administrador incorreta.' })
     }
 

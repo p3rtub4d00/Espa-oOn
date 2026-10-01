@@ -1883,7 +1883,7 @@ body {
 }
 
 
-/* EspaçoOn brand */
+/* ClubeOn brand */
 .brand {
   min-width: max-content;
 }
@@ -1914,6 +1914,15 @@ body {
 
 .brand-logo-word > span {
   color: #ffffff;
+}
+
+.brand-logo-name {
+  display: inline-flex;
+  align-items: baseline;
+}
+
+.brand-logo-on {
+  color: var(--brand-secondary, #1769ff);
 }
 
 .brand-logo-word > strong {

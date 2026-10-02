@@ -144,3 +144,40 @@ test('signed contract hash detects changes in price, signature, schedule and ext
   assert.equal(contractHash({...contract, signedAt:contract.signedAt.toISOString(), customer:{...contract.customer,cpf:'52998224725',phone:'69999990000'}}), hash)
   for (const change of [{price:451},{signature:'changed'},{startTime:'09:00'},{extrasTotal:10}]) assert.notEqual(contractHash({...contract,...change}), hash)
 })
+
+test('demo CPF policy accepts fictitious numbers only with a strict boolean license flag', async () => {
+  const { isBookingCpfValid, DEMO_BOOKING_CUSTOMER } = await import('../shared/booking-demo.js')
+  assert.equal(isBookingCpfValid(DEMO_BOOKING_CUSTOMER.cpf, true, isValidCpf), true)
+  for (const mode of [false, undefined, 'true', 1]) assert.equal(isBookingCpfValid(DEMO_BOOKING_CUSTOMER.cpf, mode, isValidCpf), false)
+  assert.equal(isBookingCpfValid('529.982.247-25', false, isValidCpf), true)
+  for (const cpf of ['', '123', '111111111111']) assert.equal(isBookingCpfValid(cpf, true, isValidCpf), false)
+})
+
+test('contract API uses the server license for dummy CPF and ignores a forged demo flag', async () => {
+  const payload = { id: 'CTR-DEMO-TEST', reservationId: 'ESP-DEMO-TEST', period: '12h', reservationDateISO: '2026-12-01', demoMode: true, customer: { name: 'Cliente Teste', cpf: '11111111111', phone: '69999999999', email: 'cliente@example.invalid', address: 'Teste' }, signature: '' }
+  const send = async () => (await fetch(base + '/api/contracts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(payload) })).json()
+  try {
+    license = { active: true, billingStatus: 'paid', demoMode: false }
+    assert.equal((await send()).error, 'Dados do locatário inválidos.')
+    license = { active: true, billingStatus: 'demo', demoMode: true }
+    assert.equal((await send()).error, 'Assinatura eletrônica inválida ou muito grande.')
+    license = { active: true, billingStatus: 'paid', demoMode: false }
+    assert.equal((await send()).error, 'Dados do locatário inválidos.')
+  } finally { license = { active: true, billingStatus: 'paid', demoMode: false }; await login('new-password') }
+})
+
+test('lookup accepts dummy CPF in demo but still requires matching the stored reservation', async () => {
+  const mongoose = (await import('mongoose')).default
+  const Reservation = mongoose.model('Reservation')
+  const original = Reservation.findOne
+  Reservation.findOne = () => ({ lean: async () => ({ id: 'ESP-DEMO-TEST', customer: { cpf: '22222222222' } }) })
+  const send = async () => fetch(base + '/api/reservations/lookup', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ code: 'ESP-DEMO-TEST', cpf: '11111111111', demoMode: true }) })
+  try {
+    license = { active: true, billingStatus: 'paid', demoMode: false }
+    assert.equal((await send()).status, 400)
+    license = { active: true, billingStatus: 'demo', demoMode: true }
+    const response = await send()
+    assert.equal(response.status, 403)
+    assert.equal((await response.json()).error, 'CPF não confere com a reserva.')
+  } finally { Reservation.findOne = original; license = { active: true, billingStatus: 'paid', demoMode: false }; await login('new-password') }
+})

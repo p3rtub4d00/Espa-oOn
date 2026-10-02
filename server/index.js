@@ -1,3 +1,4 @@
+import { isBookingCpfValid } from '../shared/booking-demo.js'
 import { CLEANING_CLAUSE_TEXT } from '../shared/contract-terms.js'
 import { buildPrivacyPolicy, sanitizePrivacyConfig } from './privacy.js'
 import { bindDeploymentDatabase } from './deployment-identity.js'
@@ -2399,6 +2400,8 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       return res.status(400).json({ error: 'Data da reserva inválida.' })
     }
 
+    const bookingLicense = await checkMasterLicense({ force: true })
+
     const customer = {
       name: textValue(payload.customer?.name, 120),
       cpf: onlyDigits(payload.customer?.cpf),
@@ -2409,7 +2412,7 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
 
     if (
       customer.name.length < 3 ||
-      !isValidCpf(customer.cpf) ||
+      !isBookingCpfValid(customer.cpf, bookingLicense.demoMode, isValidCpf) ||
       !isValidPhone(customer.phone) ||
       (customer.email && !isValidEmail(customer.email))
     ) {
@@ -3862,7 +3865,9 @@ app.post('/api/reservations/lookup', lookupLimiter, async (req, res, next) => {
     const code = textValue(req.body?.code, 60).toUpperCase()
     const cpf = onlyDigits(req.body?.cpf)
 
-    if (!isValidId(code, 'ESP') || !isValidCpf(cpf)) {
+    const bookingLicense = await checkMasterLicense({ force: true })
+
+    if (!isValidId(code, 'ESP') || !isBookingCpfValid(cpf, bookingLicense.demoMode, isValidCpf)) {
       return res.status(400).json({ error: 'Código da reserva ou CPF inválido.' })
     }
 

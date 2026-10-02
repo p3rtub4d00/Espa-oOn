@@ -1,3 +1,4 @@
+import { isBookingCpfValid, DEMO_BOOKING_CUSTOMER } from '../../shared/booking-demo.js'
 import { useEffect, useMemo, useState } from 'react'
 import ContractFlow from './ContractFlow'
 import { getPriceForDate, loadSettings } from '../data/settings'
@@ -67,7 +68,7 @@ function formatPhone(value) {
     .replace(/(\d{5})(\d)/, '$1-$2')
 }
 
-export default function BookingFlow({ dateISO, settings = loadSettings(), onClose, onReserved }) {
+export default function BookingFlow({ dateISO, settings = loadSettings(), demoMode = false, onClose, onReserved }) {
   const [step, setStep] = useState(1)
   const [period, setPeriod] = useState('12h')
   const [startTime, setStartTime] = useState(
@@ -206,10 +207,10 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
   const validate = () => {
     const next = {}
     if (form.name.trim().length < 3) next.name = 'Informe seu nome completo.'
-    if (!isValidCpf(form.cpf)) next.cpf = 'Informe um CPF válido.'
+    if (!isBookingCpfValid(form.cpf, demoMode, isValidCpf)) next.cpf = demoMode === true ? 'Informe 11 números para o CPF de teste.' : 'Informe um CPF válido.'
     if (onlyDigits(form.phone).length < 10) next.phone = 'Informe um telefone válido.'
     if (!/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim())) next.email = 'Informe um e-mail válido.'
-    if (form.address.trim().length < 8) next.address = 'Informe seu endereço.'
+    if (form.address.trim().length < (demoMode === true ? 1 : 8)) next.address = demoMode === true ? 'Informe um endereço fictício.' : 'Informe seu endereço.'
     setErrors(next)
     return Object.keys(next).length === 0
   }
@@ -658,6 +659,13 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 <p>Seu nome, data, período e valor serão inseridos automaticamente no contrato.</p>
               </div>
 
+              {demoMode === true && (
+                <div className="booking-demo-notice">
+                  <p><strong>Reserva de demonstração.</strong> Utilize dados fictícios. O CPF precisa ter 11 números, mas não precisa ser válido.</p>
+                  <button type="button" onClick={() => { setForm({ ...DEMO_BOOKING_CUSTOMER }); setErrors({}) }}>Preencher dados de teste</button>
+                </div>
+              )}
+
               <div className="booking-form">
                 <label className="full">
                   <span>Nome completo</span>
@@ -725,7 +733,7 @@ export default function BookingFlow({ dateISO, settings = loadSettings(), onClos
                 </label>
               </div>
 
-              <p className="privacy-notice">Seus dados serão usados para preparar a reserva, o contrato e o pagamento. Nome, CPF e telefone identificam o contratante; o e-mail é opcional. Saiba como usamos e guardamos as informações na <a href="/privacidade" target="_blank" rel="noreferrer">Política de Privacidade</a>.</p>
+              <p className="privacy-notice">{demoMode === true ? 'Os dados fictícios serão usados para simular a reserva e o contrato, sem cobrança real.' : 'Seus dados serão usados para preparar a reserva, o contrato e o pagamento. Nome, CPF e telefone identificam o contratante; o e-mail é opcional.'} Saiba como usamos e guardamos as informações na <a href="/privacidade" target="_blank" rel="noreferrer">Política de Privacidade</a>.</p>
               {errors.server && <p className="booking-server-error">{errors.server}</p>}
 
               <div className="booking-actions">

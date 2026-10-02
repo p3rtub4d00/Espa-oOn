@@ -947,6 +947,7 @@ function App() {
       {bookingOpen && selectedDate && !bookingLicenseBlocked && (
         <BookingFlow
           dateISO={selectedDate}
+          demoMode={licenseStatus.demoMode === true}
           settings={siteSettings}
           onClose={() => setBookingOpen(false)}
           onReserved={(dateISO) => {

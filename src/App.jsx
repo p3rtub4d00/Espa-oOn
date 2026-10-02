@@ -484,12 +484,26 @@ function App() {
       </header>
 
       <main>
-        {licenseStatus.demoMode === true && (
-          <div className="public-system-alert demo-mode-alert">
-            <span>
-              Ambiente de demonstração: nenhum pagamento real será processado.
-            </span>
-          </div>
+        {siteReady && licenseStatus.demoMode === true && (
+          <section className="demo-tour-banner" aria-labelledby="demo-tour-title">
+            <div className="demo-tour-copy">
+              <span className="demo-tour-kicker">Demonstração ClubeOn</span>
+              <h2 id="demo-tour-title">Conheça os dois lados do ClubeOn</h2>
+              <p>Simule uma reserva ou veja como o proprietário gerencia o espaço.</p>
+              <small>Nenhum pagamento real será processado nesta demonstração.</small>
+            </div>
+            <a
+              className="btn-demo-admin"
+              href="/admin"
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Testar painel do proprietário (abre em nova aba)"
+            >
+              <LayoutDashboard size={19} aria-hidden="true" />
+              Testar painel do proprietário
+              <ExternalLink size={16} aria-hidden="true" />
+            </a>
+          </section>
         )}
 
         {bookingLicenseBlocked && (
@@ -604,17 +618,6 @@ function App() {
               <span><strong>Quero saber mais</strong><small>(69) 99969-5779</small></span>
               <ArrowRight size={19} aria-hidden="true" />
             </a>
-              <a
-                className="btn-demo-admin"
-                href="/admin"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Conheça o painel do administrador (abre em nova aba)"
-              >
-                <LayoutDashboard size={19} aria-hidden="true" />
-                Conheça o painel do administrador
-                <ExternalLink size={16} aria-hidden="true" />
-              </a>
               <a
                 className="btn-demo-instagram"
                 href="https://www.instagram.com/rubliservicos/"

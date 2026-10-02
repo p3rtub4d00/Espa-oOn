@@ -2348,6 +2348,58 @@ footer {
   flex-shrink: 0;
 }
 
+.btn-demo-instagram {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 12px;
+  padding: 14px 18px;
+  border: 0;
+  border-radius: 13px;
+  background: linear-gradient(115deg, #833ab4 0%, #c13584 38%, #e1306c 65%, #f77737 100%);
+  color: #fff;
+  box-shadow: 0 6px 16px rgba(193, 53, 132, .24);
+  font-weight: 800;
+  transition: filter .2s ease, transform .2s ease;
+}
+
+.btn-demo-instagram span {
+  min-width: 0;
+  flex: 1;
+  text-align: left;
+}
+
+.btn-demo-instagram strong,
+.btn-demo-instagram small {
+  display: block;
+}
+
+.btn-demo-instagram strong {
+  font-size: 14px;
+  line-height: 1.35;
+}
+
+.btn-demo-instagram small {
+  margin-top: 3px;
+  font-size: 13px;
+  font-weight: 600;
+  opacity: .92;
+}
+
+.btn-demo-instagram svg {
+  flex-shrink: 0;
+}
+
+.btn-demo-instagram:hover {
+  filter: brightness(.94);
+  transform: translateY(-1px);
+}
+
+.btn-demo-instagram:focus-visible {
+  outline: 3px solid #c13584;
+  outline-offset: 4px;
+}
+
 .demo-sales-contact {
   width: min(1160px, 90%);
   margin: 32px auto 12px;

@@ -15,6 +15,7 @@ import {
   LayoutDashboard,
   ExternalLink,
   MessageCircle,
+  Instagram,
   Check,
   ChevronLeft,
   ChevronRight,
@@ -612,6 +613,20 @@ function App() {
               >
                 <LayoutDashboard size={19} aria-hidden="true" />
                 Conheça o painel do administrador
+                <ExternalLink size={16} aria-hidden="true" />
+              </a>
+              <a
+                className="btn-demo-instagram"
+                href="https://www.instagram.com/rubliservicos/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Siga a Rubli no Instagram, @rubliservicos (abre em nova aba)"
+              >
+                <Instagram size={22} aria-hidden="true" />
+                <span>
+                  <strong>Siga a Rubli no Instagram</strong>
+                  <small>@rubliservicos</small>
+                </span>
                 <ExternalLink size={16} aria-hidden="true" />
               </a>
             </div>

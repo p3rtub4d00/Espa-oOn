@@ -2481,11 +2481,6 @@ footer {
   flex-shrink: 0;
 }
 
-.demo-sales-actions .btn-demo-admin {
-  border-color: #1455c0;
-  font-size: 14px;
-  line-height: 1.4;
-}
 
 .demo-sales-actions a {
   width: 100%;
@@ -2494,4 +2489,64 @@ footer {
 
 @media (max-width: 680px) {
   .demo-sales-actions { width: 100%; }
+}
+
+/* Show both demo experiences before visitors reach the venue photos. */
+.demo-tour-banner {
+  width: min(1160px, 90%);
+  margin: 20px auto;
+  padding: 20px 24px;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 24px;
+  border: 1px solid #cfe1f5;
+  border-radius: 18px;
+  background: linear-gradient(115deg, #edf5ff, #f9fcff);
+}
+.demo-tour-copy { min-width: 0; }
+.demo-tour-kicker {
+  display: block;
+  margin-bottom: 6px;
+  color: #1455c0;
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: .07em;
+  text-transform: uppercase;
+}
+.demo-tour-copy h2 {
+  margin: 0;
+  color: #172b45;
+  font-size: clamp(18px, 2vw, 22px);
+  line-height: 1.3;
+  letter-spacing: -.025em;
+}
+.demo-tour-copy p {
+  margin: 7px 0 5px;
+  color: #425b73;
+  font-size: 14px;
+  line-height: 1.5;
+}
+.demo-tour-copy small {
+  display: block;
+  color: #52677b;
+  font-size: 12px;
+  line-height: 1.5;
+}
+.demo-tour-banner .btn-demo-admin {
+  flex-shrink: 0;
+  max-width: 100%;
+  font-size: 14px;
+  line-height: 1.4;
+  text-decoration: none;
+}
+@media (max-width: 760px) {
+  .demo-tour-banner {
+    flex-direction: column;
+    align-items: stretch;
+    gap: 16px;
+    margin: 16px auto;
+    padding: 18px;
+  }
+  .demo-tour-banner .btn-demo-admin { width: 100%; }
 }

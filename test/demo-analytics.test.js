@@ -94,3 +94,26 @@ test('browser tracker deduplicates repeats, omits credentials and respects priva
   assert.equal(calls.length,2)
   assert.equal(await trackDemoEvent('reservation_completed'),false)
 })
+
+test('visit geography comes from the server IP, ignores browser fields and never forwards the IP', async t => {
+  const events=[]
+  t.mock.method(globalThis,'fetch',async (url, options) => {
+    if (String(url).endsWith('/api/license/status')) return new Response(JSON.stringify({ok:true,active:true,demoMode:true,billingStatus:'demo'}))
+    if (String(url).startsWith('https://ipwho.is/')) {
+      assert.match(String(url), /\/8\.8\.4\.4\?/)
+      return new Response(JSON.stringify({success:true,city:'Porto Velho',region:'Rondônia',country:'Brasil',country_code:'BR',ip:'8.8.4.4',latitude:1}))
+    }
+    assert.equal(String(url),'https://master.example/api/license/demo-events')
+    events.push(JSON.parse(options.body))
+    return new Response('{"ok":true}')
+  })
+  await nativeFetch(base+'/api/license?force=1')
+  const response = await nativeFetch(base+'/api/demo/events', {method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':'8.8.4.4'},body:JSON.stringify({type:'visit',eventId:'geo-session-123',location:{city:'Forged'},ip:'1.1.1.1'})})
+  assert.equal(response.status,200)
+  assert.deepEqual(events[0].location,{city:'Porto Velho',region:'Rondônia',country:'Brasil',countryCode:'BR'})
+  assert.equal(JSON.stringify(events).includes('8.8.4.4'),false)
+  assert.equal(JSON.stringify(events).includes('Forged'),false)
+  const optedOut = await nativeFetch(base+'/api/demo/events',{method:'POST',headers:{'Content-Type':'application/json','DNT':'1','X-Forwarded-For':'1.1.1.1'},body:JSON.stringify({type:'visit',eventId:'opted-out-123'})})
+  assert.equal(optedOut.status,202)
+  assert.equal(events.length,1)
+})

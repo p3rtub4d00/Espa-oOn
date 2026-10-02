@@ -1403,3 +1403,8 @@
     display: none;
   }
 }
+
+.booking-demo-notice { padding: 16px; margin-bottom: 18px; border: 1px solid #bfd8f5; border-radius: 14px; background: #eef6ff; color: #16395e; }
+.booking-demo-notice p { margin: 0 0 12px; line-height: 1.5; }
+.booking-demo-notice button { border: 0; border-radius: 10px; padding: 12px 16px; background: #1455c0; color: white; font: inherit; font-weight: 700; cursor: pointer; }
+.booking-demo-notice button:focus-visible { outline: 3px solid #16395e; outline-offset: 3px; }

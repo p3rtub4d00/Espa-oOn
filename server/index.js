@@ -1,3 +1,4 @@
+import { deliverPushBatch } from './push-delivery.js'
 import { isBookingCpfValid } from '../shared/booking-demo.js'
 import { CLEANING_CLAUSE_TEXT } from '../shared/contract-terms.js'
 import { buildPrivacyPolicy, sanitizePrivacyConfig } from './privacy.js'
@@ -425,31 +426,15 @@ async function sendPushNotification(payload, endpoint = null) {
     : { enabled: true }
 
   const subscriptions = await PushSubscription.find(query).lean()
-  let sent = 0
-  let failed = 0
-
-  for (const subscription of subscriptions) {
-    try {
-      await webpush.sendNotification(
-        {
-          endpoint: subscription.endpoint,
-          keys: subscription.keys,
-        },
-        JSON.stringify(payload),
-      )
-
-      sent += 1
-      await PushSubscription.updateOne(
-        { endpoint: subscription.endpoint },
-        {
-          $set: { lastSuccessAt: new Date(), enabled: true },
-          $unset: { lastErrorAt: 1 },
-        },
-      )
-    } catch (error) {
-      failed += 1
+  const startedAt = Date.now()
+  const result = await deliverPushBatch(subscriptions, payload, {
+    send: (subscription, message, options) => webpush.sendNotification(subscription, message, options),
+    onSuccess: (subscription) => PushSubscription.updateOne(
+      { endpoint: subscription.endpoint },
+      { $set: { lastSuccessAt: new Date(), enabled: true }, $unset: { lastErrorAt: 1 } },
+    ),
+    onFailure: async (subscription, error) => {
       const statusCode = Number(error?.statusCode)
-
       if (statusCode === 404 || statusCode === 410) {
         await PushSubscription.deleteOne({ endpoint: subscription.endpoint })
       } else {
@@ -458,12 +443,13 @@ async function sendPushNotification(payload, endpoint = null) {
           { $set: { lastErrorAt: new Date() } },
         )
       }
-
-      console.warn('Falha ao enviar Web Push:', statusCode || error?.message || error)
-    }
-  }
-
-  return { sent, failed }
+      console.warn('Falha ao enviar Web Push:', statusCode || 'erro de conexão')
+    },
+    onTrackingError: () => console.warn('Falha ao registrar resultado do Web Push.'),
+  })
+  // Provider acceptance timing, not confirmation of display on the device. No personal data.
+  console.log('Web Push processado:', { ...result, durationMs: Date.now() - startedAt })
+  return result
 }
 
 async function notifyPaidReservationPush(reservation, title = 'Nova reserva confirmada') {

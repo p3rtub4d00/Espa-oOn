@@ -1,3 +1,4 @@
+import { uploadGalleryFiles, MAX_GALLERY_PHOTOS } from './gallery-upload'
 import { useRef, useState } from 'react'
 import {
   Armchair,
@@ -23,6 +24,10 @@ const iconOptions = [
 
 export default function ContentManager({ mode, settings, setSettings }) {
   const fileRef = useRef(null)
+  const uploadLock = useRef(false)
+  const [uploading, setUploading] = useState(false)
+  const [uploadProgress, setUploadProgress] = useState(null)
+  const [uploadFailures, setUploadFailures] = useState([])
   const [imageUrl, setImageUrl] = useState('')
   const [amenity, setAmenity] = useState({
     name: '',
@@ -44,6 +49,8 @@ export default function ContentManager({ mode, settings, setSettings }) {
   }
 
   const addImageUrl = async () => {
+    if (uploadLock.current) return
+    if (settings.gallery.length >= MAX_GALLERY_PHOTOS) { setMessage('A galeria permite até 100 fotos.'); return }
     const url = imageUrl.trim()
     if (!url) return
     if (!/^https:\/\//i.test(url)) {
@@ -58,29 +65,38 @@ export default function ContentManager({ mode, settings, setSettings }) {
     } catch {}
   }
 
-  const addLocalImage = async (file) => {
-    if (!file) return
-    if (!['image/jpeg', 'image/png', 'image/webp'].includes(file.type)) {
-      setMessage('Use uma imagem JPG, PNG ou WebP.')
-      return
-    }
-    if (file.size > 5 * 1024 * 1024) {
-      setMessage('Use imagens com até 5 MB.')
-      return
-    }
-
-    setMessage('Enviando foto...')
+  const addLocalImages = async (files) => {
+    if (!files?.length || uploadLock.current) return
+    uploadLock.current = true
+    setUploading(true)
+    setUploadFailures([])
+    setUploadProgress(null)
+    setMessage('Preparando fotos...')
     try {
-      const uploaded = await api.uploadImage(file)
-      const next = { ...settings, gallery: [...settings.gallery, uploaded.url] }
-      await persist(next)
-      setMessage('Foto enviada e salva online.')
+      const result = await uploadGalleryFiles({
+        files,
+        gallery: settings.gallery,
+        uploadImage: api.uploadImage,
+        saveGallery: gallery => api.saveSettings({ gallery }),
+        readSettings: api.getAdminSettings,
+        deleteImage: api.deleteImage,
+        onSaved: saved => setSettings(current => ({ ...current, ...saved })),
+        onProgress: progress => { setUploadProgress(progress); setMessage('') },
+      })
+      setUploadFailures(result.failures)
+      const success = result.savedCount === 1 ? '1 foto enviada e salva online.' : `${result.savedCount} fotos enviadas e salvas online.`
+      setMessage(success + (result.failures.length ? ` ${result.failures.length} arquivo(s) não foram salvos; confira abaixo.` : '') + (result.remaining ? ` Envio interrompido: ${result.remaining} foto(s) ainda não foram enviadas.` : ''))
     } catch (error) {
-      setMessage(error.message || 'Não foi possível enviar a foto.')
+      setMessage(error.message || 'Não foi possível enviar as fotos.')
+    } finally {
+      uploadLock.current = false
+      setUploading(false)
+      setUploadProgress(null)
     }
   }
 
   const removeImage = async (index) => {
+    if (uploadLock.current) return
     const src = settings.gallery[index]
     const next = {
       ...settings,
@@ -151,29 +167,41 @@ export default function ContentManager({ mode, settings, setSettings }) {
                 onChange={(e) => setImageUrl(e.target.value)}
                 placeholder="https://..."
               />
-              <button onClick={addImageUrl}><Plus size={15} /> Adicionar</button>
+              <button disabled={uploading} onClick={addImageUrl}><Plus size={15} /> Adicionar</button>
             </div>
           </label>
 
           <div className="upload-local-box">
             <div>
-              <strong>Ou envie uma foto do aparelho</strong>
-              <span>As fotos são enviadas para o servidor e ficam disponíveis em qualquer aparelho.</span>
+              <strong>Ou envie várias fotos do aparelho</strong>
+              <span>Selecione várias fotos de uma vez. JPG, PNG ou WebP, até 5 MB por foto. Limite de 100 fotos na galeria.</span>
             </div>
-            <button onClick={() => fileRef.current?.click()}>Escolher foto</button>
+            <button disabled={uploading} onClick={() => fileRef.current?.click()}>{uploading ? 'Enviando fotos...' : 'Escolher fotos'}</button>
             <input
               ref={fileRef}
               type="file"
+              multiple
+              disabled={uploading}
               accept="image/jpeg,image/png,image/webp"
               hidden
               onChange={(e) => {
-                addLocalImage(e.target.files?.[0])
+                const files = Array.from(e.target.files || [])
+                void addLocalImages(files)
                 e.target.value = ''
               }}
             />
           </div>
 
-          {message && <p className="content-admin-message">{message}</p>}
+          {uploading && uploadProgress && <div className="gallery-upload-progress" role="status" aria-live="polite">
+            <strong>Enviando foto {uploadProgress.current} de {uploadProgress.total}</strong>
+            <span>{uploadProgress.name}</span>
+            <progress value={uploadProgress.current - 1} max={uploadProgress.total} aria-label="Fotos processadas" />
+            <small>Aguarde o término do envio antes de sair desta página.</small>
+          </div>}
+          {message && <p className="content-admin-message" role="status">{message}</p>}
+          {uploadFailures.length > 0 && <ul className="gallery-upload-errors">
+            {uploadFailures.map((item, index) => <li key={index}><strong>{item.name}</strong>: {item.error}</li>)}
+          </ul>}
         </div>
 
         <div className="admin-gallery-grid">
@@ -182,7 +210,7 @@ export default function ContentManager({ mode, settings, setSettings }) {
               <img src={src} alt={'Foto do clube ' + (index + 1)} />
               <div>
                 <span>Foto {index + 1}</span>
-                <button onClick={() => removeImage(index)} title="Apagar foto">
+                <button disabled={uploading} onClick={() => removeImage(index)} title="Apagar foto">
                   <Trash2 size={15} />
                 </button>
               </div>

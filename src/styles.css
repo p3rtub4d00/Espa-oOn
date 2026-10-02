@@ -2550,3 +2550,9 @@ footer {
   }
   .demo-tour-banner .btn-demo-admin { width: 100%; }
 }
+
+/* The fixed public header must not cover the introductory demo banner. */
+.demo-home-main { padding-top: 78px; }
+@media (max-width: 640px) {
+  .demo-home-main { padding-top: 68px; }
+}

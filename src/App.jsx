@@ -483,7 +483,7 @@ function App() {
         )}
       </header>
 
-      <main>
+      <main className={siteReady && licenseStatus.demoMode === true ? 'demo-home-main' : undefined}>
         {siteReady && licenseStatus.demoMode === true && (
           <section className="demo-tour-banner" aria-labelledby="demo-tour-title">
             <div className="demo-tour-copy">

@@ -34,7 +34,7 @@ test('public events proxy only allowed fields and demos; visitors cannot report 
   const response=await post({type:'visit',eventId:'session-12345',name:'private',cpf:'private',phone:'private'})
   assert.equal(response.status,200)
   assert.equal(response.headers.get('cache-control'),'no-store')
-  assert.deepEqual(events,[{type:'visit',eventId:'session-12345'}])
+  assert.deepEqual(events,[{type:'visit',eventId:'session-12345',locationStatus:'no_public_ip'}])
   assert.equal((await post({type:'reservation_completed',eventId:'session-12345'})).status,400)
   assert.equal(events.length,1)
 })
@@ -116,4 +116,26 @@ test('visit geography comes from the server IP, ignores browser fields and never
   const optedOut = await nativeFetch(base+'/api/demo/events',{method:'POST',headers:{'Content-Type':'application/json','DNT':'1','X-Forwarded-For':'1.1.1.1'},body:JSON.stringify({type:'visit',eventId:'opted-out-123'})})
   assert.equal(optedOut.status,202)
   assert.equal(events.length,1)
+})
+
+test('Render visit uses the edge client address through multiple proxies and forwards only geography/status',async t=>{
+  const oldRender=process.env.RENDER
+  process.env.RENDER='true'
+  t.after(()=>{if(oldRender===undefined)delete process.env.RENDER;else process.env.RENDER=oldRender})
+  const events=[]
+  t.mock.method(globalThis,'fetch',async(url,options)=>{
+    if(String(url).endsWith('/api/license/status'))return new Response(JSON.stringify({ok:true,active:true,demoMode:true,billingStatus:'demo'}))
+    if(String(url).startsWith('https://ipwho.is/')) {
+      assert.match(String(url),/\/1\.0\.0\.1\?/)
+      return new Response(JSON.stringify({success:true,city:'Porto Velho',region:'Rondônia',country:'Brasil',country_code:'BR'}))
+    }
+    events.push(JSON.parse(options.body));return new Response('{"ok":true}')
+  })
+  await nativeFetch(base+'/api/license?force=1')
+  const response=await nativeFetch(base+'/api/demo/events',{method:'POST',headers:{'Content-Type':'application/json','X-Forwarded-For':'8.8.8.8, 10.0.0.9','CF-Connecting-IP':'1.0.0.1'},body:JSON.stringify({type:'visit',eventId:'render-proxy-session'})})
+  assert.equal(response.status,200)
+  assert.equal(events[0].locationStatus,'identified')
+  assert.equal(events[0].location.city,'Porto Velho')
+  assert.equal(JSON.stringify(events).includes('1.0.0.1'),false)
+  assert.equal(JSON.stringify(events).includes('10.0.0.9'),false)
 })

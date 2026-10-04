@@ -1,6 +1,6 @@
 import assert from 'node:assert/strict'
 import { test } from 'node:test'
-import { publicVisitorIp, approximateLocation, createDemoLocationLookup } from '../server/demo-location.js'
+import { publicVisitorIp, approximateLocation, createDemoLocationLookup, demoVisitorIp } from '../server/demo-location.js'
 const response = () => new Response(JSON.stringify({ success: true, city: 'Porto Velho', region: 'Rondônia', country: 'Brasil', country_code: 'BR', ip: 'private', latitude: -8, longitude: -63 }))
 
 test('private, invalid and reserved IPs never leave the server, including IPv4-mapped IPv6', async () => {
@@ -41,4 +41,31 @@ test('provider outage, missing geography and quota limits yield unknown without 
   assert.equal(await quota('8.8.8.8'), null)
   assert.equal(await quota('1.1.1.1'), null)
   assert.equal(calls, 2)
+})
+
+test('Render edge visitor header is used only behind internal Render transport, never arbitrary forwarded chains', () => {
+  const req={ip:'10.0.0.5',socket:{remoteAddress:'10.0.0.4'},get:name=>name==='CF-Connecting-IP'?'8.8.4.4':undefined}
+  assert.equal(demoVisitorIp(req,{render:true}),'8.8.4.4')
+  assert.equal(demoVisitorIp(req,{render:false}),null)
+  assert.equal(demoVisitorIp({...req,ip:'1.1.1.1',socket:{remoteAddress:'1.1.1.1'}},{render:true}),'1.1.1.1')
+  assert.equal(demoVisitorIp({...req,get:()=> '10.0.0.1'},{render:true}),null)
+  assert.equal(demoVisitorIp({...req,get:()=> '8.8.4.4, 1.1.1.1'},{render:true}),null)
+  assert.equal(publicVisitorIp('::ffff:8.8.8.8'),'8.8.8.8')
+  assert.equal(publicVisitorIp('::ffff:808:808'),'8.8.8.8')
+})
+
+test('diagnostics distinguish private IP, timeout, unavailable geography and external quota without retaining IP',async()=>{
+  const timeout=createDemoLocationLookup({fetcher:async()=>{throw Object.assign(new Error('timeout'),{name:'TimeoutError'})}})
+  assert.deepEqual(await timeout.diagnose('10.0.0.1'),{location:null,status:'no_public_ip'})
+  assert.deepEqual(await timeout.diagnose('8.8.8.8'),{location:null,status:'provider_timeout'})
+  const missing=createDemoLocationLookup({fetcher:async()=>new Response('{"success":false}')})
+  assert.equal((await missing.diagnose('8.8.8.8')).status,'not_available')
+  let calls=0,time=1000000
+  const quota=createDemoLocationLookup({now:()=>time,fetcher:async()=>{calls++;return new Response('',{status:429,headers:{'retry-after':'120'}})}})
+  assert.equal((await quota.diagnose('8.8.8.8')).status,'provider_rate_limit')
+  time+=119000
+  assert.equal((await quota.diagnose('1.1.1.1')).status,'provider_rate_limit')
+  assert.equal(calls,1)
+  time+=2000
+  await quota.diagnose('1.1.1.1');assert.equal(calls,2)
 })

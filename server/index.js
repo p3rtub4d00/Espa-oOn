@@ -1,4 +1,4 @@
-import { lookupDemoLocation } from './demo-location.js'
+import { lookupDemoLocation, demoVisitorIp } from './demo-location.js'
 import { deliverPushBatch } from './push-delivery.js'
 import { isBookingCpfValid } from '../shared/booking-demo.js'
 import { CLEANING_CLAUSE_TEXT } from '../shared/contract-terms.js'
@@ -2082,14 +2082,14 @@ app.get('/api/health', (_req, res) => {
   })
 })
 
-async function reportDemoEvent(type, eventId, location = null) {
+async function reportDemoEvent(type, eventId, location = null, locationStatus = null) {
   if (!MASTER_LICENSE_CONFIGURED) return false
   try {
     const response = await fetch(MASTER_API_URL + '/api/license/demo-events', {
       method: 'POST', headers: {
         'content-type': 'application/json', 'x-club-id': MASTER_CLUB_ID, 'x-license-key': MASTER_LICENSE_KEY,
       },
-      body: JSON.stringify({ type, eventId, ...(location ? { location } : {}) }), signal: AbortSignal.timeout(5000),
+      body: JSON.stringify({ type, eventId, ...(location ? { location } : {}), ...(locationStatus ? {locationStatus} : {}) }), signal: AbortSignal.timeout(5000),
     })
     return response.ok
   } catch { return false }
@@ -2107,8 +2107,8 @@ app.post('/api/demo/events', demoEventLimiter, async (req, res, next) => {
     const license = await checkMasterLicense()
     if (!license.demoMode) return res.status(403).json({ error: 'Métricas disponíveis somente para demonstração.' })
     if (req.get('DNT') === '1' || req.get('Sec-GPC') === '1') return res.status(202).json({ recorded: false })
-    const location = type === 'visit' ? await lookupDemoLocation(req.ip) : null
-    const recorded = await reportDemoEvent(type, eventId, location)
+    const geography = type === 'visit' ? await lookupDemoLocation.diagnose(demoVisitorIp(req)) : null
+    const recorded = await reportDemoEvent(type, eventId, geography?.location, geography?.status)
     res.status(recorded ? 200 : 202).json({ recorded })
   } catch (error) { next(error) }
 })

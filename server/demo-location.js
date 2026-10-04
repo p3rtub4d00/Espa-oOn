@@ -10,7 +10,23 @@ export function publicVisitorIp(value) {
   if (!version || reserved.check(ip, version === 4 ? 'ipv4' : 'ipv6')) return null
   // Only global IPv6 unicast or IPv4-mapped global addresses.
   if (version === 6 && !/^::ffff:/i.test(ip) && !/^[23]/i.test(ip)) return null
+  if (version === 6 && /^::ffff:/i.test(ip)) {
+    const expanded = ip.split(':').slice(-2)
+    if (expanded[1].includes('.')) return expanded[1]
+    const value = parseInt(expanded[0],16)*65536 + parseInt(expanded[1],16)
+    return [24,16,8,0].map(shift => (value >>> shift) & 255).join('.')
+  }
   return ip
+}
+
+// Only analytics uses this Render edge header; authentication/rate-limit trust is unchanged.
+export function demoVisitorIp(req, { render = process.env.RENDER === 'true' } = {}) {
+  const peer = req.socket?.remoteAddress
+  if (render && isIP(peer || '') && !publicVisitorIp(peer)) {
+    const edgeIp = publicVisitorIp(req.get('CF-Connecting-IP'))
+    if (edgeIp) return edgeIp
+  }
+  return publicVisitorIp(req.ip)
 }
 const clean = value => typeof value === 'string' ? value.replace(/[\x00-\x1f\x7f]/g, '').trim().slice(0,80) : ''
 export function approximateLocation(data) {
@@ -24,31 +40,43 @@ export function createDemoLocationLookup({ fetcher = (...args) => fetch(...args)
   const secret = randomBytes(32)
   const cache = new Map(), pending = new Map()
   let day = '', used = 0, retryAfter = 0
-  return async value => {
+  const diagnose = async value => {
     const ip = publicVisitorIp(value)
-    if (!ip) return null
+    if (!ip) return {location:null,status:'no_public_ip'}
     const time = now(), key = createHmac('sha256', secret).update(ip).digest('hex')
     for (const [id, entry] of cache) if (entry.expiresAt <= time) cache.delete(id)
-    if (cache.has(key)) return cache.get(key).location
+    if (cache.has(key)) return cache.get(key).result
     if (pending.has(key)) return pending.get(key)
     const today = new Date(time).toISOString().slice(0,10)
     if (day !== today) { day = today; used = 0 }
-    if (used >= 1000 || retryAfter > time || pending.size >= 8) return null
+    if (retryAfter > time) return {location:null,status:'provider_rate_limit'}
+    if (used >= 1000 || pending.size >= 8) return {location:null,status:'local_limit'}
     used++
     const request = (async () => {
-      let location = null
+      let location = null, status = 'provider_error'
       try {
         const url = 'https://ipwho.is/' + encodeURIComponent(ip) + '?fields=success,city,region,country,country_code&lang=pt-BR'
-        const response = await fetcher(url, { signal: AbortSignal.timeout(1500), redirect: 'error' })
-        if (response.status === 429) retryAfter = now() + 3600000
-        if (response.ok) location = approximateLocation(await response.json())
-      } catch { /* Geography is optional; never log the IP or block an event on failure. */ }
+        const response = await fetcher(url, { signal: AbortSignal.timeout(4000), redirect: 'error' })
+        if (response.status === 429) {
+          const seconds = Number(response.headers?.get('retry-after'))
+          retryAfter = now() + (Number.isFinite(seconds) && seconds > 0 ? Math.min(seconds,86400)*1000 : 3600000)
+          status = 'provider_rate_limit'
+        }
+        if (response.ok) {
+          location = approximateLocation(await response.json())
+          status = location ? 'identified' : 'not_available'
+        }
+      } catch (error) { status = ['TimeoutError','AbortError'].includes(error?.name) ? 'provider_timeout' : 'provider_error' }
       if (cache.size >= 1000) cache.delete(cache.keys().next().value)
-      cache.set(key, { location, expiresAt: now() + (location ? 900000 : 60000) })
-      return location
+      const result = {location,status}
+      cache.set(key, { result, expiresAt: now() + (location ? 900000 : 60000) })
+      return result
     })()
     pending.set(key,request)
     try { return await request } finally { pending.delete(key) }
   }
+  const lookup = async value => (await diagnose(value)).location
+  lookup.diagnose = diagnose
+  return lookup
 }
 export const lookupDemoLocation = createDemoLocationLookup()

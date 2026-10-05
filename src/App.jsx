@@ -1032,7 +1032,14 @@ function App() {
         </div>
       )}
 
-      <AiChat license={licenseStatus} name={brandName} phone={siteSettings.establishment?.phone} hidden={bookingOpen || visitOpen || lookupOpen || lightboxIndex != null || bookingLicenseBlocked} onCalendar={() => scrollTo('agenda')} />
+      <AiChat license={licenseStatus} name={brandName} hidden={bookingOpen || visitOpen || lookupOpen || lightboxIndex != null || bookingLicenseBlocked} onCalendar={date => {
+        if (typeof date === 'string' && /^\d{4}-\d{2}-\d{2}$/.test(date)) {
+          const [year, month] = date.split('-').map(Number)
+          setCalendarMonth(new Date(year, month - 1, 1))
+          setSelectedDate(null)
+        }
+        scrollTo('agenda')
+      }} />
       <footer>
         <a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a>
         <a className="brand footer-brand" href="#inicio" aria-label={brandName}>

@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from 'react'
-import { MessageCircle, Send, X, CalendarDays, Sparkles } from 'lucide-react'
+import { Send, X, CalendarDays } from 'lucide-react'
 import { api } from '../data/api'
 import './aiChat.css'
+import Clubi from './Clubi'
 export default function AiChat({ license, name, hidden, onCalendar }) {
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
@@ -38,14 +39,14 @@ export default function AiChat({ license, name, hidden, onCalendar }) {
   if (!enabled || hidden) return null
   const openCalendar = date => { close(); onCalendar(date) }
   return <div className="club-ai-widget">
-    {!open && <button ref={trigger} className="club-ai-trigger" onClick={() => setOpen(true)}><MessageCircle size={21} /><span>Tire suas dúvidas</span><Sparkles size={16} /></button>}
-    {open && <section className="club-ai-panel" role="dialog" aria-label="Assistente do clube" onKeyDown={e => { if (e.key === 'Escape') close() }}>
-      <header className="club-ai-head"><span className="club-ai-symbol"><Sparkles size={22} /></span><div><strong>Assistente do clube</strong><small>{name} · Atendimento com IA</small></div><button aria-label="Fechar chat" onClick={close}><X size={20} /></button></header>
+    {!open && <button ref={trigger} className="club-ai-trigger" aria-label="Abrir chat com Clubi, assistente de IA" aria-haspopup="dialog" onClick={() => setOpen(true)}><span className="club-ai-launcher-mascot"><Clubi wave /></span><span><strong>Fale com o Clubi</strong><small>Tire suas dúvidas</small></span></button>}
+    {open && <section className="club-ai-panel" role="dialog" aria-label="Clubi, assistente do clube" onKeyDown={e => { if (e.key === 'Escape') close() }}>
+      <header className="club-ai-head"><span className="club-ai-symbol"><Clubi thinking={busy} /></span><div><strong>Clubi · Assistente IA</strong><small>{name} · Atendimento com IA</small></div><button aria-label="Fechar chat" onClick={close}><X size={20} /></button></header>
       <div className="club-ai-messages" role="log" aria-live="polite" aria-relevant="additions text">
-        <div className="club-ai-message assistant">Olá! Posso ajudar com datas, valores, estrutura e itens para aluguel. O que você gostaria de saber?</div>
+        <div className="club-ai-message assistant">Olá! Sou o Clubi, assistente de IA deste espaço. Posso ajudar com datas, valores, estrutura e itens para aluguel. O que você gostaria de saber?</div>
         {!messages.length && <div className="club-ai-suggestions"><button onClick={() => openCalendar()}><CalendarDays size={15} />Ver datas disponíveis</button>{['Quais itens posso alugar?', 'Quais as regras de limpeza?'].map(x => <button key={x} disabled={busy} onClick={() => send(x)}>{x}</button>)}</div>}
         {messages.map((x, i) => <div key={i} className={'club-ai-message ' + x.role}>{x.text}{x.role === 'assistant' && Array.isArray(x.actions) && <div className="club-ai-response-actions">{x.actions.filter(a => a?.type === 'calendar' && /^\d{4}-\d{2}-\d{2}$/.test(a.date || '')).slice(0, 3).map(a => <button key={a.date} onClick={() => openCalendar(a.date)}><CalendarDays size={16} />Ver {a.date.split('-').reverse().join('/')} no calendário</button>)}</div>}</div>)}
-        {busy && <p className="club-ai-typing" role="status">Consultando as informações…</p>}
+        {busy && <div className="club-ai-typing" role="status"><span className="club-ai-typing-mascot"><Clubi thinking /></span><span>Clubi está consultando as informações<span className="club-ai-dots" aria-hidden="true"><i /><i /><i /></span></span></div>}
         {error && <p className="club-ai-error" role="alert">{error}</p>}<div ref={end} />
       </div>
       <div className="club-ai-actions"><button onClick={() => openCalendar()}><CalendarDays size={18} />Reservar no calendário</button><small>Escolha a data e continue sua reserva online.</small></div>

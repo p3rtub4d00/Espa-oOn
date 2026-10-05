@@ -89,6 +89,28 @@ test('login uses central password, blocks suspended clubs and preserves password
   assert.equal((await login('new-password')).status, 200)
 })
 
+test('booking rechecks Master after activation or suspension instead of using a stale license', async () => {
+  const submit = () => fetch(base + '/api/contracts', { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' })
+  try {
+    license = { active: false, billingStatus: 'suspended', demoMode: false }
+    const blocked = await fetch(base + '/api/license?force=1')
+    assert.equal((await blocked.json()).bookingAllowed, false)
+    assert.equal(blocked.headers.get('cache-control'), 'no-store')
+    license = { active: true, billingStatus: 'active', demoMode: false }
+    const activated = await submit()
+    assert.equal(activated.status, 400) // Empty payload rejected after the license passes; no DB write.
+    assert.equal((await activated.json()).error, 'Identificação do contrato inválida.')
+    license = { active: false, billingStatus: 'suspended', demoMode: false }
+    assert.equal((await submit()).status, 423)
+    license = { active: true, billingStatus: 'suspended', demoMode: true }
+    assert.equal((await submit()).status, 400) // Demo bypasses unpaid billing, as the public UI does.
+    license = { active: false, billingStatus: 'demo', demoMode: true }
+    assert.equal((await submit()).status, 423) // Cancellation cannot be bypassed by demo mode.
+    license = { active: true, billingStatus: 'past_due', demoMode: false }
+    assert.equal((await submit()).status, 423) // Production billing protections are retained.
+  } finally { license = { active: true, billingStatus: 'paid', demoMode: false }; await login('new-password') }
+})
+
 test('central authentication outage never accepts the legacy password', async () => {
   masterAvailable = false
   try { assert.equal((await login(process.env.ADMIN_PASSWORD)).status, 503) }

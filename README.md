@@ -152,3 +152,14 @@ A consulta tem timeout de 4 segundos, limite de oito consultas simultâneas e or
 Publicação desta alteração: primeiro Master, depois EspaçoOn/piloto. Sem novas variáveis de ambiente. Conferir a tabela depois de um novo acesso público à demonstração e clicar em Atualizar. A política pública foi atualizada para explicar o uso do IP pelo provedor de geolocalização e a guarda apenas da localização aproximada.
 
 Diagnóstico de localização: cada nova visita registra somente um código fixo de resultado (identificada, IP público indisponível, timeout, erro do provedor, limite externo/local ou dados ausentes). Não registra IP, cabeçalhos ou mensagem bruta do provedor. O Master mostra os motivos das visitas não localizadas. Registros antigos sem IP não podem ser preenchidos retroativamente. O cabeçalho Cloudflare depende da borda gerenciada do Render; em caso de mudança da implantação, revisar essa integração.
+
+
+### Assistente Gemini no site de reservas
+
+Configure `GEMINI_API_KEY` no serviço de reservas no Render. Nunca use variáveis `VITE_` para a chave. `GEMINI_MODEL` é opcional, com padrão `gemini-2.5-flash-lite`. Publique o Master antes deste serviço e ative o assistente nos detalhes do clube no Master. Sem chave, licença ativa ou ativação, o botão não aparece. Clubes existentes começam desativados.
+
+O chat consulta disponibilidade e orçamento usando a agenda e os preços atuais do servidor. Não cria reservas, contratos ou pagamentos. A disponibilidade pode mudar até finalizar a reserva pelo calendário. Não recebe documentos ou dados de pagamento; perguntas e um histórico curto são enviados ao Google Gemini e ficam apenas na memória da página. O banco guarda contadores mensais de tentativas, chamadas e tokens, sincronizados com o Master. Consulte também a política de privacidade atualizada.
+
+O limite mensal padrão é de 1.000 perguntas por clube, inclui tentativas com falha e renova no mês de Porto Velho. Cada pergunta pode usar até três chamadas ao modelo. Há limite adicional de oito perguntas por minuto por IP. Cotas e eventuais cobranças do Google são independentes desse limite; não há troca automática para outro modelo ou plano pago. Configure orçamento e cotas no projeto Google conforme o plano utilizado.
+
+Validação local usa respostas simuladas e cobre ferramentas, isolamento dos dados públicos, erros, limites e navegação no celular. Após o deploy, teste uma data livre, uma ocupada e um orçamento com adicional na demonstração para validar a chave real.

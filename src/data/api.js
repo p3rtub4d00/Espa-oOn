@@ -26,6 +26,8 @@ async function request(url, options = {}) {
 }
 
 export const api = {
+  chatConfig: () => request('/api/chat/config'),
+  chat: (message, history) => request('/api/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),
   getSettings: () => request('/api/settings'),
   getAdminSettings: () => request('/api/admin/settings'),
   getAvailability: () => request('/api/availability'),

@@ -1,3 +1,4 @@
+import { installClubRecoveryRequest } from './club-recovery.js'
 import { installAiChat } from './ai-chat.js'
 import { lookupDemoLocation, demoVisitorIp } from './demo-location.js'
 import { deliverPushBatch } from './push-delivery.js'
@@ -2033,7 +2034,7 @@ async function masterBillingRequest(pathname, options = {}) {
 
   const response = await fetch(MASTER_API_URL + pathname, {
     method: options.method || 'GET',
-    ...(pathname.startsWith('/api/license/ai-chat/') ? { signal: AbortSignal.timeout(10000) } : {}),
+    ...((pathname.startsWith('/api/license/ai-chat/') || pathname === '/api/license/admin-auth/recovery') ? { signal: AbortSignal.timeout(10000) } : {}),
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
@@ -2184,6 +2185,8 @@ app.post('/api/license/billing/pix', paymentLimiter, async (_req, res, next) => 
     next(error)
   }
 })
+
+installClubRecoveryRequest({ app, configured: MASTER_LICENSE_CONFIGURED, sendRequest: body => masterBillingRequest('/api/license/admin-auth/recovery', { method: 'POST', body }) })
 
 app.post('/api/admin/login', loginLimiter, async (req, res, next) => {
   try {

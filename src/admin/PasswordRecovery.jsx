@@ -1,0 +1,6 @@
+import { useState } from 'react'
+import { api } from '../data/api'
+export default function PasswordRecovery() {
+  const [phone, setPhone] = useState(''), [busy, setBusy] = useState(false), [message, setMessage] = useState(''), [error, setError] = useState('')
+  return <details className="admin-password-recovery"><summary>Esqueci minha senha</summary><p>Informe o celular com DDD cadastrado para este clube. A equipe ClubeOn confere o pedido e envia um link pelo WhatsApp cadastrado.</p><form onSubmit={async e => { e.preventDefault(); setBusy(true); setError(''); setMessage(''); try { const data = await api.requestAdminRecovery(phone); setMessage(data.message) } catch (e) { setError(e.message) } finally { setBusy(false) } }}><label><span>Celular cadastrado</span><div className="admin-login-input"><input type="tel" inputMode="tel" autoComplete="tel" maxLength="30" required disabled={busy} value={phone} onChange={e => setPhone(e.target.value)} placeholder="(69) 99999-9999"/></div></label><button className="admin-login-submit" disabled={busy || !phone.trim()}>{busy ? 'Enviando pedido…' : 'Solicitar recuperação de senha'}</button></form>{message && <p className="admin-recovery-success" role="status">{message}</p>}{error && <p className="admin-login-error" role="alert">{error}</p>}</details>
+}

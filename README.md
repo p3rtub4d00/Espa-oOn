@@ -156,7 +156,7 @@ Diagnóstico de localização: cada nova visita registra somente um código fixo
 
 ### Assistente Gemini no site de reservas
 
-Configure `GEMINI_API_KEY` no serviço de reservas no Render. Nunca use variáveis `VITE_` para a chave. `GEMINI_MODEL` é opcional, com padrão `gemini-2.5-flash-lite`. Publique o Master antes deste serviço e ative o assistente nos detalhes do clube no Master. Sem chave, licença ativa ou ativação, o botão não aparece. Clubes existentes começam desativados.
+Configure `GEMINI_API_KEY` no serviço de reservas no Render. Nunca use variáveis `VITE_` para a chave. `GEMINI_MODEL` é opcional, com padrão `gemini-3.5-flash-lite`. Publique o Master antes deste serviço e ative o assistente nos detalhes do clube no Master. Sem chave, licença ativa ou ativação, o botão não aparece. Clubes existentes começam desativados.
 
 O chat consulta disponibilidade e orçamento usando a agenda e os preços atuais do servidor. Não cria reservas, contratos ou pagamentos. A disponibilidade pode mudar até finalizar a reserva pelo calendário. Não recebe documentos ou dados de pagamento; perguntas e um histórico curto são enviados ao Google Gemini e ficam apenas na memória da página. O banco guarda contadores mensais de tentativas, chamadas e tokens, sincronizados com o Master. Consulte também a política de privacidade atualizada.
 
@@ -168,3 +168,6 @@ Validação local usa respostas simuladas e cobre ferramentas, isolamento dos da
 ### Atualizações de licença e chat na página aberta
 
 A home consulta a licença atual ao abrir, ao retornar à aba e a cada 30 segundos enquanto visível. O chat verifica novamente a habilitação quando a licença é atualizada. Assim, mudanças de demonstração, ativação e atendimento no Master são refletidas sem fechar a página. A licença pública não é armazenada em cache HTTP; o HTML exige revalidação para receber novos bundles após deploy. O servidor consulta o Master novamente antes de autorizar novas reservas. Demonstração ignora mensalidade pendente; produção mantém os bloqueios de inadimplência.
+
+
+O modelo padrão é `gemini-3.5-flash-lite`. Projetos novos podem não ter acesso aos modelos 2.5, restritos pelo Google a usuários anteriores. Se `GEMINI_MODEL` estiver definido no Render, atualize-o explicitamente; o ambiente tem prioridade sobre o padrão. Falhas do Google retornam mensagens de indisponibilidade e códigos de diagnóstico. Os logs registram somente HTTP, modelo, status e motivos padronizados, sem chave, mensagem do usuário ou resposta bruta do Google.

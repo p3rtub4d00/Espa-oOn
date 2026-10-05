@@ -100,3 +100,19 @@ test('actual chat HTTP failures expose only safe provider messages instead of a 
   assert.equal((await quota.json()).code, 'GEMINI_QUOTA')
   providerErrorStatus = 0
 })
+
+
+test('calendar buttons come only from real availability tools, never assistant text or quotes', async () => {
+  for (const [name, status, date, expected] of [
+    ['consultar_data', 'available', '2026-12-25', [{ type: 'calendar', date: '2026-12-25' }]],
+    ['consultar_data', 'reserved', '2026-12-25', []],
+    ['consultar_data', 'pending', '2026-12-25', []],
+    ['consultar_data', 'blocked', '2026-12-25', []],
+    ['calcular_orcamento', 'available', '2026-12-25', []],
+    ['consultar_data', 'available', 'https://unsafe.test', []]
+  ]) {
+    let count = 0
+    const result = await geminiReply({ apiKey: 'fake-key', model: 'gemini-3.5-flash-lite', input: { message: 'Tem vaga?', history: [] }, info: {}, execute: async () => ({ date, status }), fetchImpl: async () => ({ ok: true, json: async () => ({ candidates: [{ content: { role: 'model', parts: ++count === 1 ? [{ functionCall: { name, args: {} } }] : [{ text: 'Veja 31/12/2026 no calendário.' }] } }] }) }) })
+    assert.deepEqual(result.actions, expected)
+  }
+})

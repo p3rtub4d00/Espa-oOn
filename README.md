@@ -171,3 +171,8 @@ A home consulta a licença atual ao abrir, ao retornar à aba e a cada 30 segund
 
 
 O modelo padrão é `gemini-3.5-flash-lite`. Projetos novos podem não ter acesso aos modelos 2.5, restritos pelo Google a usuários anteriores. Se `GEMINI_MODEL` estiver definido no Render, atualize-o explicitamente; o ambiente tem prioridade sobre o padrão. Falhas do Google retornam mensagens de indisponibilidade e códigos de diagnóstico. Os logs registram somente HTTP, modelo, status e motivos padronizados, sem chave, mensagem do usuário ou resposta bruta do Google.
+
+
+### Ações de reserva no chat
+
+O chat oferece um botão destacado para reservar no calendário e uma opção inicial para consultar datas. Quando a ferramenta do servidor confirma uma data disponível, a resposta inclui um botão que abre o calendário no mês correspondente; o cliente seleciona a data e segue o fluxo existente. Textos da IA e orçamentos isolados não geram botões de data. Não há contato WhatsApp no chat. A IA não cria reservas nem substitui contrato ou pagamento.

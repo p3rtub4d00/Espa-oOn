@@ -205,7 +205,7 @@ function App() {
   useEffect(() => {
     let active = true
 
-    Promise.all([api.getSettings(), api.getAvailability(), api.licenseStatus()])
+    Promise.all([api.getSettings(), api.getAvailability(), api.licenseStatus(true)])
       .then(([settingsData, availability, license]) => {
         if (!active) return
         setSiteSettings(settingsData)
@@ -223,6 +223,29 @@ function App() {
 
     return () => {
       active = false
+    }
+  }, [])
+
+  useEffect(() => {
+    let active = true
+    let running = false
+    const refreshLicense = async () => {
+      if (document.visibilityState === 'hidden' || running) return
+      running = true
+      try {
+        const license = await api.licenseStatus(true)
+        if (active) setLicenseStatus(license)
+      } catch { /* Preserve the last known state during a network failure. */ }
+      finally { running = false }
+    }
+    const timer = window.setInterval(refreshLicense, 30000)
+    window.addEventListener('focus', refreshLicense)
+    document.addEventListener('visibilitychange', refreshLicense)
+    return () => {
+      active = false
+      window.clearInterval(timer)
+      window.removeEventListener('focus', refreshLicense)
+      document.removeEventListener('visibilitychange', refreshLicense)
     }
   }, [])
 
@@ -409,7 +432,7 @@ function App() {
             const [refreshed, availability, license] = await Promise.all([
               api.getSettings(),
               api.getAvailability(),
-              api.licenseStatus(),
+              api.licenseStatus(true),
             ])
             setSiteSettings(refreshed)
             setReservedDates(new Set(availability.reservedDates || []))
@@ -1009,7 +1032,7 @@ function App() {
         </div>
       )}
 
-      <AiChat name={brandName} phone={siteSettings.establishment?.phone} hidden={bookingOpen || visitOpen || lookupOpen || lightboxIndex != null || bookingLicenseBlocked} onCalendar={() => scrollTo('agenda')} />
+      <AiChat license={licenseStatus} name={brandName} phone={siteSettings.establishment?.phone} hidden={bookingOpen || visitOpen || lookupOpen || lightboxIndex != null || bookingLicenseBlocked} onCalendar={() => scrollTo('agenda')} />
       <footer>
         <a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a>
         <a className="brand footer-brand" href="#inicio" aria-label={brandName}>

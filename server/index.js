@@ -975,8 +975,6 @@ async function requireActiveLicense(req, res, next) {
     const license = await checkMasterLicense()
     if (license.demoMode) return next()
 
-    if (license.demoMode) return next()
-
     const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
 
     if (!license.active || billingBlocked) {
@@ -994,7 +992,8 @@ async function requireActiveLicense(req, res, next) {
 
 async function requireBookingLicense(req, res, next) {
   try {
-    const license = await checkMasterLicense()
+    const license = await checkMasterLicense({ force: true })
+    if (license.demoMode && license.active) return next()
     const billingBlocked = ['past_due', 'suspended', 'cancelled'].includes(license.billingStatus)
 
     if (!license.active || billingBlocked) {
@@ -2117,6 +2116,7 @@ app.post('/api/demo/events', demoEventLimiter, async (req, res, next) => {
 })
 
 app.get('/api/license', async (req, res, next) => {
+  res.setHeader('Cache-Control', 'no-store')
   try {
     const license = await checkMasterLicense({ force: req.query?.force === '1' })
     res.json({
@@ -4819,9 +4819,13 @@ const distDir = path.join(rootDir, 'dist')
 app.use(express.static(distDir, {
   maxAge: '1h',
   etag: true,
+  setHeaders: (res, filePath) => {
+    if (path.extname(filePath) === '.html') res.setHeader('Cache-Control', 'no-cache')
+  },
 }))
 
 app.get('*', (_req, res) => {
+  res.setHeader('Cache-Control', 'no-cache')
   res.sendFile(path.join(distDir, 'index.html'))
 })
 

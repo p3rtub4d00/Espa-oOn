@@ -2,7 +2,7 @@ import { useEffect, useRef, useState } from 'react'
 import { MessageCircle, Send, X, CalendarDays, Phone, Sparkles } from 'lucide-react'
 import { api } from '../data/api'
 import './aiChat.css'
-export default function AiChat({ name, phone, hidden, onCalendar }) {
+export default function AiChat({ license, name, phone, hidden, onCalendar }) {
   const [enabled, setEnabled] = useState(false)
   const [open, setOpen] = useState(false)
   const [messages, setMessages] = useState([])
@@ -13,7 +13,12 @@ export default function AiChat({ name, phone, hidden, onCalendar }) {
   const end = useRef(null)
   const trigger = useRef(null)
   const alive = useRef(true)
-  useEffect(() => { alive.current = true; api.chatConfig().then(x => { if (alive.current) setEnabled(x.enabled === true) }).catch(() => {}); return () => { alive.current = false } }, [])
+  useEffect(() => { alive.current = true; return () => { alive.current = false } }, [])
+  useEffect(() => {
+    let current = true
+    api.chatConfig().then(x => { if (current) setEnabled(x.enabled === true) }).catch(() => {})
+    return () => { current = false }
+  }, [license])
   useEffect(() => { if (open && !hidden) { input.current?.focus(); end.current?.scrollIntoView({ block: 'nearest' }) } }, [open, hidden])
   useEffect(() => { end.current?.scrollIntoView({ block: 'nearest' }) }, [messages, busy, error])
   const close = () => { setOpen(false); trigger.current?.focus() }

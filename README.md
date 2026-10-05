@@ -163,3 +163,8 @@ O chat consulta disponibilidade e orçamento usando a agenda e os preços atuais
 O limite mensal padrão é de 1.000 perguntas por clube, inclui tentativas com falha e renova no mês de Porto Velho. Cada pergunta pode usar até três chamadas ao modelo. Há limite adicional de oito perguntas por minuto por IP. Cotas e eventuais cobranças do Google são independentes desse limite; não há troca automática para outro modelo ou plano pago. Configure orçamento e cotas no projeto Google conforme o plano utilizado.
 
 Validação local usa respostas simuladas e cobre ferramentas, isolamento dos dados públicos, erros, limites e navegação no celular. Após o deploy, teste uma data livre, uma ocupada e um orçamento com adicional na demonstração para validar a chave real.
+
+
+### Atualizações de licença e chat na página aberta
+
+A home consulta a licença atual ao abrir, ao retornar à aba e a cada 30 segundos enquanto visível. O chat verifica novamente a habilitação quando a licença é atualizada. Assim, mudanças de demonstração, ativação e atendimento no Master são refletidas sem fechar a página. A licença pública não é armazenada em cache HTTP; o HTML exige revalidação para receber novos bundles após deploy. O servidor consulta o Master novamente antes de autorizar novas reservas. Demonstração ignora mensalidade pendente; produção mantém os bloqueios de inadimplência.

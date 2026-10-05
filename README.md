@@ -176,3 +176,10 @@ O modelo padrão é `gemini-3.5-flash-lite`. Projetos novos podem não ter acess
 ### Ações de reserva no chat
 
 O chat oferece um botão destacado para reservar no calendário e uma opção inicial para consultar datas. Quando a ferramenta do servidor confirma uma data disponível, a resposta inclui um botão que abre o calendário no mês correspondente; o cliente seleciona a data e segue o fluxo existente. Textos da IA e orçamentos isolados não geram botões de data. Não há contato WhatsApp no chat. A IA não cria reservas nem substitui contrato ou pagamento.
+
+
+### Pedido de recuperação da senha do proprietário
+
+A tela de login de produção oferece Esqueci minha senha. O dono informa seu celular com DDD e o serviço encaminha o pedido ao Master usando a licença existente. O retorno público não confirma se o número está cadastrado. O pedido não redefine a senha nem envia mensagem automaticamente. A equipe recebe o aviso no Master/PWA, confere o responsável e envia manualmente um link de uso único válido por 30 minutos pelo WhatsApp cadastrado. Demonstração continua sem senha e não mostra o formulário.
+
+Publique o Master primeiro e depois este serviço. Não há novas variáveis; MASTER_API_URL, MASTER_CLUB_ID e MASTER_LICENSE_KEY existentes são necessários. O endpoint público limita solicitações por IP, não aceita clube/URL de destino fornecidos pelo visitante e não envia senha ou chave ao navegador.

@@ -1,3 +1,4 @@
+import PasswordRecovery from './PasswordRecovery'
 import { useEffect, useState } from 'react'
 import { CheckCircle2, Copy, KeyRound, LockKeyhole, QrCode, RefreshCcw } from 'lucide-react'
 import { api } from '../data/api'
@@ -183,6 +184,7 @@ export default function AdminLogin({
                 {loading ? 'Abrindo...' : (demoMode ? 'Entrar na demonstração' : 'Entrar no painel')}
               </button>
             </form>
+            {!demoMode && <PasswordRecovery />}
           </>
         ) : (
           <div className="admin-billing-view">

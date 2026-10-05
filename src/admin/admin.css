@@ -5681,3 +5681,4 @@
 .gallery-upload-progress small { color: #52677b; }
 .gallery-upload-errors { padding-left: 22px; color: #a23832; font-size: 13px; line-height: 1.6; overflow-wrap: anywhere; }
 .upload-local-box button:disabled, .admin-gallery-grid button:disabled { opacity: .6; cursor: wait; }
+.admin-password-recovery{border-top:1px solid #e2e8f0;margin-top:20px;padding-top:16px;text-align:left}.admin-password-recovery summary{color:var(--brand-secondary,#1769ff);font-weight:600;cursor:pointer;font-size:14px}.admin-password-recovery>p{font-size:13px;line-height:1.5;color:#64748b;margin:12px 0}.admin-password-recovery .admin-recovery-success{background:#ecfdf5;color:#166534;padding:12px;border-radius:10px}.admin-password-recovery .admin-login-submit{font-size:14px}

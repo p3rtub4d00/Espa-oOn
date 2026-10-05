@@ -1,3 +1,4 @@
+import { installAiChat } from './ai-chat.js'
 import { lookupDemoLocation, demoVisitorIp } from './demo-location.js'
 import { deliverPushBatch } from './push-delivery.js'
 import { isBookingCpfValid } from '../shared/booking-demo.js'
@@ -935,6 +936,7 @@ async function checkMasterLicense({ force = false } = {}) {
         ? data.paymentProvider
         : 'asaas',
       mercadoPagoConnected: data.mercadoPagoConnected === true,
+      aiChat: data.aiChat || { enabled: false },
     }
 
     return masterLicenseCache
@@ -2032,6 +2034,7 @@ async function masterBillingRequest(pathname, options = {}) {
 
   const response = await fetch(MASTER_API_URL + pathname, {
     method: options.method || 'GET',
+    ...(pathname.startsWith('/api/license/ai-chat/') ? { signal: AbortSignal.timeout(10000) } : {}),
     headers: {
       accept: 'application/json',
       'content-type': 'application/json',
@@ -2331,6 +2334,25 @@ app.get('/api/admin/settings', requireAdmin, async (_req, res, next) => {
   } catch (error) {
     next(error)
   }
+})
+
+installAiChat({ app, mongoose, license: checkMasterLicense, settings: currentSettings, cleaning: CLEANING_CLAUSE_TEXT,
+  queryDate: async date => {
+    const settings = await currentSettings()
+    const lock = await DateLock.findById(date, { status: 1 }).lean()
+    const blocked = (settings.blockedDates || []).includes(date)
+    return { date, status: blocked ? 'blocked' : lock ? (lock.status === 'pending' ? 'pending' : 'reserved') : 'available',
+      price12: priceForDate(date, '12h', settings), price24: priceForDate(date, '24h', settings),
+      note: 'Disponibilidade por data, sujeita a alteração até concluir a reserva. Bloqueio pendente pode ser pagamento em processamento; não prometa liberação.' }
+  },
+  quote: async (date, period, extras) => {
+    const settings = await currentSettings()
+    const selected = selectedExtrasForContract(settings, extras)
+    const basePrice = priceForDate(date, period, settings)
+    return { date, period, basePrice, extras: selected.extras, extrasTotal: selected.extrasTotal,
+      total: Math.round((basePrice + selected.extrasTotal) * 100) / 100, currency: 'BRL', note: 'Orçamento não cria reserva. Consulte a disponibilidade no calendário.' }
+  },
+  reportUsage: payload => masterBillingRequest('/api/license/ai-chat/usage', { method: 'POST', body: payload }),
 })
 
 app.get('/api/availability', async (_req, res, next) => {

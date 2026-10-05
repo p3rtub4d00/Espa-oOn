@@ -1,3 +1,4 @@
+import AiChat from './components/AiChat'
 import { trackDemoEvent } from './data/demo-analytics'
 import PrivacyPage from './components/PrivacyPage'
 import { useEffect, useMemo, useState } from 'react'
@@ -1008,6 +1009,7 @@ function App() {
         </div>
       )}
 
+      <AiChat name={brandName} phone={siteSettings.establishment?.phone} hidden={bookingOpen || visitOpen || lookupOpen || lightboxIndex != null || bookingLicenseBlocked} onCalendar={() => scrollTo('agenda')} />
       <footer>
         <a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a>
         <a className="brand footer-brand" href="#inicio" aria-label={brandName}>

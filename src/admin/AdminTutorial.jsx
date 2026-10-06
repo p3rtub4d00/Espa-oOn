@@ -1,12 +1,26 @@
-import { useState } from 'react'
+import { useEffect, useRef, useState } from 'react'
+import { createPortal } from 'react-dom'
 import { BookOpen, ChevronLeft, ChevronRight, ExternalLink, X } from 'lucide-react'
 import { tutorialTopics } from './tutorial-topics'
 import './tutorial.css'
 
 export default function AdminTutorial({ demoMode, onNavigate, onClose, onDismiss, headingRef }) {
   const [index, setIndex] = useState(0)
+  const dialogRef = useRef(null)
+  useEffect(() => {
+    const dialog = dialogRef.current
+    const previousOverflow = document.body.style.overflow
+    dialog.showModal()
+    document.body.style.overflow = 'hidden'
+    headingRef.current?.focus({ preventScroll: true })
+    return () => {
+      dialog.close()
+      document.body.style.overflow = previousOverflow
+    }
+  }, [headingRef])
   const topic = tutorialTopics[index]
-  return (
+  return createPortal(
+    <dialog ref={dialogRef} className="admin-tutorial-modal" aria-labelledby="admin-tutorial-heading" onCancel={(event) => { event.preventDefault(); onClose() }}>
     <section className="admin-tutorial" aria-labelledby="admin-tutorial-heading">
       <div className="admin-tutorial-head">
         <div className="admin-tutorial-heading"><BookOpen size={24} /><div><span>Guia do proprietário</span><h2 id="admin-tutorial-heading" tabIndex={-1} ref={headingRef}>Como usar o painel</h2></div></div>
@@ -29,5 +43,7 @@ export default function AdminTutorial({ demoMode, onNavigate, onClose, onDismiss
       </div>
       <small className="admin-tutorial-preference">Essa preferência vale neste navegador. Você sempre pode reabrir pelo botão “Como usar o painel”.</small>
     </section>
+    </dialog>,
+    document.body,
   )
 }

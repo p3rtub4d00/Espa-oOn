@@ -1061,11 +1061,11 @@ function App() {
               ].filter(Boolean).join(' • ')
             : 'Locação de espaço de lazer • Reserva online'}
         </p>
+        <a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a>
         <span>
           © {new Date().getFullYear()} {siteSettings.establishment?.name || 'ClubeOn'}
         </span>
         </div>
-        <div className="site-footer-legal"><span>Informações sobre o uso dos seus dados</span><a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a></div>
       </footer>
     </div>
   )

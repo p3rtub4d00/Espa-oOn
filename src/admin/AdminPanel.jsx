@@ -1,3 +1,4 @@
+import AdminSupport from './AdminSupport'
 import { reservationAttention, reservationEnd, reservationGroups, filterReservationHistory } from '../../shared/reservation-history.js'
 import AdminTutorial from './AdminTutorial'
 import { shouldShowTutorial, TUTORIAL_STORAGE_KEY } from './tutorial-topics'
@@ -33,6 +34,7 @@ import {
   Menu,
   Building2,
   BookOpen,
+  LifeBuoy,
   Palette,
   Upload,
   MapPin,
@@ -223,6 +225,12 @@ export default function AdminPanel({
   onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
+  const [supportOpen, setSupportOpen] = useState(false)
+  const supportButtonRef = useRef(null)
+  const closeSupport = () => {
+    setSupportOpen(false)
+    window.requestAnimationFrame(() => supportButtonRef.current?.focus({ preventScroll: true }))
+  }
   const [tutorialOpen, setTutorialOpen] = useState(() => {
     try { return shouldShowTutorial(window.localStorage) } catch { return true }
   })
@@ -813,6 +821,7 @@ export default function AdminPanel({
               <span><strong>Administrador</strong><small>Sistema online</small></span>
             </div>
             <button ref={tutorialButtonRef} className="admin-help-button" onClick={openTutorial}><BookOpen size={18} />Como usar o painel</button>
+            <button ref={supportButtonRef} className="admin-support-button" aria-haspopup="dialog" onClick={() => { setTutorialOpen(false); setSupportOpen(true) }}><LifeBuoy size={18} />Suporte ClubeOn</button>
           </div>
         </header>
 
@@ -826,7 +835,7 @@ export default function AdminPanel({
         {loading && <div className="admin-demo-note">Carregando dados online...</div>}
 
         {tutorialStorageMessage && <div className="admin-demo-note">{tutorialStorageMessage}</div>}
-        {!loading && tutorialOpen && !(pushPromptOpen && !pushSubscription) && <AdminTutorial
+        {!loading && tutorialOpen && !supportOpen && !(pushPromptOpen && !pushSubscription) && <AdminTutorial
           demoMode={paymentConfig?.demoMode === true}
           headingRef={tutorialHeadingRef}
           onNavigate={navigateFromTutorial}
@@ -2827,6 +2836,12 @@ export default function AdminPanel({
         )}
 
       </main>
+
+      {supportOpen && <AdminSupport
+        clubName={currentBrandName}
+        sectionName={primaryMenu.find(([id]) => id === active)?.[1] || menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] || 'Visão geral'}
+        onClose={closeSupport}
+      />}
 
       {pushPromptOpen && !pushSubscription && createPortal(
         <div className="push-onboarding-backdrop" role="dialog" aria-modal="true" aria-label="Ativar notificações">

@@ -783,6 +783,8 @@ export default function AdminPanel({
           </div>
         </nav>
 
+        <div className="admin-sidebar-tools">
+          <button ref={supportButtonRef} className="admin-support-button" aria-haspopup="dialog" onClick={() => { setTutorialOpen(false); setSupportOpen(true) }}><LifeBuoy size={18} />Suporte ClubeOn</button>
         {!appInstalled && (
           <button className="admin-install-app" onClick={onInstall}>
             <Download size={17} />
@@ -794,6 +796,7 @@ export default function AdminPanel({
           <ArrowLeft size={17} />
           Voltar ao site
         </button>
+        </div>
       </aside>
 
       <main className="admin-main">
@@ -816,12 +819,7 @@ export default function AdminPanel({
             }</h1>
           </div>
           <div className="admin-header-actions">
-            <div className="admin-user">
-              <div>AD</div>
-              <span><strong>Administrador</strong><small>Sistema online</small></span>
-            </div>
             <button ref={tutorialButtonRef} className="admin-help-button" onClick={openTutorial}><BookOpen size={18} />Como usar o painel</button>
-            <button ref={supportButtonRef} className="admin-support-button" aria-haspopup="dialog" onClick={() => { setTutorialOpen(false); setSupportOpen(true) }}><LifeBuoy size={18} />Suporte ClubeOn</button>
           </div>
         </header>
 

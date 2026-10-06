@@ -24,3 +24,8 @@
 .admin-support-intro h2:focus { outline: none; }
 @media (max-width:760px) { .admin-header-actions .admin-support-button { font-size: 11px; padding: 8px 10px; width: 100%; } }
 @media (max-width:480px) { .admin-support-modal { padding: 24px 18px; } .admin-support-options a { padding: 12px; gap: 9px; } }
+
+.admin-sidebar-tools { display: grid; gap: 10px; margin-top: auto; padding-top: 20px; flex-shrink: 0; }
+.admin-sidebar-tools .admin-install-app, .admin-sidebar-tools .admin-back { margin: 0; width: 100%; }
+.admin-sidebar-tools .admin-support-button { width: 100%; justify-content: flex-start; color: #d9efff; background: #ffffff0a; border-color: #ffffff26; font-size: 12px; }
+.admin-sidebar-tools .admin-support-button:hover { background: #ffffff14; }

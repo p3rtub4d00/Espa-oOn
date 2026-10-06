@@ -1883,6 +1883,14 @@ export default function AdminPanel({
                 {establishmentMissing.ownerName && <small className="field-error-text">Informe o responsável.</small>}
               </label>
 
+              <label>
+                <span>CPF ou CNPJ do locador</span>
+                <input value={settings.establishment?.document || ''} maxLength={24}
+                  onChange={event => updateSettingsDraft(current => ({ ...current, establishment: { ...current.establishment, document: event.target.value } }))}
+                  placeholder="CPF ou CNPJ de quem realiza a locação" />
+                <small>Usado na leitura do contrato e nos documentos da reserva. Informe os dados corretos do locador.</small>
+              </label>
+
               <label className={establishmentMissing.phone ? 'field-missing' : ''}>
                 <span>Telefone / WhatsApp de contato</span>
                 <input

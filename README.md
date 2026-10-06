@@ -183,3 +183,14 @@ O chat oferece um botão destacado para reservar no calendário e uma opção in
 A tela de login de produção oferece Esqueci minha senha. O dono informa seu celular com DDD e o serviço encaminha o pedido ao Master usando a licença existente. O retorno público não confirma se o número está cadastrado. O pedido não redefine a senha nem envia mensagem automaticamente. A equipe recebe o aviso no Master/PWA, confere o responsável e envia manualmente um link de uso único válido por 30 minutos pelo WhatsApp cadastrado. Demonstração continua sem senha e não mostra o formulário.
 
 Publique o Master primeiro e depois este serviço. Não há novas variáveis; MASTER_API_URL, MASTER_CLUB_ID e MASTER_LICENSE_KEY existentes são necessários. O endpoint público limita solicitações por IP, não aceita clube/URL de destino fornecidos pelo visitante e não envia senha ou chave ao navegador.
+
+
+### Contratos e comprovantes (versão 2026-10-06)
+
+O responsável preenche CPF/CNPJ do locador em Estabelecimento, junto do nome do responsável e endereço. Nome, responsável, documento, contato e endereço são apresentados no fluxo de assinatura e preservados no documento de cada nova contratação. O CPF/CNPJ não integra a resposta pública geral de configurações; é apresentado na leitura do contrato. O sistema não verifica a titularidade do documento informado.
+
+Novas assinaturas exigem aceite da versão atual do contrato, dos dados do locador e dos valores. O servidor registra o horário do aceite e conserva as cláusulas completas, incluindo política de cancelamento e limpeza. O hash protege essa versão e a conferência recalcula sua integridade. Documentos antigos continuam com sua rotina de verificação e não recebem dados/cláusulas novos retroativamente. A versão final do texto deve ser revisada pelo responsável e por advogado conforme a operação.
+
+Comprovantes distinguem o meio de pagamento real, saldo e pagamento parcial; pagamentos manuais são declarações do estabelecimento. Demonstrações são identificadas como simulação sem cobrança. Uma devolução pendente não é apresentada como concluída. PDFs têm quebra de linhas e páginas; o link de conferência nos arquivos gerados pelo navegador verifica o contrato, não constitui autenticação independente do recibo de pagamento. Horários nos PDFs são apresentados no fuso de Porto Velho (America/Porto_Velho).
+
+Deploy: mesclar o PR e atualizar o serviço de reservas no Render. Não exige novas variáveis, migração de contratos existentes ou alteração no Master. Restauração de código: branch restore/pre-contract-documents-20261006.

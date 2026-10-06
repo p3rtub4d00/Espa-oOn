@@ -3,6 +3,7 @@ import { installAiChat } from './ai-chat.js'
 import { lookupDemoLocation, demoVisitorIp } from './demo-location.js'
 import { deliverPushBatch } from './push-delivery.js'
 import { isBookingCpfValid } from '../shared/booking-demo.js'
+import { contractDocument } from '../shared/contract-document.js'
 import { CLEANING_CLAUSE_TEXT } from '../shared/contract-terms.js'
 import { buildPrivacyPolicy, sanitizePrivacyConfig } from './privacy.js'
 import { bindDeploymentDatabase } from './deployment-identity.js'
@@ -199,6 +200,10 @@ const contractSchema = new mongoose.Schema(
     cancellationPolicyText: String,
     cleaningClauseText: String,
     establishmentName: String,
+    documentSnapshot: mongoose.Schema.Types.Mixed,
+    acceptedAt: Date,
+    clientSignedAt: Date,
+    demoMode: Boolean,
     cancellation: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true },
@@ -262,6 +267,7 @@ const settingsSchema = new mongoose.Schema(
     establishment: {
       name: String,
       ownerName: String,
+      document: String,
       phone: String,
       address: String,
       city: String,
@@ -1129,6 +1135,8 @@ function contractHash(contract) {
     canonicalParts.push('CLEANING_V1', contract.cleaningClauseText)
   }
 
+  if (contract.documentSnapshot) canonicalParts.push('DOCUMENT_V1', JSON.stringify(contract.documentSnapshot), contract.customer?.address || '', contract.customer?.email || '', contract.acceptedAt instanceof Date ? contract.acceptedAt.toISOString() : String(contract.acceptedAt || ''), String(contract.demoMode === true))
+
   return crypto.createHash('sha256').update(canonicalParts.join('|')).digest('hex').toUpperCase()
 }
 
@@ -1470,12 +1478,19 @@ function sanitizeSettingsUpdate(body = {}) {
     const establishment = {
       name: textValue(body.establishment?.name, 120),
       ownerName: textValue(body.establishment?.ownerName, 120),
+      document: textValue(body.establishment?.document, 24).toUpperCase().replace(/[^A-Z0-9]/g, ''),
       phone: onlyDigits(body.establishment?.phone).slice(0, 13),
       address: textValue(body.establishment?.address, 240),
       city: textValue(body.establishment?.city, 100),
       state: textValue(body.establishment?.state, 2).toUpperCase(),
       locationNote: textValue(body.establishment?.locationNote, 240),
       openingHours: textValue(body.establishment?.openingHours, 180),
+    }
+
+    if (establishment.document && !(/^\d{11}$/.test(establishment.document) || /^[A-Z0-9]{12}\d{2}$/.test(establishment.document))) {
+      const error = new Error('Informe o CPF com 11 números ou o CNPJ com 14 caracteres.')
+      error.statusCode = 400
+      throw error
     }
 
     if (establishment.name.length < 2) {
@@ -2324,6 +2339,8 @@ app.get('/api/settings', async (_req, res, next) => {
     const settings = await Settings.findOne({ key: 'main' }).lean()
     const source = settings || DEFAULT_SETTINGS
     const { notifications, ...publicSettings } = source
+    const { document, ...publicEstablishment } = source.establishment || {}
+    publicSettings.establishment = publicEstablishment
     res.json({ ...publicSettings, contractTerms: { cleaningClauseText: CLEANING_CLAUSE_TEXT } })
   } catch (error) {
     next(error)
@@ -2397,6 +2414,10 @@ app.put('/api/admin/settings', requireAdmin, publicWriteLimiter, async (req, res
   }
 })
 
+app.get('/api/contracts/terms', requireBookingLicense, publicWriteLimiter, async (_req, res, next) => {
+  try { res.set('Cache-Control', 'no-store'); res.json(contractDocument(await currentSettings())) } catch (error) { next(error) }
+})
+
 app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req, res, next) => {
   try {
     const payload = req.body || {}
@@ -2444,7 +2465,10 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
     }
 
     const existing = await Contract.findOne({ id: payload.id }).lean()
-    if (existing) return res.status(200).json(existing)
+    if (existing) {
+      if (existing.reservationId !== payload.reservationId || !secureEqual(existing.signature || '', signature) || existing.customer?.cpf !== customer.cpf || existing.customer?.phone !== customer.phone) return res.status(409).json({ error: 'O identificador já está vinculado a outro contrato.' })
+      return res.status(200).json(existing)
+    }
 
     const settings = await currentSettings()
     const configuredStartTimes = allowedStartTimes(settings, payload.period)
@@ -2472,6 +2496,14 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       return res.status(409).json({ error: 'O contrato foi atualizado com a cláusula de limpeza. Atualize a página e leia o contrato antes de assinar.' })
     }
 
+    if (Math.round(Number(payload.price) * 100) !== Math.round(price * 100)) return res.status(409).json({ error: 'O valor da reserva foi atualizado. Reinicie a reserva para ler e aceitar os valores atuais.' })
+
+    const documentSnapshot = contractDocument(settings)
+    if (payload.accepted !== true || JSON.stringify(payload.documentSnapshot) !== JSON.stringify(documentSnapshot)) {
+      return res.status(409).json({ error: 'Os dados do locador ou o contrato foram atualizados. Abra novamente, leia e aceite o documento antes de assinar.' })
+    }
+    const acceptedAt = new Date()
+
     const contractRecord = {
       id: payload.id,
       reservationId: payload.reservationId,
@@ -2486,7 +2518,11 @@ app.post('/api/contracts', requireBookingLicense, publicWriteLimiter, async (req
       extras: selectedExtras.extras,
       price,
       customer,
-      signedAt,
+      signedAt: acceptedAt,
+      acceptedAt,
+      clientSignedAt: signedAt,
+      documentSnapshot,
+      demoMode: bookingLicense.demoMode === true,
       signature,
       establishmentName: textValue(settings.establishment?.name || 'ClubeOn', 120),
       cancellationPolicyText,
@@ -3805,22 +3841,9 @@ app.get('/api/contracts/:id/verify', lookupLimiter, async (req, res, next) => {
       return res.status(400).json({ error: 'Dados de verificação incompletos.' })
     }
 
-    const contract = await Contract.findOne(
-      { id },
-      {
-        id: 1,
-        reservationId: 1,
-        reservationDate: 1,
-        period: 1,
-        signedAt: 1,
-        hash: 1,
-        status: 1,
-        paymentStatus: 1,
-        _id: 0,
-      },
-    ).lean()
+    const contract = await Contract.findOne({ id }).lean()
 
-    if (!contract || !secureEqual(contract.hash, hash)) {
+    if (!contract || !secureEqual(contract.hash, hash) || !secureEqual(contractHash(contract), hash)) {
       return res.status(404).json({
         valid: false,
         error: 'Contrato não localizado ou hash inválido.',

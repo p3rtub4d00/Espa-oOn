@@ -1,3 +1,4 @@
+import { purgeExpiredVisits } from './visit-retention.js'
 import { installClubRecoveryRequest } from './club-recovery.js'
 import { installAiChat } from './ai-chat.js'
 import { lookupDemoLocation, demoVisitorIp } from './demo-location.js'
@@ -4977,6 +4978,21 @@ async function migrateProductionData() {
   }
 }
 
+let visitRetentionTimer
+let visitRetentionRunning = false
+async function runVisitRetention() {
+  if (visitRetentionRunning || mongoose.connection.readyState !== 1) return
+  visitRetentionRunning = true
+  try {
+    const deleted = await purgeExpiredVisits(Visit)
+    if (deleted) console.log('Visitas antigas removidas: ' + deleted)
+  } catch (error) {
+    console.error('Falha na limpeza de visitas:', error?.message || 'Erro de banco')
+  } finally {
+    visitRetentionRunning = false
+  }
+}
+
 async function start() {
   try {
     validateProductionConfig()
@@ -4998,6 +5014,9 @@ async function start() {
       console.log('ClubeOn em produção na porta ' + PORT)
       startReservationReminderScheduler()
       startDatabaseBackupScheduler()
+      void runVisitRetention()
+      visitRetentionTimer = setInterval(() => void runVisitRetention(), 60 * 60 * 1000)
+      visitRetentionTimer.unref()
     })
   } catch (error) {
     console.error('Falha ao iniciar o ClubeOn:', error?.message || error)
@@ -5010,6 +5029,7 @@ async function shutdown(signal) {
   try {
     if (reservationReminderTimer) clearInterval(reservationReminderTimer)
     if (backupTimer) clearInterval(backupTimer)
+    if (visitRetentionTimer) clearInterval(visitRetentionTimer)
     if (backupConnection) await backupConnection.close().catch(() => {})
     await mongoose.connection.close()
   } finally {

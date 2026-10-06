@@ -1,3 +1,4 @@
+import { clubToday, visitDate, visitGroups } from '../../shared/visit-history.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
 import {
@@ -221,6 +222,16 @@ export default function AdminPanel({
   const [openMenuGroup, setOpenMenuGroup] = useState('')
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
+  const [showVisitHistory, setShowVisitHistory] = useState(false)
+  const [visitToday, setVisitToday] = useState(() => clubToday())
+  useEffect(() => {
+    const updateDay = () => setVisitToday(clubToday())
+    const timer = window.setInterval(updateDay, 60000)
+    window.addEventListener('focus', updateDay)
+    return () => { window.clearInterval(timer); window.removeEventListener('focus', updateDay) }
+  }, [])
+  const { current: currentVisits, history: pastVisits } = visitGroups(visits, visitToday)
+  const visibleVisits = showVisitHistory ? pastVisits : currentVisits
   const [settings, setSettings] = useState(loadSettings)
   const settingsDirtyRef = useRef(false)
   const [loading, setLoading] = useState(true)
@@ -926,7 +937,7 @@ export default function AdminPanel({
               <article>
                 <div><CalendarCheck2 /></div>
                 <span>Visitas</span>
-                <strong>{visits.length}</strong>
+                <strong>{currentVisits.length}</strong>
                 <small>solicitações online</small>
               </article>
               <article>
@@ -973,7 +984,7 @@ export default function AdminPanel({
                   <button onClick={() => setActive('visits')}>Ver todas</button>
                 </div>
                 <div className="admin-list compact">
-                  {visits.length ? visits.slice(0, 5).map((visit) => (
+                  {currentVisits.length ? currentVisits.slice(0, 5).map((visit) => (
                     <div key={visit.id}>
                       <span className="round-icon"><Clock3 /></span>
                       <span className="list-main">
@@ -982,7 +993,7 @@ export default function AdminPanel({
                       </span>
                     </div>
                   )) : (
-                    <div className="admin-empty">Nenhuma visita foi solicitada ainda.</div>
+                    <div className="admin-empty">Nenhuma visita atual ou futura.</div>
                   )}
                 </div>
               </div>
@@ -1343,12 +1354,14 @@ export default function AdminPanel({
         {active === 'visits' && (
           <section className="admin-card large">
             <div className="admin-card-title">
-              <div><span>Solicitações de visita</span><strong>{visits.length} registros</strong></div>
+              <div><span>{showVisitHistory ? 'Histórico de visitas' : 'Solicitações de visita'}</span><strong>{visibleVisits.length} registros</strong></div>
+              <button onClick={() => setShowVisitHistory((value) => !value)}>{showVisitHistory ? 'Ver visitas atuais' : `Ver histórico (${pastVisits.length})`}</button>
             </div>
 
-            {visits.length ? (
+            <p className="visit-retention-note">Visitas passadas e recusadas ficam no histórico. Registros são excluídos automaticamente após 90 dias da data da visita.</p>
+            {visibleVisits.length ? (
               <div className="visit-admin-list">
-                {visits.map((v) => {
+                {visibleVisits.map((v) => {
                   const requestedDate = v.requestedDate || v.date
                   const requestedTime = v.requestedTime || v.time
                   const updateVisit = async (nextVisit) => {
@@ -1380,7 +1393,9 @@ export default function AdminPanel({
                                 ? 'visit-status proposed'
                                 : 'visit-status pending'
                         }>
-                          {v.status === 'confirmed'
+                          {v.status !== 'confirmed' && v.status !== 'rejected' && visitDate(v) && visitDate(v) < visitToday
+                            ? 'Prazo passado'
+                            : v.status === 'confirmed'
                             ? 'Confirmada'
                             : v.status === 'rejected'
                               ? 'Recusada'
@@ -1401,7 +1416,12 @@ export default function AdminPanel({
                         </div>
                       </div>
 
-                      {v.status === 'confirmed' ? (
+                      {showVisitHistory ? (
+                        <div className="visit-history-summary">
+                          <strong>{(visitDate(v) || '').split('-').reverse().join('/')} {v.confirmedTime || requestedTime || ''}</strong>
+                          {v.ownerMessage && <p>{v.ownerMessage}</p>}
+                        </div>
+                      ) : v.status === 'confirmed' ? (
                         <div className="visit-confirmed-locked">
                           <div>
                             <span>Visita confirmada</span>
@@ -1535,7 +1555,7 @@ export default function AdminPanel({
                 })}
               </div>
             ) : (
-              <div className="admin-empty large">Ainda não existem solicitações de visita.</div>
+              <div className="admin-empty large">{showVisitHistory ? 'Nenhuma visita no histórico.' : 'Nenhuma visita atual ou futura.'}</div>
             )}
           </section>
         )}

@@ -1,3 +1,4 @@
+import { reservationAttention, reservationEnd, reservationGroups, filterReservationHistory } from '../../shared/reservation-history.js'
 import AdminTutorial from './AdminTutorial'
 import { shouldShowTutorial, TUTORIAL_STORAGE_KEY } from './tutorial-topics'
 import { clubToday, visitDate, visitGroups } from '../../shared/visit-history.js'
@@ -248,11 +249,22 @@ export default function AdminPanel({
   }
   const [openMenuGroup, setOpenMenuGroup] = useState('')
   const [reservations, setReservations] = useState([])
+  const [reservationNow, setReservationNow] = useState(() => new Date())
+  const [showReservationHistory, setShowReservationHistory] = useState(false)
+  const [reservationSearch, setReservationSearch] = useState('')
+  const [reservationHistoryMonth, setReservationHistoryMonth] = useState('')
+  const [reservationPage, setReservationPage] = useState(0)
+  const { current: currentReservations, history: pastReservations } = reservationGroups(reservations, reservationNow)
+  const filteredReservations = showReservationHistory ? filterReservationHistory(pastReservations, reservationSearch, reservationHistoryMonth) : currentReservations
+  const reservationPageCount = Math.max(1, Math.ceil(filteredReservations.length / 20))
+  const effectiveReservationPage = Math.min(reservationPage, reservationPageCount - 1)
+  const visibleReservations = filteredReservations.slice(effectiveReservationPage * 20, (effectiveReservationPage + 1) * 20)
+  useEffect(() => { setReservationPage(0) }, [showReservationHistory, reservationSearch, reservationHistoryMonth])
   const [visits, setVisits] = useState([])
   const [showVisitHistory, setShowVisitHistory] = useState(false)
   const [visitToday, setVisitToday] = useState(() => clubToday())
   useEffect(() => {
-    const updateDay = () => setVisitToday(clubToday())
+    const updateDay = () => { setVisitToday(clubToday()); setReservationNow(new Date()) }
     const timer = window.setInterval(updateDay, 60000)
     window.addEventListener('focus', updateDay)
     return () => { window.clearInterval(timer); window.removeEventListener('focus', updateDay) }
@@ -608,18 +620,7 @@ export default function AdminPanel({
     [reservations],
   )
 
-  const upcomingReservations = useMemo(() => {
-    const today = new Date()
-    const todayISO = [
-      today.getFullYear(),
-      String(today.getMonth() + 1).padStart(2, '0'),
-      String(today.getDate()).padStart(2, '0'),
-    ].join('-')
-
-    return reservations
-      .filter((item) => isActiveReservation(item) && reservationISO(item) >= todayISO)
-      .sort((a, b) => reservationISO(a).localeCompare(reservationISO(b)))
-  }, [reservations])
+  const upcomingReservations = currentReservations.filter((item) => isActiveReservation(item) && reservationEnd(item) > reservationNow.getTime())
 
   const currentBranding = settings.branding || initialBranding || {}
   const currentBrandName = settings.establishment?.name || initialBrandName || 'ClubeOn'
@@ -968,8 +969,8 @@ export default function AdminPanel({
               <article>
                 <div><WalletCards /></div>
                 <span>Reservas</span>
-                <strong>{reservations.length}</strong>
-                <small>salvas no sistema</small>
+                <strong>{currentReservations.length}</strong>
+                <small>atuais e pendências</small>
               </article>
               <article>
                 <div><CircleDollarSign /></div>
@@ -1123,7 +1124,7 @@ export default function AdminPanel({
         {active === 'reservations' && (
           <section className="admin-card large">
             <div className="admin-card-title reservations-title">
-              <div><span>Gestão de reservas</span><strong>{reservations.length} registros</strong></div>
+              <div><span>{showReservationHistory ? 'Histórico de reservas' : 'Gestão de reservas'}</span><strong>{filteredReservations.length} registros</strong></div>
               <button
                 className="manual-reservation-open"
                 onClick={() => {
@@ -1139,14 +1140,24 @@ export default function AdminPanel({
                 Nova reserva manual
               </button>
             </div>
+            <div className="reservation-history-toolbar">
+              <button className={!showReservationHistory ? 'selected' : ''} aria-pressed={!showReservationHistory} onClick={() => setShowReservationHistory(false)}>Atuais e próximas ({currentReservations.length})</button>
+              <button className={showReservationHistory ? 'selected' : ''} aria-pressed={showReservationHistory} onClick={() => setShowReservationHistory(true)}>Ver histórico ({pastReservations.length})</button>
+            </div>
+            {showReservationHistory ? <div className="reservation-history-filters">
+              <label>Buscar cliente, telefone ou código<input type="search" value={reservationSearch} onChange={(e) => setReservationSearch(e.target.value)} placeholder="Nome do cliente" /></label>
+              <label>Mês da reserva<input type="month" value={reservationHistoryMonth} onChange={(e) => setReservationHistoryMonth(e.target.value)} /></label>
+              <button onClick={() => { setReservationSearch(''); setReservationHistoryMonth('') }}>Limpar filtros</button>
+            </div> : <p className="reservation-history-note">Reservas encerradas ficam no histórico. Saldos e devoluções pendentes continuam aqui para acompanhamento.</p>}
             <div className="admin-table">
               <div className="table-head reservations-head"><span>Cliente</span><span>Data</span><span>Período</span><span>Valor</span><span>Status</span><span>Ações</span></div>
-              {reservations.map((r) => (
+              {visibleReservations.map((r) => (
                 <div className="table-row" key={r.id}>
                   <span data-label="Cliente">
                     <strong>{r.customer?.name || 'Cliente'}</strong>
                     <small>{r.customer?.phone || r.id}</small>
                     {r.source === 'manual' && <small className="manual-reservation-badge">Reserva manual</small>}
+                    {reservationAttention(r) && <small className="reservation-attention-badge">{reservationAttention(r)}</small>}
                   </span>
                   <span data-label="Data">
                     {r.date}
@@ -1302,7 +1313,13 @@ export default function AdminPanel({
                   </span>
                 </div>
               ))}
+              {!visibleReservations.length && <div className="admin-empty">{showReservationHistory ? 'Nenhuma reserva encontrada no histórico.' : 'Nenhuma reserva atual ou pendência.'}</div>}
             </div>
+            {reservationPageCount > 1 && <div className="reservation-history-pagination">
+              <button disabled={effectiveReservationPage === 0} onClick={() => setReservationPage(effectiveReservationPage - 1)}>Anterior</button>
+              <span>Página {effectiveReservationPage + 1} de {reservationPageCount}</span>
+              <button disabled={effectiveReservationPage >= reservationPageCount - 1} onClick={() => setReservationPage(effectiveReservationPage + 1)}>Próxima</button>
+            </div>}
           </section>
         )}
 

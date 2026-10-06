@@ -44,7 +44,7 @@ export const tutorialTopics = [
     'Antes de aceitar um aluguel por outro canal, confira a agenda. Registre a reserva manual para manter o controle das datas.'
   ] },
   { id: 'reservations', title: 'Reservas e comprovantes', path: 'Reservas', steps: [
-    'Consulte o cliente, a data e o status de pagamento de cada reserva. Uma reserva pendente não equivale a um pagamento confirmado.',
+    'Em Atuais e próximas, consulte os agendamentos e pendências. Reservas encerradas ficam em Ver histórico, com busca por cliente e filtro por mês. Uma reserva pendente não equivale a pagamento confirmado.',
     'Use as ações disponíveis no registro para consultar detalhes e baixar os documentos. O comprovante informa o valor efetivamente registrado como recebido.',
     'Para cancelar, leia a política e confira a situação do pagamento e da devolução. Registrar um cancelamento não comprova que o dinheiro foi devolvido.'
   ] },

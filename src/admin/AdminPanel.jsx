@@ -2001,17 +2001,20 @@ export default function AdminPanel({
               </label>
             </div>
 
-            <div className="establishment-form-grid">
-              {[
-                ['Responsável pelo tratamento dos dados (nome ou razão social)', 'controllerName', 'text'],
-                ['E-mail para solicitações sobre dados pessoais', 'contactEmail', 'email'],
-                ['Telefone para solicitações sobre dados pessoais', 'contactPhone', 'tel'],
-              ].map(([label, key, type]) => <label key={key}>
-                <span>{label}</span><input type={type} value={settings.privacy?.[key] || ''}
-                  onChange={event => updateSettingsDraft(current => ({ ...current, privacy: { ...(current.privacy || {}), [key]: event.target.value } }))} />
-              </label>)}
-            </div>
-            <p className="privacy-settings-note">Privacidade: informe o responsável e ao menos um canal de atendimento. Se o telefone específico ficar vazio, será usado o contato do estabelecimento. Salve em “Salvar dados”. <a href="/privacidade" target="_blank" rel="noreferrer">Ver política pública</a>.</p>
+            <section className="privacy-settings-card" aria-labelledby="privacy-settings-title">
+              <div className="privacy-settings-heading"><span className="privacy-settings-icon"><ShieldAlert size={22} /></span><div><h3 id="privacy-settings-title">Privacidade e dados dos clientes</h3><p>Defina quem responde pelas informações das reservas e como o cliente pode entrar em contato.</p></div></div>
+              <div className="privacy-settings-grid">
+                {[
+                  ['Responsável pelos dados', 'controllerName', 'text', 'Nome do proprietário ou razão social do clube'],
+                  ['E-mail de atendimento', 'contactEmail', 'email', 'contato@seuclube.com.br'],
+                  ['Telefone de atendimento', 'contactPhone', 'tel', 'DDD + número'],
+                ].map(([label, key, type, placeholder]) => <label key={key} className={key === 'controllerName' ? 'privacy-settings-wide' : ''}>
+                  <span>{label}</span><input type={type} placeholder={placeholder} value={settings.privacy?.[key] || ''}
+                    onChange={event => updateSettingsDraft(current => ({ ...current, privacy: { ...(current.privacy || {}), [key]: event.target.value } }))} />
+                </label>)}
+              </div>
+              <div className="privacy-settings-bottom"><p>Esses dados aparecem na Política de Privacidade do site. Informe o responsável e ao menos um contato. Se o telefone ficar vazio, usaremos o contato do estabelecimento. Salve em “Salvar dados”.</p><a href="/privacidade" target="_blank" rel="noreferrer">Ver política pública ↗</a></div>
+            </section>
 
             <div className="establishment-actions">
               <button

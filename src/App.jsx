@@ -1040,8 +1040,8 @@ function App() {
         }
         scrollTo('agenda')
       }} />
-      <footer>
-        <a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a>
+      <footer className="site-footer">
+        <div className="site-footer-main">
         <a className="brand footer-brand" href="#inicio" aria-label={brandName}>
           <BrandLogo
             className="brand-logo-site"
@@ -1064,6 +1064,8 @@ function App() {
         <span>
           © {new Date().getFullYear()} {siteSettings.establishment?.name || 'ClubeOn'}
         </span>
+        </div>
+        <div className="site-footer-legal"><span>Informações sobre o uso dos seus dados</span><a className="privacy-footer-link" href="/privacidade">Política de Privacidade</a></div>
       </footer>
     </div>
   )

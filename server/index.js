@@ -1,3 +1,4 @@
+import { installRescheduling } from './rescheduling.js'
 import { purgeExpiredVisits } from './visit-retention.js'
 import { installClubRecoveryRequest } from './club-recovery.js'
 import { installAiChat } from './ai-chat.js'
@@ -166,6 +167,8 @@ const reservationSchema = new mongoose.Schema(
     pushDayBeforeReminderAt: Date,
     pushSameDayReminderAt: Date,
     reservationStatus: { type: String, default: 'active', index: true },
+    rescheduleRequest: mongoose.Schema.Types.Mixed,
+    reschedules: [mongoose.Schema.Types.Mixed],
     cancellation: mongoose.Schema.Types.Mixed,
   },
   { timestamps: true },
@@ -3926,6 +3929,13 @@ app.post('/api/reservations/lookup', lookupLimiter, async (req, res, next) => {
   }
 })
 
+installRescheduling(app, {
+  Reservation, DateLock, Settings, requireAdmin, limiter: lookupLimiter, requireBookingLicense,
+  transaction: (run) => mongoose.connection.transaction(run), secureEqual, onlyDigits,
+  sendPush: sendPushNotification, timeSlot: reservationTimeSlot, allowedStartTimes,
+  currentSettings, displayDate,
+})
+
 app.get('/api/admin/push/status', requireAdmin, async (_req, res, next) => {
   try {
     const config = await ensurePushConfig()
@@ -4546,7 +4556,7 @@ app.post('/api/admin/reservations/:id/cancel', requireAdmin, async (req, res, ne
     }
 
     const saved = await Reservation.findOneAndUpdate(
-      { id, reservationStatus: { $ne: 'cancelled' } },
+      { id, dateISO: reservation.dateISO, reservationStatus: { $ne: 'cancelled' } },
       { $set: { reservationStatus: 'cancelled', cancellation } },
       { new: true },
     ).lean()

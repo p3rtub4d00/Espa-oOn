@@ -43,6 +43,11 @@ export const tutorialTopics = [
     'Toque em uma data com reserva para conferir os detalhes do agendamento e do cliente.',
     'Antes de aceitar um aluguel por outro canal, confira a agenda. Registre a reserva manual para manter o controle das datas.'
   ] },
+  { id: 'rescheduling', target: 'inbox', title: 'Remarcações e central de avisos', path: 'Avisos → Remarcações', steps: [
+    'O cliente pode pedir outra data pela consulta da reserva. O pedido chega em Avisos e nas notificações PWA dos dispositivos inscritos; a data original continua reservada.',
+    'Revise a solicitação, combine um eventual adicional pelo WhatsApp e confirme o acordo antes de aprovar. A disponibilidade é conferida novamente na aprovação.',
+    'Você também pode remarcar pela Agenda ou por Reservas. Envie a resposta pelo botão do WhatsApp e registre o adicional quando receber. O contrato e o pagamento originais permanecem preservados, com um histórico separado da remarcação.'
+  ] },
   { id: 'reservations', title: 'Reservas e comprovantes', path: 'Reservas', steps: [
     'Em Atuais e próximas, consulte os agendamentos e pendências. Reservas encerradas ficam em Ver histórico, com busca por cliente e filtro por mês. Uma reserva pendente não equivale a pagamento confirmado.',
     'Use as ações disponíveis no registro para consultar detalhes e baixar os documentos. O comprovante informa o valor efetivamente registrado como recebido.',

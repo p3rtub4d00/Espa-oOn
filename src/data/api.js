@@ -95,6 +95,9 @@ export const api = {
   lookupReservation: (code, cpf) =>
     request('/api/reservations/lookup', { method: 'POST', body: JSON.stringify({ code, cpf }) }),
 
+  requestReschedule: (payload) => request('/api/reservations/reschedule', { method: 'POST', body: JSON.stringify(payload) }),
+  respondReschedule: (id, payload) => request('/api/admin/reservations/' + encodeURIComponent(id) + '/reschedule', { method: 'POST', body: JSON.stringify(payload) }),
+  markRescheduleFee: (id, changeId) => request('/api/admin/reservations/' + encodeURIComponent(id) + '/reschedule-fee', { method: 'POST', body: JSON.stringify({ changeId }) }),
   createVisit: (visit) =>
     request('/api/visits', {
       method: 'POST',

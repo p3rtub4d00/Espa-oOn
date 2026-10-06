@@ -1,3 +1,5 @@
+import AdminTutorial from './AdminTutorial'
+import { shouldShowTutorial, TUTORIAL_STORAGE_KEY } from './tutorial-topics'
 import { clubToday, visitDate, visitGroups } from '../../shared/visit-history.js'
 import { useEffect, useMemo, useRef, useState } from 'react'
 import { createPortal } from 'react-dom'
@@ -29,6 +31,7 @@ import {
   Download,
   Menu,
   Building2,
+  BookOpen,
   Palette,
   Upload,
   MapPin,
@@ -219,6 +222,30 @@ export default function AdminPanel({
   onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
+  const [tutorialOpen, setTutorialOpen] = useState(() => {
+    try { return shouldShowTutorial(window.localStorage) } catch { return true }
+  })
+  const tutorialHeadingRef = useRef(null)
+  const tutorialButtonRef = useRef(null)
+  const closeTutorial = () => {
+    setTutorialOpen(false)
+    window.requestAnimationFrame(() => tutorialButtonRef.current?.focus({ preventScroll: true }))
+  }
+  const [tutorialStorageMessage, setTutorialStorageMessage] = useState('')
+  const openTutorial = () => {
+    setTutorialOpen(true)
+    window.requestAnimationFrame(() => {
+      tutorialHeadingRef.current?.focus({ preventScroll: true })
+      tutorialHeadingRef.current?.scrollIntoView({ block: 'start', behavior: 'auto' })
+    })
+  }
+  const navigateFromTutorial = (id) => {
+    setActive(id)
+    setOpenMenuGroup(menuGroups.find((group) => group.items.some(([item]) => item === id))?.id || '')
+    setMobileMenuOpen(false)
+    setTutorialOpen(false)
+    window.requestAnimationFrame(() => document.querySelector('.admin-header h1')?.focus())
+  }
   const [openMenuGroup, setOpenMenuGroup] = useState('')
   const [reservations, setReservations] = useState([])
   const [visits, setVisits] = useState([])
@@ -773,12 +800,13 @@ export default function AdminPanel({
         <header className="admin-header">
           <div>
             <span>Painel administrativo</span>
-            <h1>{
+            <h1 tabIndex={-1}>{
               primaryMenu.find(([id]) => id === active)?.[1] ||
               menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] ||
               'Painel'
             }</h1>
           </div>
+          <button ref={tutorialButtonRef} className="admin-help-button" onClick={openTutorial}><BookOpen size={18} />Como usar o painel</button>
           <div className="admin-user">
             <div>AD</div>
             <span><strong>Administrador</strong><small>Sistema online</small></span>
@@ -793,6 +821,19 @@ export default function AdminPanel({
           </div>
         )}
         {loading && <div className="admin-demo-note">Carregando dados online...</div>}
+
+        {tutorialStorageMessage && <div className="admin-demo-note">{tutorialStorageMessage}</div>}
+        {!loading && tutorialOpen && <AdminTutorial
+          demoMode={paymentConfig?.demoMode === true}
+          headingRef={tutorialHeadingRef}
+          onNavigate={navigateFromTutorial}
+          onClose={closeTutorial}
+          onDismiss={() => {
+            try { window.localStorage.setItem(TUTORIAL_STORAGE_KEY, '1') }
+            catch { setTutorialStorageMessage('Tutorial fechado. Este navegador não permitiu salvar a preferência para os próximos acessos.') }
+            closeTutorial()
+          }}
+        />}
 
         {active === 'overview' && (
           <>

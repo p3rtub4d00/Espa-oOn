@@ -1,5 +1,6 @@
+.admin-header-actions { display: flex; flex-direction: column; align-items: flex-end; gap: 10px; flex-shrink: 0; }
 .admin-help-button { display: inline-flex; align-items: center; justify-content: center; gap: 8px; min-height: 44px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 12px; background: white; color: #1e40af; font-size: 13px; font-weight: 700; cursor: pointer; }
-.admin-tutorial { margin-bottom: 24px; padding: 24px; border: 1px solid #bfdbfe; border-radius: 20px; background: linear-gradient(125deg, #eff6ff, #fff 65%); color: #334155; }
+.admin-tutorial { margin: 0; padding: 24px; border: 1px solid #bfdbfe; border-radius: 20px; background: linear-gradient(125deg, #eff6ff, #fff 65%); color: #334155; }
 .admin-tutorial-head, .admin-tutorial-heading, .admin-tutorial-footer, .admin-tutorial-pagination { display: flex; align-items: center; gap: 12px; }
 .admin-tutorial-head, .admin-tutorial-footer { justify-content: space-between; }
 .admin-tutorial-heading > svg { color: #2563eb; flex-shrink: 0; }
@@ -26,9 +27,20 @@
 .admin-tutorial-demo { padding: 10px 12px; border-radius: 10px; background: #fff7ed; color: #9a3412; font-size: 13px; line-height: 1.5; }
 .admin-tutorial :focus-visible, .admin-help-button:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
 .admin-tutorial h2:focus { outline: none; }
-@media (max-width: 760px) { .admin-tutorial { padding: 18px; } .admin-tutorial-body { grid-template-columns: minmax(0, 1fr); gap: 18px; } .admin-tutorial-footer { align-items: stretch; } .admin-tutorial-dismiss { width: 100%; } .admin-help-button { margin-top: 8px; } }
+@media (max-width: 760px) { .admin-tutorial { padding: 18px; } .admin-tutorial-body { grid-template-columns: minmax(0, 1fr); gap: 18px; } .admin-tutorial-footer { align-items: stretch; } .admin-tutorial-dismiss { width: 100%; }  }
 @media (max-width: 760px) {
   .admin-header { flex-wrap: wrap; }
   .admin-header > div:first-child { flex: 1; min-width: 0; }
-  .admin-header .admin-help-button { order: 3; width: 100%; margin-top: 0; }
+  .admin-header-actions { max-width: 175px; gap: 8px; }
+  .admin-header-actions .admin-user { max-width: none; }
+  .admin-header-actions .admin-help-button { font-size: 11px; padding: 8px 10px; margin: 0; }
+}
+
+.admin-tutorial-modal { width: min(960px, calc(100vw - 32px)); max-width: none; max-height: calc(100dvh - 32px); margin: auto; padding: 0; border: 0; border-radius: 20px; background: #fff; overflow-y: auto; overscroll-behavior: contain; box-shadow: 0 24px 80px #0f172a40; }
+.admin-tutorial-modal::backdrop { background: #0f172aa8; }
+.admin-tutorial-modal .admin-tutorial { border: 0; border-radius: 0; }
+.admin-tutorial-modal .admin-tutorial-head { position: sticky; top: 0; z-index: 1; margin: -24px -24px 0; padding: 20px 24px; background: #f5f9ff; border-bottom: 1px solid #dbeafe; }
+@media (max-width: 760px) {
+  .admin-tutorial-modal { max-height: calc(100dvh - 24px); width: calc(100vw - 24px); border-radius: 16px; }
+  .admin-tutorial-modal .admin-tutorial-head { top: 0; margin: -18px -18px 0; padding: 16px 18px; }
 }

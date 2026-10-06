@@ -806,10 +806,12 @@ export default function AdminPanel({
               'Painel'
             }</h1>
           </div>
-          <button ref={tutorialButtonRef} className="admin-help-button" onClick={openTutorial}><BookOpen size={18} />Como usar o painel</button>
-          <div className="admin-user">
-            <div>AD</div>
-            <span><strong>Administrador</strong><small>Sistema online</small></span>
+          <div className="admin-header-actions">
+            <div className="admin-user">
+              <div>AD</div>
+              <span><strong>Administrador</strong><small>Sistema online</small></span>
+            </div>
+            <button ref={tutorialButtonRef} className="admin-help-button" onClick={openTutorial}><BookOpen size={18} />Como usar o painel</button>
           </div>
         </header>
 
@@ -823,7 +825,7 @@ export default function AdminPanel({
         {loading && <div className="admin-demo-note">Carregando dados online...</div>}
 
         {tutorialStorageMessage && <div className="admin-demo-note">{tutorialStorageMessage}</div>}
-        {!loading && tutorialOpen && <AdminTutorial
+        {!loading && tutorialOpen && !(pushPromptOpen && !pushSubscription) && <AdminTutorial
           demoMode={paymentConfig?.demoMode === true}
           headingRef={tutorialHeadingRef}
           onNavigate={navigateFromTutorial}

@@ -116,3 +116,16 @@ test('calendar buttons come only from real availability tools, never assistant t
     assert.deepEqual(result.actions, expected)
   }
 })
+
+test('provider receives current rescheduling guidance without private records or write tools', async () => {
+  let outgoing
+  const info = publicChatInfo({ establishment: { name: 'Clube atualizado' }, rescheduleRequest: { customer: 'PRIVATE-RECORD' } }, {}, 'Limpeza')
+  await geminiReply({ apiKey: 'fake-key', model: 'test', input: { message: 'Como remarcar minha reserva?', history: [] }, info, execute: async () => { throw new Error('Unexpected tool') }, fetchImpl: async (_, options) => {
+    outgoing = JSON.parse(options.body)
+    return { ok: true, json: async () => ({ candidates: [{ content: { parts: [{ text: 'Use Consultar reserva para solicitar a remarcação.' }] } }] }) }
+  } })
+  const prompt = outgoing.systemInstruction.parts[0].text
+  for (const expected of ['Consultar reserva', 'Solicitar remarcação', 'aguardando aprovação', 'data original permanece reservada', 'eventual valor adicional', 'nunca no chat', 'não oriente a criar e pagar uma segunda reserva']) assert.ok(prompt.includes(expected), expected)
+  assert.doesNotMatch(prompt, /PRIVATE-RECORD/)
+  assert.deepEqual(outgoing.tools[0].functionDeclarations.map(t => t.name), ['consultar_data', 'calcular_orcamento'])
+})

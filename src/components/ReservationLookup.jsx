@@ -1,3 +1,5 @@
+import RescheduleForm, { RescheduleHistory } from './RescheduleForm'
+import { reservationEnd } from '../../shared/reservation-history'
 import { useMemo, useState } from 'react'
 import {
   CalendarDays,
@@ -38,6 +40,7 @@ export default function ReservationLookup({ onClose }) {
   const [reservation, setReservation] = useState(null)
   const [contract, setContract] = useState(null)
   const [loading, setLoading] = useState(false)
+  const [rescheduling, setRescheduling] = useState(false)
 
   const paymentLabel = useMemo(() => {
     if (!reservation) return ''
@@ -59,6 +62,7 @@ export default function ReservationLookup({ onClose }) {
     setError('')
     setReservation(null)
     setContract(null)
+    setRescheduling(false)
 
     const normalizedCode = code.trim().toUpperCase()
     if (!normalizedCode.startsWith('ESP-')) {
@@ -97,6 +101,7 @@ export default function ReservationLookup({ onClose }) {
 
   const reset = () => {
     setReservation(null)
+    setRescheduling(false)
     setContract(null)
     setError('')
     setCode('')
@@ -252,6 +257,8 @@ export default function ReservationLookup({ onClose }) {
               </div>
             )}
 
+            <RescheduleHistory reservation={reservation} />
+            {rescheduling ? <RescheduleForm reservation={reservation} cpf={digits(cpf)} onSaved={(saved)=>{setReservation(saved);setRescheduling(false)}} onClose={()=>setRescheduling(false)} /> : reservation.reservationStatus!=='cancelled' && reservation.paymentStatus==='paid' && reservation.rescheduleRequest?.status!=='pending' && reservationEnd(reservation)>Date.now() && <button className="reschedule-launch" onClick={()=>setRescheduling(true)}>Solicitar remarcação</button>}
             <div className="lookup-actions">
               {reservation.paymentStatus === 'paid' && (
                 <button onClick={downloadReceipt}>

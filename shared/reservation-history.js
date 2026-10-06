@@ -23,6 +23,8 @@ export function reservationEnd(reservation) {
   return Date.parse(`${day}T00:00:00-04:00`) + (reservation.period === '24h' ? 48 : 24) * 3600000
 }
 export function reservationAttention(reservation) {
+  if (reservation.rescheduleRequest?.status === 'pending') return 'Remarcação pendente'
+  if ((reservation.reschedules || []).some(change => change.extraFee > 0 && change.feeStatus === 'pending')) return 'Adicional de remarcação pendente'
   if (reservation.cancellation?.refundStatus === 'pending' && Number(reservation.cancellation?.refundAmount) > 0) return 'Devolução pendente'
   if (reservation.reservationStatus === 'cancelled' || ['cancelled', 'refunded', 'expired'].includes(reservation.paymentStatus)) return ''
   if (reservation.source === 'manual' && ['manual-pending', 'manual-deposit'].includes(reservation.paymentStatus) && Number(reservation.price) > Number(reservation.amountPaid || 0)) return 'Saldo pendente'

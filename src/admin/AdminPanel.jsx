@@ -1,3 +1,6 @@
+import { canReschedule } from '../../shared/rescheduling.js'
+import OwnerRescheduling from './OwnerRescheduling'
+import { RescheduleHistory } from '../components/RescheduleForm'
 import AdminSupport from './AdminSupport'
 import { reservationAttention, reservationEnd, reservationGroups, filterReservationHistory } from '../../shared/reservation-history.js'
 import AdminTutorial from './AdminTutorial'
@@ -240,6 +243,7 @@ export default function AdminPanel({
   onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
+  const [reschedulingReservation, setReschedulingReservation] = useState(null)
   const navigatePanel = (id) => {
     setActive(id)
     setMobileMenuOpen(false)
@@ -653,6 +657,10 @@ export default function AdminPanel({
 
   const upcomingReservations = currentReservations.filter((item) => isActiveReservation(item) && reservationEnd(item) > reservationNow.getTime())
 
+  const rescheduleRequests = reservations.filter(r=>r.rescheduleRequest?.status==='pending')
+  const visitRequests = visits.filter(v=>v.status==='pending-owner-confirmation')
+  const inboxCount = rescheduleRequests.length + visitRequests.length
+
   const currentBranding = settings.branding || initialBranding || {}
   const currentBrandName = settings.establishment?.name || initialBrandName || 'ClubeOn'
 
@@ -800,13 +808,14 @@ export default function AdminPanel({
           <div>
             <span>Painel administrativo</span>
             <h1 tabIndex={-1}>{
-              primaryMenu.find(([id]) => id === active)?.[1] ||
+              (active === 'inbox' ? 'Central de avisos' : '') || primaryMenu.find(([id]) => id === active)?.[1] ||
               menuGroups.find((group) => group.id === active)?.label ||
               menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] ||
               'Painel'
             }</h1>
           </div>
           <div className="admin-header-actions">
+            <button className="admin-inbox-button" onClick={()=>navigatePanel('inbox')}><BellRing size={16}/> Avisos {inboxCount>0?`(${inboxCount})`:''}</button>
             <button ref={tutorialButtonRef} className="admin-help-button" onClick={openTutorial}><BookOpen size={18} />Como usar o painel</button>
           </div>
         </header>
@@ -832,6 +841,14 @@ export default function AdminPanel({
             closeTutorial()
           }}
         />}
+
+        {active==='inbox' && <section className="admin-inbox-list">
+          <p>Solicitações aguardando resposta. Os avisos são atualizados automaticamente e ao voltar ao painel.</p>
+          {rescheduleRequests.map(r=><article className="admin-inbox-item" key={r.id}><strong>Remarcação · {r.customer?.name}</strong><p>{r.date} → {r.rescheduleRequest.dateISO.split('-').reverse().join('/')} às {r.rescheduleRequest.startTime}<br/>{r.rescheduleRequest.reason}</p><button className="reschedule-launch" onClick={()=>setReschedulingReservation(r)}>Revisar solicitação</button></article>)}
+          {visitRequests.length>0&&<article className="admin-inbox-item"><strong>{visitRequests.length} solicitação(ões) de visita</strong><p>Confira as datas e responda aos clientes.</p><button className="admin-category-back" onClick={()=>navigatePanel('visits')}>Ver visitas</button></article>}
+          {!inboxCount&&<div className="admin-empty">Nenhuma solicitação aguardando resposta.</div>}
+          <article className="admin-inbox-item"><strong>Reservas recentes</strong><p>Consulte os pagamentos, agendamentos e registros mais recentes.</p><button className="admin-category-back" onClick={()=>navigatePanel('reservations')}>Ver reservas</button></article>
+        </section>}
 
         {parentCategory && <button className="admin-category-back" onClick={() => navigatePanel(parentCategory.id)}><ArrowLeft size={16} />Voltar para {parentCategory.label}</button>}
         {selectedCategory && <section className="admin-category-panel" aria-label={'Opções de ' + selectedCategory.label}>
@@ -1192,6 +1209,7 @@ export default function AdminPanel({
                     </i>
                   </span>
                   <span className="reservation-row-actions" data-label="Ações">
+                    {(canReschedule(r) || r.rescheduleRequest?.status==='pending' || (r.reschedules||[]).some(c=>c.feeStatus==='pending')) && <button onClick={()=>setReschedulingReservation(r)}>{r.rescheduleRequest?.status==='pending'?'Revisar remarcação':'Remarcar / adicionais'}</button>}
                     {r.reservationStatus === 'cancelled' ? (
                       r.cancellation?.refundStatus === 'pending' ? (
                         <button
@@ -2835,9 +2853,11 @@ export default function AdminPanel({
 
       </main>
 
+      {reschedulingReservation && <OwnerRescheduling reservation={reschedulingReservation} onSaved={(saved)=>{setReservations(current=>current.map(r=>r.id===saved.id?saved:r));setReschedulingReservation(saved)}} onClose={()=>setReschedulingReservation(null)}/>}
+
       {supportOpen && <AdminSupport
         clubName={currentBrandName}
-        sectionName={primaryMenu.find(([id]) => id === active)?.[1] || menuGroups.find((group) => group.id === active)?.label ||
+        sectionName={(active === 'inbox' ? 'Central de avisos' : '') || primaryMenu.find(([id]) => id === active)?.[1] || menuGroups.find((group) => group.id === active)?.label ||
               menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] || 'Visão geral'}
         onClose={closeSupport}
       />}
@@ -3585,7 +3605,9 @@ export default function AdminPanel({
                 </div>
               )}
 
+              <RescheduleHistory reservation={selectedReservation}/>
               <div className="reservation-detail-actions">
+                {canReschedule(selectedReservation) && <button onClick={()=>{setReschedulingReservation(selectedReservation);setSelectedReservation(null)}}>Remarcar reserva</button>}
                 {selectedReservation.customer?.phone && (
                   <button
                     className="whatsapp"

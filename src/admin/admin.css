@@ -5688,3 +5688,15 @@
 .visit-retention-note { margin: 0 0 18px; color: #64748b; font-size: 13px; line-height: 1.6; }
 .visit-history-summary { padding: 12px 16px; background: #f8fafc; border-radius: 12px; color: #475569; }
 .visit-history-summary p { margin: 8px 0 0; overflow-wrap: anywhere; }
+
+.reservation-history-toolbar, .reservation-history-pagination { display: flex; gap: 10px; align-items: center; flex-wrap: wrap; margin: 16px 0; }
+.reservation-history-toolbar button, .reservation-history-filters button, .reservation-history-pagination button { min-height: 44px; padding: 10px 14px; border: 1px solid #cbd5e1; background: #fff; color: #334155; border-radius: 10px; cursor: pointer; font-size: 13px; }
+.reservation-history-toolbar button.selected { color: #fff; background: #2563eb; border-color: #2563eb; }
+.reservation-history-filters { display: flex; align-items: flex-end; flex-wrap: wrap; gap: 14px; margin-bottom: 18px; }
+.reservation-history-filters label { display: flex; flex-direction: column; gap: 6px; flex: 1; min-width: 180px; font-size: 12px; color: #475569; }
+.reservation-history-filters input { min-width: 0; width: 100%; min-height: 44px; border: 1px solid #cbd5e1; border-radius: 10px; padding: 10px; font: inherit; }
+.reservation-history-note { margin: 12px 0 18px; color: #64748b; font-size: 13px; line-height: 1.6; }
+.reservation-attention-badge { display: block; color: #9a3412; background: #fff7ed; padding: 4px 8px; border-radius: 6px; margin-top: 6px; width: fit-content; }
+.reservation-history-pagination { justify-content: center; font-size: 13px; }
+.reservation-history-pagination button:disabled { opacity: .4; cursor: default; }
+@media (max-width:600px) { .reservation-history-filters label { flex-basis: 100%; } .reservation-history-toolbar button { flex: 1; } }

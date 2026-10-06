@@ -1,3 +1,4 @@
+import { documentRows } from '../../shared/contract-document'
 import { useEffect, useMemo, useState } from 'react'
 import {
   Eye,
@@ -138,6 +139,7 @@ export default function ContractsPanel() {
               </div>
 
               <div className="admin-contract-meta">
+                {documentRows(selected.documentSnapshot?.landlord).map(([label,value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
                 <div><span>Locatário</span><strong>{selected.customer?.name || '-'}</strong></div>
                 <div><span>CPF</span><strong>{maskCpf(selected.customer?.cpf)}</strong></div>
                 <div><span>Telefone</span><strong>{selected.customer?.phone || '-'}</strong></div>
@@ -174,6 +176,7 @@ export default function ContractsPanel() {
               )}
 
               <div className="admin-contract-text">
+                {selected.documentSnapshot ? selected.documentSnapshot.clauses.map(clause => <p key={clause.title}><strong>{clause.title}</strong> {clause.body}</p>) : <>
                 <p><strong>1. Objeto.</strong> O presente instrumento registra a locação temporária do espaço de lazer indicado pela plataforma {selected.establishmentName || 'ClubeOn'}, na data e período informados acima.</p>
                 <p><strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá utilizar o imóvel e suas estruturas de forma responsável, observando as regras apresentadas pelo proprietário.</p>
                 <p><strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.</p>
@@ -186,6 +189,7 @@ export default function ContractsPanel() {
                   </p>
                 </div>
                 <p><strong>6. Assinatura eletrônica.</strong> O sistema registra manifestação de aceite, assinatura desenhada, data e hora, identificador do documento e hash SHA-256 calculado no servidor para verificação de integridade.</p>
+                </>}
               </div>
 
               {selected.cancellation && (

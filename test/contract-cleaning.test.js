@@ -7,7 +7,7 @@ import { CLEANING_CLAUSE_TEXT } from '../shared/contract-terms.js'
 import { createContractPdf } from '../src/utils/documents.js'
 process.env.JWT_SECRET = 'test-only-secret-with-at-least-32-characters'
 for (const key of ['MONGODB_URI','BACKUP_MONGODB_URI','MASTER_API_URL','MASTER_CLUB_ID','MASTER_LICENSE_KEY']) delete process.env[key]
-const { app, contractHash } = await import('../server/index.js')
+const { app, contractHash, priceForDate } = await import('../server/index.js')
 const server = app.listen(0, '127.0.0.1')
 await once(server, 'listening')
 const base = `http://127.0.0.1:${server.address().port}`
@@ -22,22 +22,39 @@ const fixture = {
 
 test('new signature must accept current cleaning terms; stored text is hashed and matches public terms', async t => {
   t.mock.method(Settings,'findOne',()=>({lean:async()=>null}))
-  t.mock.method(Contract,'findOne',()=>({lean:async()=>null}))
+  t.mock.method(Contract,'findOne',query=>({lean:async()=>stored?.id === query.id ? stored : null}))
   let stored
   t.mock.method(Contract,'create',async record=>{stored=record;return {toObject:()=>record}})
   const settings = await (await fetch(base+'/api/settings')).json()
   assert.equal(settings.contractTerms.cleaningClauseText, CLEANING_CLAUSE_TEXT)
   const submit = body=>fetch(base+'/api/contracts',{method:'POST',headers:{'Content-Type':'application/json'},body:JSON.stringify(body)})
-  const payload={...fixture,cancellationPolicyText:settings.cancellationPolicy.text}
+  const snapshot=await (await fetch(base+'/api/contracts/terms')).json()
+  const payload={...fixture,price:priceForDate(fixture.reservationDateISO,fixture.period,settings),accepted:true,documentSnapshot:snapshot,cancellationPolicyText:settings.cancellationPolicy.text}
   for (const text of [undefined,'Outro texto']) {
     assert.equal((await submit({...payload,cleaningClauseText:text})).status,409)
     assert.equal(stored,undefined)
   }
+  assert.equal((await submit({...payload,price:1,cleaningClauseText:CLEANING_CLAUSE_TEXT})).status,409)
   const response=await submit({...payload,cleaningClauseText:CLEANING_CLAUSE_TEXT})
   assert.equal(response.status,201)
   const data=await response.json()
   assert.equal(data.cleaningClauseText,CLEANING_CLAUSE_TEXT)
   assert.equal(data.hash,contractHash(stored))
+  const verified=await (await fetch(base+'/api/contracts/'+stored.id+'/verify?hash='+stored.hash)).json()
+  assert.equal(verified.valid,true)
+  assert.equal(verified.contract.customer,undefined)
+  assert.equal((await (await fetch(base+'/api/settings')).json()).establishment.document,undefined)
+  assert.notEqual(contractHash({...stored,customer:{...stored.customer,address:'Alterado'}}),stored.hash)
+  const originalName=stored.documentSnapshot.landlord.ownerName
+  stored.documentSnapshot.landlord.ownerName='Tampered'
+  assert.equal((await fetch(base+'/api/contracts/'+stored.id+'/verify?hash='+stored.hash)).status,404)
+  stored.documentSnapshot.landlord.ownerName=originalName
+  assert.equal((await submit({...payload,signature:'data:image/png;base64,other',cleaningClauseText:CLEANING_CLAUSE_TEXT})).status,409)
+  assert.notEqual(data.signedAt,fixture.signedAt)
+  assert.equal(data.documentSnapshot.version,'2026-10-06-v1')
+  assert.notEqual(contractHash({...stored,documentSnapshot:{...stored.documentSnapshot,landlord:{...stored.documentSnapshot.landlord,ownerName:'Outra pessoa'}}}),data.hash)
+  assert.equal((await submit({...payload,id:'CTR-DECLINED',accepted:false,cleaningClauseText:CLEANING_CLAUSE_TEXT})).status,409)
+  assert.equal((await submit({...payload,id:'CTR-DEF123',reservationId:'ESP-DEF123',documentSnapshot:{...snapshot,version:'old'},cleaningClauseText:CLEANING_CLAUSE_TEXT})).status,409)
   assert.notEqual(contractHash({...stored,cleaningClauseText:'Alterado'}),data.hash)
 })
 

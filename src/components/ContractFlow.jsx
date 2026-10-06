@@ -12,6 +12,7 @@ import {
 import { api } from '../data/api'
 import { DEFAULT_SETTINGS } from '../data/settings'
 import './contract.css'
+import { documentRows } from '../../shared/contract-document'
 
 function maskCpf(cpf = '') {
   const digits = cpf.replace(/\D/g, '')
@@ -34,6 +35,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
   const [cleaningClauseText, setCleaningClauseText] = useState('')
   const [policyLoading, setPolicyLoading] = useState(true)
   const [policyLoadError, setPolicyLoadError] = useState('')
+  const [documentSnapshot, setDocumentSnapshot] = useState(null)
   const [establishmentName, setEstablishmentName] = useState('ClubeOn')
 
   const contractId = useMemo(
@@ -69,8 +71,9 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
 
   useEffect(() => {
     let active = true
-    api.getSettings()
-      .then((settings) => {
+    Promise.all([api.getSettings(), api.getContractTerms()])
+      .then(([settings, snapshot]) => {
+        setDocumentSnapshot(snapshot)
         if (!active) return
 
         const policyText = String(settings?.cancellationPolicy?.text || '').trim()
@@ -195,6 +198,8 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
       signedAt,
       signature,
       establishmentName,
+      documentSnapshot,
+      accepted: true,
       cancellationPolicyText,
       cleaningClauseText,
       status: 'signed-awaiting-payment',
@@ -253,6 +258,7 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
               </div>
 
               <div className="contract-meta">
+                {documentRows(documentSnapshot?.landlord).map(([label, value]) => <div key={label}><span>{label}</span><strong>{value}</strong></div>)}
                 <div><span>Locatário</span><strong>{reservation.customer?.name}</strong></div>
                 <div><span>CPF</span><strong>{maskCpf(reservation.customer?.cpf)}</strong></div>
                 <div><span>Data da locação</span><strong>{reservation.date}</strong></div>
@@ -288,41 +294,9 @@ export default function ContractFlow({ reservation, onClose, onSigned, continueL
               )}
 
               <div className="contract-body">
-                <p>
-                  <strong>1. Objeto.</strong> O presente instrumento registra a locação temporária
-                  do espaço de lazer indicado pela plataforma {establishmentName}, na data e período informados acima.
-                </p>
-                <p>
-                  <strong>2. Uso do espaço.</strong> O locatário declara estar ciente de que deverá
-                  utilizar o imóvel, piscina, campo, mobiliário e demais estruturas de forma responsável,
-                  observando as regras apresentadas pelo proprietário.
-                </p>
-                <p>
-                  <strong>3. Responsabilidade.</strong> O locatário responde pelo uso adequado do espaço
-                  e por danos ao patrimônio que forem comprovadamente causados durante o período da locação.
-                </p>
-                <p>
-                  <strong>4. Pagamento.</strong> O valor total indicado neste documento, incluindo os adicionais selecionados quando houver, será cobrado pelo meio de pagamento disponibilizado pelo estabelecimento. A reserva somente será confirmada após a confirmação do recebimento.
-                </p>
-                <div className="contract-cancellation-policy">
-                  <div>
-                    <ShieldCheck size={18} />
-                    <strong>5. Política de cancelamento e reembolso</strong>
-                  </div>
-                  {policyLoading ? (
-                    <p>Carregando política vigente...</p>
-                  ) : policyLoadError ? (
-                    <p className="contract-policy-error">{policyLoadError}</p>
-                  ) : (
-                    <p>{cancellationPolicyText}</p>
-                  )}
-                </div>
-                <p>
-                  <strong>6. Assinatura eletrônica.</strong> O sistema registra a manifestação de aceite,
-                  a assinatura desenhada, a data e hora, o identificador do documento e um hash SHA-256
-                  calculado no servidor para verificação de integridade.
-                </p>
-                <p><strong>7. Limpeza e devolução do espaço.</strong> {cleaningClauseText}</p>
+                {documentSnapshot?.clauses.map(clause => <p key={clause.title}><strong>{clause.title}</strong> {clause.body}</p>)}
+                {policyLoading && <p>Carregando o contrato vigente...</p>}
+                {policyLoadError && <p className="contract-policy-error">{policyLoadError}</p>}
               </div>
 
               <div className="contract-evidence">

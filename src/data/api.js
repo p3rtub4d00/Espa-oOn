@@ -26,6 +26,7 @@ async function request(url, options = {}) {
 }
 
 export const api = {
+  getContractTerms: () => request('/api/contracts/terms'),
   requestAdminRecovery: phone => request('/api/admin/recovery-request', { method: 'POST', body: JSON.stringify({ phone }) }),
   chatConfig: () => request('/api/chat/config'),
   chat: (message, history) => request('/api/chat', { method: 'POST', body: JSON.stringify({ message, history }) }),

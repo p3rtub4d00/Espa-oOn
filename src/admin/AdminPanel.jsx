@@ -1209,7 +1209,7 @@ export default function AdminPanel({
                     </i>
                   </span>
                   <span className="reservation-row-actions" data-label="Ações">
-                    {(canReschedule(r) || r.rescheduleRequest?.status==='pending' || (r.reschedules||[]).some(c=>c.feeStatus==='pending')) && <button onClick={()=>setReschedulingReservation(r)}>{r.rescheduleRequest?.status==='pending'?'Revisar remarcação':'Remarcar / adicionais'}</button>}
+                    {(canReschedule(r) || r.rescheduleRequest?.status==='pending' || (r.reschedules||[]).some(c=>c.feeStatus==='pending')) && <button className="reschedule-reservation-button" onClick={()=>setReschedulingReservation(r)}><CalendarDays size={14} aria-hidden="true"/>{r.rescheduleRequest?.status==='pending'?'Revisar remarcação':'Remarcar / adicionais'}</button>}
                     {r.reservationStatus === 'cancelled' ? (
                       r.cancellation?.refundStatus === 'pending' ? (
                         <button
@@ -3607,7 +3607,7 @@ export default function AdminPanel({
 
               <RescheduleHistory reservation={selectedReservation}/>
               <div className="reservation-detail-actions">
-                {canReschedule(selectedReservation) && <button onClick={()=>{setReschedulingReservation(selectedReservation);setSelectedReservation(null)}}>Remarcar reserva</button>}
+                {canReschedule(selectedReservation) && <button className="reschedule-reservation-button" onClick={()=>{setReschedulingReservation(selectedReservation);setSelectedReservation(null)}}><CalendarDays size={16} aria-hidden="true"/>Remarcar reserva</button>}
                 {selectedReservation.customer?.phone && (
                   <button
                     className="whatsapp"

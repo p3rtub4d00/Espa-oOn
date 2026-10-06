@@ -2209,6 +2209,9 @@
 .reservation-row-actions {
   display: flex;
   justify-content: flex-start;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
 }
 
 .delete-pending-reservation {
@@ -5714,3 +5717,27 @@
 .admin-category-back { display: inline-flex; align-items: center; gap: 8px; min-height: 44px; margin: 0 0 18px; padding: 10px 14px; border: 1px solid #cbd5e1; border-radius: 10px; background: #fff; color: #475569; cursor: pointer; font-size: 13px; }
 .admin-category-option:focus-visible, .admin-category-back:focus-visible { outline: 3px solid #2563eb; outline-offset: 3px; }
 @media (max-width:760px) { .admin-category-grid { grid-template-columns: minmax(0, 1fr); gap: 12px; } .admin-category-option { min-height: 106px; padding: 16px; gap: 12px; } .admin-category-copy strong { font-size: 15px; } }
+
+/* Match rescheduling actions to the other reservation controls. */
+.reschedule-reservation-button {
+  min-height: 34px;
+  padding: 8px 10px;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  gap: 6px;
+  border: 1px solid #bad9ef;
+  border-radius: 9px;
+  color: #176db5;
+  background: #edf7ff;
+  font-family: inherit;
+  font-size: 8px;
+  font-weight: 900;
+  line-height: 1.4;
+  cursor: pointer;
+  transition: background .15s ease, border-color .15s ease;
+}
+.reschedule-reservation-button svg { flex-shrink: 0; }
+.reschedule-reservation-button:hover { background: #deefff; border-color: #8cbce0; }
+.reschedule-reservation-button:focus-visible { outline: 2px solid var(--brand-secondary, #1769ff); outline-offset: 3px; }
+.reservation-detail-actions { flex-wrap: wrap; }

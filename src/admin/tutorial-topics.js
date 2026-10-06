@@ -6,7 +6,7 @@ export const tutorialTopics = [
   { id: 'overview', title: 'Visão geral e primeiros passos', path: 'Visão geral', steps: [
     'Veja o resumo das reservas, pagamentos e próximas visitas. Use os atalhos para abrir os registros completos.',
     'A preparação inicial já mostra o que falta configurar. Preencha os dados do espaço, confira os preços e conecte os recebimentos.',
-    'Use o menu para alternar entre Agenda, Reservas, Financeiro, Espaço e Configurações. No celular, toque em Menu.'
+    'Agenda e Reservas têm acesso direto. Ao escolher Financeiro, Espaço ou Configurações, toque no card da função desejada. No celular, abra Menu; ele fecha ao escolher uma categoria.'
   ] },
   { id: 'establishment', title: 'Dados do clube e privacidade', path: 'Configurações → Estabelecimento', steps: [
     'Preencha nome do espaço, responsável, CPF ou CNPJ, telefone e endereço. Confira os dados antes de salvar: eles identificam o locador nos novos contratos.',

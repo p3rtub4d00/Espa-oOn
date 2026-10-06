@@ -2556,3 +2556,6 @@ footer {
 @media (max-width: 640px) {
   .demo-home-main { padding-top: 68px; }
 }
+
+/* Footer: brand and address first, privacy in its own aligned legal row. */
+.site-footer{display:block;text-align:left}.site-footer-main{display:flex;align-items:center;gap:24px;flex-wrap:wrap}.site-footer-main p{flex:1;min-width:180px;margin:0;line-height:1.6}.site-footer-main>span{margin-left:auto}.site-footer-legal{display:flex;align-items:center;justify-content:space-between;gap:12px;margin-top:24px;padding-top:16px;border-top:1px solid #ffffff26;line-height:1.6}.site-footer .privacy-footer-link{display:inline-flex;align-items:center;min-height:44px;color:#fff;text-decoration:underline;text-underline-offset:4px;text-decoration-color:#ffffff70;font-weight:600}.site-footer .privacy-footer-link:hover{color:#fff;text-decoration-color:#fff}.site-footer .privacy-footer-link:focus-visible{outline:2px solid #fff;outline-offset:4px;border-radius:4px}@media(max-width:600px){.site-footer-main{flex-direction:column;align-items:flex-start;gap:12px}.site-footer-main p{min-width:0}.site-footer-main>span{margin-left:0}.site-footer-legal{flex-direction:column;align-items:flex-start;gap:0;margin-top:20px}}

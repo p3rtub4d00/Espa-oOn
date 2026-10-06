@@ -88,6 +88,21 @@ const menuGroups = [
   },
 ]
 
+const categoryDescriptions = {
+  revenue: 'Consulte os recebimentos e o faturamento por mês.',
+  visits: 'Confirme visitas ao espaço e consulte o histórico.',
+  contracts: 'Consulte assinaturas e baixe os contratos das reservas.',
+  gallery: 'Adicione, organize e remova as fotos do espaço.',
+  amenities: 'Informe a estrutura que está incluída no aluguel.',
+  extras: 'Cadastre itens alugados à parte, quantidades e valores.',
+  prices: 'Defina os preços de aluguel e os horários de entrada.',
+  establishment: 'Atualize os dados do clube, endereço e contatos.',
+  branding: 'Personalize a logo e as cores do seu espaço.',
+  policies: 'Revise as condições de cancelamento e devolução.',
+  notifications: 'Ative avisos neste aparelho e configure os lembretes.',
+  system: 'Gerencie a senha do painel e as opções de segurança.',
+}
+
 function money(value) {
   return new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 }
@@ -225,6 +240,16 @@ export default function AdminPanel({
   onSettingsSaved = () => {},
 }) {
   const [active, setActive] = useState('overview')
+  const navigatePanel = (id) => {
+    setActive(id)
+    setMobileMenuOpen(false)
+    window.requestAnimationFrame(() => {
+      window.scrollTo({ top: 0, behavior: 'auto' })
+      document.querySelector('.admin-header h1')?.focus({ preventScroll: true })
+    })
+  }
+  const selectedCategory = menuGroups.find((group) => group.id === active)
+  const parentCategory = menuGroups.find((group) => group.items.some(([id]) => id === active))
   const [supportOpen, setSupportOpen] = useState(false)
   const supportButtonRef = useRef(null)
   const closeSupport = () => {
@@ -250,12 +275,10 @@ export default function AdminPanel({
   }
   const navigateFromTutorial = (id) => {
     setActive(id)
-    setOpenMenuGroup(menuGroups.find((group) => group.items.some(([item]) => item === id))?.id || '')
     setMobileMenuOpen(false)
     setTutorialOpen(false)
     window.requestAnimationFrame(() => document.querySelector('.admin-header h1')?.focus())
   }
-  const [openMenuGroup, setOpenMenuGroup] = useState('')
   const [reservations, setReservations] = useState([])
   const [reservationNow, setReservationNow] = useState(() => new Date())
   const [showReservationHistory, setShowReservationHistory] = useState(false)
@@ -723,10 +746,7 @@ export default function AdminPanel({
             {primaryMenu.map(([id, label, Icon]) => (
               <button
                 className={active === id ? 'active' : ''}
-                onClick={() => {
-                  setActive(id)
-                  setMobileMenuOpen(false)
-                }}
+                onClick={() => navigatePanel(id)}
                 key={id}
               >
                 <Icon size={18} />
@@ -738,45 +758,12 @@ export default function AdminPanel({
           <div className="admin-nav-groups">
             {menuGroups.map((group) => {
               const GroupIcon = group.icon
-              const groupActive = group.items.some(([id]) => id === active)
-              const expanded = openMenuGroup === group.id
-
+              const groupActive = active === group.id || group.items.some(([id]) => id === active)
               return (
                 <div className={groupActive ? 'admin-nav-group active' : 'admin-nav-group'} key={group.id}>
-                  <button
-                    type="button"
-                    className={groupActive ? 'admin-nav-group-toggle active' : 'admin-nav-group-toggle'}
-                    onClick={() =>
-                      setOpenMenuGroup((current) => current === group.id ? '' : group.id)
-                    }
-                    aria-expanded={expanded}
-                  >
-                    <GroupIcon size={18} />
-                    <span>{group.label}</span>
-                    <ChevronDown
-                      className={expanded ? 'admin-nav-chevron open' : 'admin-nav-chevron'}
-                      size={16}
-                    />
+                  <button type="button" className={groupActive ? 'admin-nav-group-toggle active' : 'admin-nav-group-toggle'} onClick={() => navigatePanel(group.id)} aria-current={active === group.id ? 'page' : undefined}>
+                    <GroupIcon size={18} /><span>{group.label}</span><ChevronRight className="admin-nav-category-arrow" size={16} />
                   </button>
-
-                  {expanded && (
-                    <div className="admin-nav-submenu">
-                      {group.items.map(([id, label, Icon]) => (
-                        <button
-                          className={active === id ? 'active' : ''}
-                          onClick={() => {
-                            setActive(id)
-                            setOpenMenuGroup(group.id)
-                            setMobileMenuOpen(false)
-                          }}
-                          key={id}
-                        >
-                          <Icon size={16} />
-                          <span>{label}</span>
-                        </button>
-                      ))}
-                    </div>
-                  )}
                 </div>
               )
             })}
@@ -814,6 +801,7 @@ export default function AdminPanel({
             <span>Painel administrativo</span>
             <h1 tabIndex={-1}>{
               primaryMenu.find(([id]) => id === active)?.[1] ||
+              menuGroups.find((group) => group.id === active)?.label ||
               menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] ||
               'Painel'
             }</h1>
@@ -844,6 +832,18 @@ export default function AdminPanel({
             closeTutorial()
           }}
         />}
+
+        {parentCategory && <button className="admin-category-back" onClick={() => navigatePanel(parentCategory.id)}><ArrowLeft size={16} />Voltar para {parentCategory.label}</button>}
+        {selectedCategory && <section className="admin-category-panel" aria-label={'Opções de ' + selectedCategory.label}>
+          <p>Escolha o que você deseja consultar ou configurar.</p>
+          <div className="admin-category-grid">
+            {selectedCategory.items.map(([id, label, Icon]) => <button className="admin-category-option" aria-label={label} key={id} onClick={() => navigatePanel(id)}>
+              <span className="admin-category-icon"><Icon size={24} /></span>
+              <span className="admin-category-copy"><strong>{label}</strong><small>{categoryDescriptions[id]}</small></span>
+              <ChevronRight size={20} />
+            </button>)}
+          </div>
+        </section>}
 
         {active === 'overview' && (
           <>
@@ -2837,7 +2837,8 @@ export default function AdminPanel({
 
       {supportOpen && <AdminSupport
         clubName={currentBrandName}
-        sectionName={primaryMenu.find(([id]) => id === active)?.[1] || menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] || 'Visão geral'}
+        sectionName={primaryMenu.find(([id]) => id === active)?.[1] || menuGroups.find((group) => group.id === active)?.label ||
+              menuGroups.flatMap((group) => group.items).find(([id]) => id === active)?.[1] || 'Visão geral'}
         onClose={closeSupport}
       />}
 

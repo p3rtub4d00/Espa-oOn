@@ -8,11 +8,13 @@ import ReservationLookup from './components/ReservationLookup'
 import BrandLogo from './components/BrandLogo'
 import AdminPanel from './admin/AdminPanel'
 import AdminLogin from './admin/AdminLogin'
-import { loadSettings } from './data/settings'
+import { getPriceForDate, loadSettings } from './data/settings'
 import { api } from './data/api'
 import {
   ArrowRight,
   CalendarDays,
+  Images,
+  PackagePlus,
   LayoutDashboard,
   ExternalLink,
   MessageCircle,
@@ -30,46 +32,10 @@ import {
   Goal,
   Gamepad2,
   UtensilsCrossed,
-  Car,
-  Users,
   Snowflake,
   Armchair,
-  Navigation,
-  Phone
+  Navigation
 } from 'lucide-react'
-
-const heroSlides = [
-  {
-    image:
-      'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=2000&q=88',
-    eyebrow: 'Clube para família e amigos',
-    title: 'Piscina, lazer e espaço para curtir o dia.',
-    text: 'Veja as fotos, confira os valores e escolha uma data disponível sem complicação.',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1572331165267-854da2b10ccc?auto=format&fit=crop&w=2000&q=88',
-    eyebrow: 'Reserva simples',
-    title: 'Escolha 12h ou 24h e faça tudo pelo celular.',
-    text: 'A agenda mostra as datas disponíveis e você segue direto para a reserva.',
-  },
-  {
-    image:
-      'https://images.unsplash.com/photo-1544984243-ec57ea16fe25?auto=format&fit=crop&w=2000&q=88',
-    eyebrow: 'Quer conhecer antes?',
-    title: 'Veja o espaço ou solicite uma visita.',
-    text: 'Escolha um horário sugerido e aguarde a confirmação do proprietário pelo WhatsApp.',
-  },
-]
-
-const amenities = [
-  { icon: Waves, label: 'Piscina', text: 'Área de lazer para aproveitar o dia.' },
-  { icon: Goal, label: 'Campo de futebol', text: 'Espaço para jogar com a turma.' },
-  { icon: Gamepad2, label: 'Sinuca', text: 'Diversão para todas as idades.' },
-  { icon: UtensilsCrossed, label: 'Área de apoio', text: 'Estrutura para confraternizações.' },
-  { icon: Car, label: 'Acesso prático', text: 'Chegada simples para seus convidados.' },
-  { icon: Users, label: 'Eventos privados', text: 'Seu grupo com mais privacidade.' },
-]
 
 const gallery = [
   'https://images.unsplash.com/photo-1564501049412-61c2a3083791?auto=format&fit=crop&w=1200&q=85',
@@ -79,34 +45,12 @@ const gallery = [
   'https://images.unsplash.com/photo-1560184897-ae75f418493e?auto=format&fit=crop&w=1200&q=85',
 ]
 
-const priceCards = [
-  {
-    title: 'Segunda a quinta',
-    subtitle: 'Ideal para encontros durante a semana',
-    twelve: 'R$ 450',
-    full: 'R$ 650',
-    featured: false,
-  },
-  {
-    title: 'Sexta e sábado',
-    subtitle: 'Para aproveitar o fim de semana',
-    twelve: 'R$ 700',
-    full: 'R$ 950',
-    featured: true,
-  },
-  {
-    title: 'Domingos',
-    subtitle: 'Seu domingo com a família e amigos',
-    twelve: 'R$ 650',
-    full: 'R$ 850',
-    featured: false,
-  },
-]
-
 function App() {
   const [slide, setSlide] = useState(0)
   const [mobileOpen, setMobileOpen] = useState(false)
   const [selectedDate, setSelectedDate] = useState(null)
+  const [quickDate, setQuickDate] = useState('')
+  const [quickDateError, setQuickDateError] = useState('')
   const [calendarMonth, setCalendarMonth] = useState(() => new Date(new Date().getFullYear(), new Date().getMonth(), 1))
   const [bookingOpen, setBookingOpen] = useState(false)
   const [visitOpen, setVisitOpen] = useState(false)
@@ -155,13 +99,6 @@ function App() {
     brandSettings.secondaryColor,
     brandSettings.accentColor,
   ])
-
-  useEffect(() => {
-    const id = setInterval(() => {
-      setSlide((current) => (current + 1) % heroSlides.length)
-    }, 6500)
-    return () => clearInterval(id)
-  }, [])
 
   useEffect(() => {
     const handleBeforeInstall = (event) => {
@@ -261,7 +198,6 @@ function App() {
         .then((availability) => {
           setReservedDates(new Set(availability.reservedDates || []))
           setPendingDates(new Set(availability.pendingDates || []))
-        setPendingDates(new Set(availability.pendingDates || []))
         })
         .catch(() => {})
     }
@@ -349,11 +285,24 @@ function App() {
     return Gamepad2
   }
 
-  const publicGallery = Array.isArray(siteSettings.gallery) ? siteSettings.gallery : gallery
+  const publicGallery = (Array.isArray(siteSettings.gallery) ? siteSettings.gallery : gallery)
+    .filter((src) => typeof src === 'string' && src.trim())
+  const publicAmenities = Array.isArray(siteSettings.amenities) ? siteSettings.amenities : []
+  const publicExtras = (Array.isArray(siteSettings.extras) ? siteSettings.extras : [])
+    .filter((item) => item?.active === true)
+  const todayISO = toISODate(new Date().getFullYear(), new Date().getMonth(), new Date().getDate())
+  const money = (value) => new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(value)
 
-  const nextSlide = () => setSlide((current) => (current + 1) % heroSlides.length)
+  useEffect(() => {
+    setSlide(0)
+    if (publicGallery.length < 2 || window.matchMedia?.('(prefers-reduced-motion: reduce)').matches) return
+    const id = window.setInterval(() => setSlide((current) => (current + 1) % publicGallery.length), 6500)
+    return () => window.clearInterval(id)
+  }, [publicGallery.length])
+
+  const nextSlide = () => setSlide((current) => (current + 1) % publicGallery.length)
   const prevSlide = () =>
-    setSlide((current) => (current - 1 + heroSlides.length) % heroSlides.length)
+    setSlide((current) => (current - 1 + publicGallery.length) % publicGallery.length)
 
   const openLightbox = (index) => setLightboxIndex(index)
   const closeLightbox = () => setLightboxIndex(null)
@@ -388,6 +337,27 @@ function App() {
   const scrollTo = (id) => {
     document.getElementById(id)?.scrollIntoView({ behavior: 'smooth' })
     setMobileOpen(false)
+  }
+
+  const checkQuickDate = (event) => {
+    event.preventDefault()
+    setQuickDateError('')
+    if (!siteReady || bookingLicenseBlocked) return
+    if (!quickDate) { scrollTo('agenda'); return }
+    const [year, month, day] = quickDate.split('-').map(Number)
+    const date = new Date(year, month - 1, day, 12)
+    if (toISODate(date.getFullYear(), date.getMonth(), date.getDate()) !== quickDate || quickDate < todayISO) {
+      setQuickDateError('Escolha uma data a partir de hoje.')
+      return
+    }
+    setCalendarMonth(new Date(year, month - 1, 1))
+    if (reservedDates.has(quickDate) || pendingDates.has(quickDate) || (siteSettings.blockedDates || []).includes(quickDate)) {
+      setSelectedDate(null)
+      setQuickDateError('Essa data não está disponível. Consulte outras opções no calendário.')
+    } else {
+      setSelectedDate(quickDate)
+    }
+    scrollTo('agenda')
   }
 
   if (adminOpen) {
@@ -436,8 +406,7 @@ function App() {
             ])
             setSiteSettings(refreshed)
             setReservedDates(new Set(availability.reservedDates || []))
-          setPendingDates(new Set(availability.pendingDates || []))
-        setPendingDates(new Set(availability.pendingDates || []))
+            setPendingDates(new Set(availability.pendingDates || []))
             setLicenseStatus(license || { active: true, configured: false })
             setSiteReady(true)
             setSiteLoadError('')
@@ -451,7 +420,19 @@ function App() {
   }
 
   return (
-    <div className="site-shell">
+    <div className="site-shell venue-home">
+      {siteReady && licenseStatus.demoMode === true && (
+        <aside className="demo-tour-banner" aria-label="Demonstração ClubeOn">
+          <span className="demo-tour-kicker"><Sparkles size={14} aria-hidden="true" /> Modo demonstração</span>
+          <span className="demo-tour-note">Teste uma reserva sem pagamento real.</span>
+          <a className="btn-demo-admin" href="/admin" target="_blank" rel="noopener noreferrer"
+            aria-label="Testar painel do proprietário (abre em nova aba)">
+            <LayoutDashboard size={16} aria-hidden="true" />
+            Testar painel do proprietário
+            <ExternalLink size={14} aria-hidden="true" />
+          </a>
+        </aside>
+      )}
       <header className="topbar">
         <a className="brand" href="#inicio" aria-label={brandName}>
           <BrandLogo
@@ -485,12 +466,14 @@ function App() {
           className="mobile-menu-btn"
           onClick={() => setMobileOpen((value) => !value)}
           aria-label="Abrir menu"
+          aria-expanded={mobileOpen}
+          aria-controls="public-mobile-menu"
         >
           {mobileOpen ? <X /> : <Menu />}
         </button>
 
         {mobileOpen && (
-          <div className="mobile-menu">
+          <div className="mobile-menu" id="public-mobile-menu">
             <button onClick={() => scrollTo('estrutura')}>O espaço</button>
             <button onClick={() => scrollTo('galeria')}>Galeria</button>
             <button onClick={() => scrollTo('precos')}>Preços</button>
@@ -507,28 +490,7 @@ function App() {
         )}
       </header>
 
-      <main className={siteReady && licenseStatus.demoMode === true ? 'demo-home-main' : undefined}>
-        {siteReady && licenseStatus.demoMode === true && (
-          <section className="demo-tour-banner" aria-labelledby="demo-tour-title">
-            <div className="demo-tour-copy">
-              <span className="demo-tour-kicker">Demonstração ClubeOn</span>
-              <h2 id="demo-tour-title">Conheça os dois lados do ClubeOn</h2>
-              <p>Simule uma reserva ou veja como o proprietário gerencia o espaço.</p>
-              <small>Nenhum pagamento real será processado nesta demonstração.</small>
-            </div>
-            <a
-              className="btn-demo-admin"
-              href="/admin"
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Testar painel do proprietário (abre em nova aba)"
-            >
-              <LayoutDashboard size={19} aria-hidden="true" />
-              Testar painel do proprietário
-              <ExternalLink size={16} aria-hidden="true" />
-            </a>
-          </section>
-        )}
+      <main>
 
         {bookingLicenseBlocked && (
           <div className="public-system-alert license-suspended-alert">
@@ -546,12 +508,13 @@ function App() {
         )}
 
         <section className="hero" id="inicio">
-          {heroSlides.map((item, index) => (
+          {publicGallery.map((src, index) => (
             <div
               className={`hero-slide ${index === slide ? 'is-active' : ''}`}
-              key={item.title}
+              key={`${src}-${index}`}
+              aria-hidden="true"
               style={{
-                backgroundImage: `url("${publicGallery.length ? publicGallery[index % publicGallery.length] : item.image}")`,
+                backgroundImage: `url(${JSON.stringify(src)})`,
               }}
             />
           ))}
@@ -561,14 +524,14 @@ function App() {
             <div className="hero-copy">
               <span className="eyebrow">
                 <Sparkles size={16} />
-                {heroSlides[slide].eyebrow}
+                {brandName}
               </span>
-              <h1>{heroSlides[slide].title}</h1>
-              <p>{heroSlides[slide].text}</p>
+              <h1>Um espaço para reunir quem você gosta.</h1>
+              <p>Conheça o espaço, escolha a sua data e prepare-se para viver bons momentos com a família e os amigos.</p>
               <div className="hero-actions">
                 <button className="btn-primary" onClick={() => scrollTo('agenda')}>
                   <CalendarDays size={19} />
-                  Consultar disponibilidade
+                  Ver datas disponíveis
                 </button>
                 <button className="btn-secondary" onClick={() => scrollTo('galeria')}>
                   Conhecer o espaço
@@ -578,16 +541,15 @@ function App() {
             </div>
 
             <div className="trust-card">
-              <div className="trust-icon">
-                <ShieldCheck />
-              </div>
+              <div className="trust-icon"><MapPin /></div>
               <div>
-                <strong>Reserva simples e segura</strong>
-                <span>Consulte tudo pelo celular antes de reservar.</span>
+                <strong>{[siteSettings.establishment?.city, siteSettings.establishment?.state].filter(Boolean).join(' · ') || 'Seu próximo encontro começa aqui'}</strong>
+                <span>Fotos, disponibilidade e reserva em um só lugar.</span>
               </div>
             </div>
           </div>
 
+          {publicGallery.length > 1 && <>
           <button className="hero-arrow hero-arrow-left" onClick={prevSlide} aria-label="Foto anterior">
             <ChevronLeft />
           </button>
@@ -596,79 +558,44 @@ function App() {
           </button>
 
           <div className="hero-dots">
-            {heroSlides.map((_, index) => (
+            {publicGallery.map((_, index) => (
               <button
                 key={index}
                 className={index === slide ? 'active' : ''}
                 onClick={() => setSlide(index)}
                 aria-label={`Ir para foto ${index + 1}`}
+                aria-pressed={index === slide}
               />
             ))}
           </div>
+          </>}
         </section>
 
-        <section className="quick-info">
-          <div>
-            <Clock3 />
-            <span><strong>12h ou 24h</strong>Escolha o período ideal</span>
-          </div>
-          <div>
-            <CalendarDays />
-            <span><strong>Agenda online</strong>Veja datas disponíveis</span>
-          </div>
-          <div>
-            <MapPin />
-            <span><strong>Visita agendada</strong>Conheça antes de reservar</span>
-          </div>
-        </section>
-
-        {siteReady && licenseStatus.demoMode === true && (
-          <section className="demo-sales-contact" aria-labelledby="demo-sales-title">
-            <div className="demo-sales-copy">
-              <span className="demo-sales-kicker">ClubeOn para o seu clube</span>
-              <h2 id="demo-sales-title">Gostou do sistema?</h2>
-              <p>Fale com nossa equipe e saiba como levar as reservas online para o seu clube.</p>
-            </div>
-            <div className="demo-sales-actions">
-            <a
-              className="demo-sales-button"
-              onClick={() => { void trackDemoEvent('contact_click') }}
-              href={'https://wa.me/5569999695779?text=' + encodeURIComponent('Olá! Testei a demonstração do ClubeOn e gostaria de mais informações para usar no meu clube.')}
-              target="_blank"
-              rel="noopener noreferrer"
-              aria-label="Fale com nossa equipe pelo WhatsApp (69) 99969-5779 (abre em nova aba)"
-            >
-              <MessageCircle size={23} aria-hidden="true" />
-              <span><strong>Quero saber mais</strong><small>(69) 99969-5779</small></span>
-              <ArrowRight size={19} aria-hidden="true" />
-            </a>
-              <a
-                className="btn-demo-instagram"
-                href="https://www.instagram.com/rubliservicos/"
-                target="_blank"
-                rel="noopener noreferrer"
-                aria-label="Siga a Rubli no Instagram, @rubliservicos (abre em nova aba)"
-              >
-                <Instagram size={22} aria-hidden="true" />
-                <span>
-                  <strong>Siga a Rubli no Instagram</strong>
-                  <small>@rubliservicos</small>
-                </span>
-                <ExternalLink size={16} aria-hidden="true" />
-              </a>
-            </div>
-          </section>
-        )}
+        <form className="venue-date-search" onSubmit={checkQuickDate} aria-label="Consultar disponibilidade por data">
+          <label className="venue-date-field" htmlFor="venue-event-date">
+            <CalendarDays size={22} aria-hidden="true" />
+            <span><strong>Qual a data do seu evento?</strong>
+              <input id="venue-event-date" type="date" min={todayISO} value={quickDate}
+                onChange={(event) => { setQuickDate(event.target.value); setQuickDateError('') }}
+                aria-describedby={quickDateError ? 'venue-date-error' : undefined} />
+            </span>
+          </label>
+          <div className="venue-search-note"><ShieldCheck size={21} aria-hidden="true" /><span>Escolha sua data.<br /><strong>Reserve com tranquilidade.</strong></span></div>
+          <button className="venue-action" type="submit" disabled={!siteReady || bookingLicenseBlocked}>
+            Ver datas disponíveis <ArrowRight size={18} aria-hidden="true" />
+          </button>
+          {quickDateError && <p id="venue-date-error" className="venue-date-error" role="status">{quickDateError}</p>}
+        </form>
 
         <section className="section amenities-section" id="estrutura">
           <div className="section-heading">
-            <span className="section-kicker">O que tem no clube</span>
-            <h2>Estrutura disponível.</h2>
-            <p>Confira o que você terá disponível durante a locação.</p>
+            <span className="section-kicker">Conheça o espaço</span>
+            <h2>Estrutura que faz a diferença.</h2>
+            <p>Confira as comodidades para aproveitar seu evento do começo ao fim.</p>
           </div>
 
           <div className="amenities-grid">
-            {siteSettings.amenities.map((item) => {
+            {publicAmenities.map((item) => {
               const Icon = amenityIcon(item.icon)
               return (
                 <article className="amenity-card" key={item.id}>
@@ -683,78 +610,26 @@ function App() {
 
         <section className="gallery-section" id="galeria">
           <div className="section gallery-inner">
-            <div className="section-heading light">
+            <div className="section-heading">
               <span className="section-kicker">Fotos do espaço</span>
-              <h2>Veja como é o clube.</h2>
-              <p>Fotos cadastradas pelo proprietário.</p>
+              <h2>Imagine seu próximo encontro aqui.</h2>
+              <p>Explore a galeria e conheça cada detalhe do espaço.</p>
             </div>
 
             <div className="gallery-grid">
               {publicGallery.map((src, index) => (
                 <button
                   className={index === 0 ? 'gallery-main' : ''}
-                  key={src}
+                  key={`${src}-${index}`}
                   onClick={() => openLightbox(index)}
                   aria-label={`Abrir foto ${index + 1} em tela cheia`}
                 >
-                  <img src={src} alt={`Área do espaço ${index + 1}`} />
+                  <img src={src} alt={`Área do espaço ${index + 1}`} loading="lazy" />
                 </button>
               ))}
             </div>
-          </div>
-        </section>
-
-        <section className="section pricing-section" id="precos">
-          <div className="section-heading">
-            <span className="section-kicker">Preços</span>
-            <h2>Veja os valores antes de reservar.</h2>
-            <p>Escolha o período e depois consulte uma data disponível.</p>
-          </div>
-
-          <div className="pricing-grid">
-            {[
-              {
-                title: 'Segunda a quinta',
-                subtitle: 'Ideal para encontros durante a semana',
-                twelve: siteSettings.prices.weekday12,
-                full: siteSettings.prices.weekday24,
-                featured: false,
-              },
-              {
-                title: 'Sexta e sábado',
-                subtitle: 'Para aproveitar o fim de semana',
-                twelve: siteSettings.prices.weekend12,
-                full: siteSettings.prices.weekend24,
-                featured: true,
-              },
-              {
-                title: 'Domingos',
-                subtitle: 'Seu domingo com a família e amigos',
-                twelve: siteSettings.prices.sunday12,
-                full: siteSettings.prices.sunday24,
-                featured: false,
-              },
-            ].map((card) => (
-              <article className={`price-card ${card.featured ? 'featured' : ''}`} key={card.title}>
-                {card.featured && <span className="popular-badge">Mais procurado</span>}
-                <h3>{card.title}</h3>
-                <p>{card.subtitle}</p>
-
-                <div className="price-row">
-                  <span><Clock3 size={17} /> 12 horas</span>
-                  <strong>{siteReady ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.twelve) : 'Carregando...'}</strong>
-                </div>
-                <div className="price-row">
-                  <span><CalendarDays size={17} /> 24 horas</span>
-                  <strong>{siteReady ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.full) : 'Carregando...'}</strong>
-                </div>
-
-                <button onClick={() => scrollTo('agenda')}>
-                  Ver disponibilidade
-                  <ArrowRight size={17} />
-                </button>
-              </article>
-            ))}
+            {publicGallery.length === 0 && <p className="venue-empty-gallery"><Images size={24} /> As fotos do espaço estarão disponíveis em breve.</p>}
+            {publicGallery.length > 0 && <button className="venue-gallery-more" onClick={() => openLightbox(0)}><Images size={18} /> Ver todas as fotos <span>({publicGallery.length})</span></button>}
           </div>
         </section>
 
@@ -762,7 +637,7 @@ function App() {
           <div className="section availability-layout">
             <div className="availability-copy">
               <span className="section-kicker">Disponibilidade</span>
-              <h2>Escolha uma data livre.</h2>
+              <h2>Escolha a data do seu evento.</h2>
               <p>Selecione o dia desejado para começar sua reserva ou solicite uma visita antes.</p>
 
               <div className="legend">
@@ -777,6 +652,7 @@ function App() {
               </button>
             </div>
 
+            <div className="venue-calendar-area">
             <div className={`calendar-card ${bookingLicenseBlocked ? 'calendar-license-blocked' : ''}`}>
               <div className="calendar-header">
                 <div>
@@ -790,7 +666,7 @@ function App() {
               </div>
 
               <div className="weekdays">
-                {['D', 'S', 'T', 'Q', 'Q', 'S', 'S'].map((day, index) => (
+                {['Dom', 'Seg', 'Ter', 'Qua', 'Qui', 'Sex', 'Sáb'].map((day, index) => (
                   <span key={`${day}-${index}`}>{day}</span>
                 ))}
               </div>
@@ -821,6 +697,8 @@ function App() {
                       key={iso}
                       disabled={busy}
                       onClick={() => !busy && setSelectedDate(iso)}
+                      aria-label={`${formatDate(iso)}${paymentPending ? ', pagamento em andamento' : busy ? ', indisponível' : ', disponível'}`}
+                      aria-pressed={selected}
                       className={`${busy ? 'busy' : ''} ${paymentPending ? 'pending-payment-date' : ''} ${selected ? 'selected' : ''}`}
                       title={paymentPending ? 'Pagamento em andamento para esta data' : undefined}
                     >
@@ -865,6 +743,91 @@ function App() {
                 )}
               </div>
             </div>
+            <aside className="venue-booking-summary" aria-label="Resumo da data selecionada" aria-live="polite">
+              <span className="section-kicker">Sua próxima comemoração</span>
+              <h3>{selectedDate ? formatDate(selectedDate) : 'Seu dia especial começa aqui.'}</h3>
+              <p>{selectedDate ? 'Escolha o período na próxima etapa. Estes valores são apenas da locação do espaço.' : 'Toque em uma data disponível no calendário para consultar os valores.'}</p>
+              {selectedDate && siteReady && <div className="venue-summary-prices">
+                <div><span>12 horas</span><strong>{money(getPriceForDate(selectedDate, '12h', siteSettings))}</strong></div>
+                <div><span>24 horas</span><strong>{money(getPriceForDate(selectedDate, '24h', siteSettings))}</strong></div>
+              </div>}
+              <div className="venue-booking-steps">
+                <span><CalendarDays size={17} /> Escolha a data e o período</span>
+                <span><ShieldCheck size={17} /> Confira e assine o contrato</span>
+                <span><Check size={17} /> Siga para o pagamento</span>
+              </div>
+              {licenseStatus.demoMode === true && <small>Demonstração: nenhum pagamento real será processado.</small>}
+            </aside>
+            </div>
+          </div>
+        </section>
+
+        {publicExtras.length > 0 && <section className="section venue-extras-section" id="adicionais">
+          <div className="section-heading">
+            <span className="section-kicker">Itens extras</span>
+            <h2>Deixe seu evento ainda mais completo.</h2>
+            <p>Os adicionais são opcionais. Escolha os itens e as quantidades durante a reserva.</p>
+          </div>
+          <div className="venue-extras-grid">
+            {publicExtras.map((item) => <article className="venue-extra-card" key={item.id}>
+              <div className="venue-extra-icon"><PackagePlus size={25} aria-hidden="true" /></div>
+              <div><h3>{item.name}</h3><p>{item.description || 'Disponível como adicional na sua reserva.'}</p><strong>{money(Number(item.price) || 0)} <small>por unidade</small></strong></div>
+              <button onClick={() => scrollTo('agenda')}>Escolher data <ArrowRight size={16} /></button>
+            </article>)}
+          </div>
+        </section>}
+
+        <section className="section pricing-section" id="precos">
+          <div className="section-heading">
+            <span className="section-kicker">Preços</span>
+            <h2>Veja os valores antes de reservar.</h2>
+            <p>Escolha o período e depois consulte uma data disponível.</p>
+          </div>
+
+          <div className="pricing-grid">
+            {[
+              {
+                title: 'Segunda a quinta',
+                subtitle: 'Ideal para encontros durante a semana',
+                twelve: siteSettings.prices.weekday12,
+                full: siteSettings.prices.weekday24,
+                featured: false,
+              },
+              {
+                title: 'Sexta e sábado',
+                subtitle: 'Para aproveitar o fim de semana',
+                twelve: siteSettings.prices.weekend12,
+                full: siteSettings.prices.weekend24,
+                featured: true,
+              },
+              {
+                title: 'Domingos',
+                subtitle: 'Seu domingo com a família e amigos',
+                twelve: siteSettings.prices.sunday12,
+                full: siteSettings.prices.sunday24,
+                featured: false,
+              },
+            ].map((card) => (
+              <article className={`price-card ${card.featured ? 'featured' : ''}`} key={card.title}>
+                {card.featured && <span className="popular-badge">Fim de semana</span>}
+                <h3>{card.title}</h3>
+                <p>{card.subtitle}</p>
+
+                <div className="price-row">
+                  <span><Clock3 size={17} /> 12 horas</span>
+                  <strong>{siteReady ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.twelve) : 'Carregando...'}</strong>
+                </div>
+                <div className="price-row">
+                  <span><CalendarDays size={17} /> 24 horas</span>
+                  <strong>{siteReady ? new Intl.NumberFormat('pt-BR', { style: 'currency', currency: 'BRL' }).format(card.full) : 'Carregando...'}</strong>
+                </div>
+
+                <button onClick={() => scrollTo('agenda')}>
+                  Ver disponibilidade
+                  <ArrowRight size={17} />
+                </button>
+              </article>
+            ))}
           </div>
         </section>
 
@@ -946,6 +909,44 @@ function App() {
             </div>
           </div>
         </section>
+
+        {siteReady && licenseStatus.demoMode === true && (
+          <section className="demo-sales-contact" aria-labelledby="demo-sales-title">
+            <div className="demo-sales-copy">
+              <span className="demo-sales-kicker">ClubeOn para o seu clube</span>
+              <h2 id="demo-sales-title">Gostou do sistema?</h2>
+              <p>Fale com nossa equipe e saiba como levar as reservas online para o seu clube.</p>
+            </div>
+            <div className="demo-sales-actions">
+            <a
+              className="demo-sales-button"
+              onClick={() => { void trackDemoEvent('contact_click') }}
+              href={'https://wa.me/5569999695779?text=' + encodeURIComponent('Olá! Testei a demonstração do ClubeOn e gostaria de mais informações para usar no meu clube.')}
+              target="_blank"
+              rel="noopener noreferrer"
+              aria-label="Fale com nossa equipe pelo WhatsApp (69) 99969-5779 (abre em nova aba)"
+            >
+              <MessageCircle size={23} aria-hidden="true" />
+              <span><strong>Quero saber mais</strong><small>(69) 99969-5779</small></span>
+              <ArrowRight size={19} aria-hidden="true" />
+            </a>
+              <a
+                className="btn-demo-instagram"
+                href="https://www.instagram.com/rubliservicos/"
+                target="_blank"
+                rel="noopener noreferrer"
+                aria-label="Siga a Rubli no Instagram, @rubliservicos (abre em nova aba)"
+              >
+                <Instagram size={22} aria-hidden="true" />
+                <span>
+                  <strong>Siga a Rubli no Instagram</strong>
+                  <small>@rubliservicos</small>
+                </span>
+                <ExternalLink size={16} aria-hidden="true" />
+              </a>
+            </div>
+          </section>
+        )}
 
         <section className="final-cta">
           <div>
